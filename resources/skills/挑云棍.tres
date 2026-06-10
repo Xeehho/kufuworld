@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_f87bd"]
+
+[resource]
+script = ExtResource("1_f87bd")
+skill_name = "挑云棍"
+category = "棍法"
+damage = 20.0
+cost = 7.0
+active_frames = 10
+recovery_frames = 15
+combo_tag = "连击"
+description = "长棍挑空，破敌先机"

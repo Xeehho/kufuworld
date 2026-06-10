@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_sjoxt"]
+
+[resource]
+script = ExtResource("1_sjoxt")
+skill_name = "飞蝗石"
+category = "暗器"
+damage = 8.0
+cost = 2.0
+startup_frames = 2
+active_frames = 5
+recovery_frames = 6
+combo_tag = "起手"
+description = "飞蝗石直射要害"

@@ -1,0 +1,18 @@
+[gd_scene format=3 uid="uid://dqt1s0keris85"]
+
+[ext_resource type="Script" uid="uid://bjvek3vga6g2l" path="res://scenes/star.gd" id="1_mcqwg"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_j6vao"]
+radius = 8.0
+
+[node name="Star" type="Area2D" unique_id=1691382706]
+script = ExtResource("1_mcqwg")
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=273755540]
+size = Vector2(16, 16)
+color = Color(1, 1, 0, 1)
+anchor_center_x = 0.5
+anchor_center_y = 0.5
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1988115631]
+shape = SubResource("CircleShape2D_j6vao")

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="InnerSkill" format=3]
+
+[ext_resource type="Script" path="res://scripts/inner_skill.gd" id="1_rw8bp"]
+
+[resource]
+script = ExtResource("1_rw8bp")
+skill_name = "土灵归元诀"
+progress_per_tick = 0.7
+required_location = "洞窟"
+qi_bonus = 18.0
+description = "引地脉灵气归元，需在洞穴深处修炼"

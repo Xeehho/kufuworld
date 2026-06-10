@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_1wd1p"]
+
+[resource]
+script = ExtResource("1_1wd1p")
+skill_name = "回旋斩"
+category = "刀法"
+damage = 28.0
+cost = 10.0
+startup_frames = 6
+active_frames = 9
+recovery_frames = 14
+combo_tag = "连击"
+description = "回身旋斩，刀光如轮"

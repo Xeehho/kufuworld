@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="InnerSkill" format=3]
+
+[ext_resource type="Script" path="res://scripts/inner_skill.gd" id="1_n3v1b"]
+
+[resource]
+script = ExtResource("1_n3v1b")
+skill_name = "寒冰真气"
+yin_yang = "阴"
+element = "水"
+progress_per_tick = 1.2
+required_location = "寒潭"
+qi_bonus = 15.0
+description = "吸收寒气凝练真元，需在寒潭区域修炼"

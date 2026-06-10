@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_q0x6c"]
+
+[resource]
+script = ExtResource("1_q0x6c")
+skill_name = "万剑归宗"
+category = "剑法"
+damage = 60.0
+cost = 20.0
+startup_frames = 12
+active_frames = 15
+recovery_frames = 25
+combo_tag = "终结"
+is_light = false
+description = "万剑归一，终极剑技"

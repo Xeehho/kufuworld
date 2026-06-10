@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_u2r4w"]
+
+[resource]
+script = ExtResource("1_u2r4w")
+skill_name = "崩拳"
+damage = 22.0
+cost = 6.0
+active_frames = 6
+combo_tag = "连击"
+description = "崩劲穿透，接续连招"

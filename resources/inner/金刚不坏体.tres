@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="InnerSkill" format=3]
+
+[ext_resource type="Script" path="res://scripts/inner_skill.gd" id="1_vyar4"]
+
+[resource]
+script = ExtResource("1_vyar4")
+skill_name = "金刚不坏体"
+yin_yang = "阳"
+element = "金"
+progress_per_tick = 0.6
+required_location = "山巅"
+qi_bonus = 25.0
+description = "锤炼肉身如金刚，需在高处沐风修炼"

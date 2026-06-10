@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="InnerSkill" format=3]
+
+[ext_resource type="Script" path="res://scripts/inner_skill.gd" id="1_160iv"]
+
+[resource]
+script = ExtResource("1_160iv")
+skill_name = "青木长生功"
+element = "木"
+progress_per_tick = 0.8
+required_location = "竹林"
+qi_bonus = 20.0
+description = "吐纳草木精华，延年益寿"

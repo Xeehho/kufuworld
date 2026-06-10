@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_13rmk"]
+
+[resource]
+script = ExtResource("1_13rmk")
+skill_name = "护体罡气"
+category = "内功"
+damage = 0.0
+startup_frames = 3
+active_frames = 15
+combo_tag = "连击"
+description = "罡气护体，减免伤害"

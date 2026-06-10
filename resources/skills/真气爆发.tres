@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_yqlwe"]
+
+[resource]
+script = ExtResource("1_yqlwe")
+skill_name = "真气爆发"
+category = "内功"
+damage = 40.0
+cost = 10.0
+startup_frames = 8
+active_frames = 10
+recovery_frames = 15
+combo_tag = "终结"
+is_light = false
+description = "真气爆发，震退群敌"

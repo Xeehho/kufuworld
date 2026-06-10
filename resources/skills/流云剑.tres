@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_0wndw"]
+
+[resource]
+script = ExtResource("1_0wndw")
+skill_name = "流云剑"
+category = "剑法"
+damage = 25.0
+cost = 8.0
+recovery_frames = 12
+combo_tag = "连击"
+description = "剑如流云，连绵不绝"

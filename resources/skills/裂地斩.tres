@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_0vaai"]
+
+[resource]
+script = ExtResource("1_0vaai")
+skill_name = "裂地斩"
+category = "刀法"
+damage = 55.0
+cost = 18.0
+startup_frames = 10
+active_frames = 14
+recovery_frames = 22
+combo_tag = "终结"
+is_light = false
+description = "裂地一击，刀气纵横"

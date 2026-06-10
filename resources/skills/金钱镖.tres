@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_jsup7"]
+
+[resource]
+script = ExtResource("1_jsup7")
+skill_name = "金钱镖"
+category = "暗器"
+damage = 18.0
+startup_frames = 4
+active_frames = 6
+recovery_frames = 8
+combo_tag = "连击"
+description = "金钱镖回旋连射"

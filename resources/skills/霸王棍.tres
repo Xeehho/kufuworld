@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_qrt10"]
+
+[resource]
+script = ExtResource("1_qrt10")
+skill_name = "霸王棍"
+category = "棍法"
+damage = 48.0
+cost = 16.0
+startup_frames = 8
+active_frames = 13
+recovery_frames = 22
+combo_tag = "终结"
+is_light = false
+description = "霸王举鼎，一棍绝尘"

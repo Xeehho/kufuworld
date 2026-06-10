@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_wtbpq"]
+
+[resource]
+script = ExtResource("1_wtbpq")
+skill_name = "破山拳"
+damage = 50.0
+cost = 15.0
+startup_frames = 10
+active_frames = 12
+recovery_frames = 20
+combo_tag = "终结"
+is_light = false
+description = "破山之力，终结一击"

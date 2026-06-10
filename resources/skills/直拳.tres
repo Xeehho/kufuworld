@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_8f42p"]
+
+[resource]
+script = ExtResource("1_8f42p")
+skill_name = "直拳"
+damage = 12.0
+cost = 3.0
+startup_frames = 3
+active_frames = 5
+recovery_frames = 8
+combo_tag = "起手"
+description = "基础直拳，力道沉稳"

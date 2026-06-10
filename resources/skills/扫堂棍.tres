@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_xkunc"]
+
+[resource]
+script = ExtResource("1_xkunc")
+skill_name = "扫堂棍"
+category = "棍法"
+cost = 4.0
+startup_frames = 4
+recovery_frames = 12
+combo_tag = "起手"
+description = "棍扫下盘，攻守兼备"

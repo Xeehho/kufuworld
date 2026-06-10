@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Skill" format=3]
+
+[ext_resource type="Script" path="res://scripts/skill.gd" id="1_u3rsf"]
+
+[resource]
+script = ExtResource("1_u3rsf")
+skill_name = "暴雨梨花"
+category = "暗器"
+damage = 45.0
+cost = 12.0
+startup_frames = 8
+active_frames = 10
+recovery_frames = 16
+combo_tag = "终结"
+is_light = false
+description = "漫天暗器，无处可逃"

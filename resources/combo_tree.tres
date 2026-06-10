@@ -1,0 +1,80 @@
+[gd_resource type="Resource" script_class="ComboTree" load_steps=4 format=3 uid="uid://cbzbcdxk6qw8f"]
+
+[ext_resource type="Script" path="res://scripts/combo_tree.gd" id="1_ct"]
+[ext_resource type="Script" path="res://scripts/combo_route.gd" id="2_cr"]
+
+[sub_resource type="Resource" id="C01"]
+script = ExtResource("2_cr")
+from_tag = "起手"
+next_skill = "崩拳"
+bonus_damage = 5.0
+
+[sub_resource type="Resource" id="C02"]
+script = ExtResource("2_cr")
+from_tag = "起手"
+next_skill = "流云剑"
+bonus_damage = 5.0
+
+[sub_resource type="Resource" id="C03"]
+script = ExtResource("2_cr")
+from_tag = "起手"
+next_skill = "回旋斩"
+bonus_damage = 5.0
+
+[sub_resource type="Resource" id="C04"]
+script = ExtResource("2_cr")
+from_tag = "起手"
+next_skill = "挑云棍"
+bonus_damage = 5.0
+
+[sub_resource type="Resource" id="C05"]
+script = ExtResource("2_cr")
+from_tag = "起手"
+next_skill = "金钱镖"
+bonus_damage = 5.0
+
+[sub_resource type="Resource" id="C06"]
+script = ExtResource("2_cr")
+from_tag = "起手"
+next_skill = "护体罡气"
+bonus_damage = 3.0
+
+[sub_resource type="Resource" id="C07"]
+script = ExtResource("2_cr")
+from_tag = "连击"
+next_skill = "破山拳"
+bonus_damage = 12.0
+
+[sub_resource type="Resource" id="C08"]
+script = ExtResource("2_cr")
+from_tag = "连击"
+next_skill = "万剑归宗"
+bonus_damage = 12.0
+
+[sub_resource type="Resource" id="C09"]
+script = ExtResource("2_cr")
+from_tag = "连击"
+next_skill = "裂地斩"
+bonus_damage = 12.0
+
+[sub_resource type="Resource" id="C10"]
+script = ExtResource("2_cr")
+from_tag = "连击"
+next_skill = "霸王棍"
+bonus_damage = 12.0
+
+[sub_resource type="Resource" id="C11"]
+script = ExtResource("2_cr")
+from_tag = "连击"
+next_skill = "暴雨梨花"
+bonus_damage = 10.0
+
+[sub_resource type="Resource" id="C12"]
+script = ExtResource("2_cr")
+from_tag = "连击"
+next_skill = "真气爆发"
+bonus_damage = 10.0
+
+[resource]
+script = ExtResource("1_ct")
+routes = Array[Resource]([SubResource("C01"), SubResource("C02"), SubResource("C03"), SubResource("C04"), SubResource("C05"), SubResource("C06"), SubResource("C07"), SubResource("C08"), SubResource("C09"), SubResource("C10"), SubResource("C11"), SubResource("C12")])
