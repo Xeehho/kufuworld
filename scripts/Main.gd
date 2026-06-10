@@ -30,7 +30,8 @@ func _ready():
 
 func _ensure_textures():
 	# 检查关键纹理是否存在，如果不存在则运行生成器
-	if not ResourceLoader.exists("res://sprites/tiles/grass.png") or not ResourceLoader.exists("res://sprites/player/idle_down_0.png") or not ResourceLoader.exists("res://sprites/npc/warrior_idle_down_0.png"):
+	var need_textures = not ResourceLoader.exists("res://sprites/tiles/grass.png") or not ResourceLoader.exists("res://sprites/player/idle_down_0.png") or not ResourceLoader.exists("res://sprites/npc/warrior_idle_down_0.png")
+	if need_textures:
 		var gen_script = load("res://scripts/texture_generator.gd")
 		if gen_script:
 			var gen = Node.new()
@@ -48,8 +49,13 @@ func _ensure_textures():
 			add_child(frame_gen)
 			frame_gen.queue_free()
 			print("[Main] Frame resources generated")
-	# 检查瓦片集是否存在，如果不存在则运行瓦片集生成器
-	if not ResourceLoader.exists("res://tilesets/ground_tiles.tres"):
+	# 检查瓦片集是否有效（文件存在且有瓦片源）
+	var need_tileset = true
+	if ResourceLoader.exists("res://tilesets/ground_tiles.tres"):
+		var existing_ts = load("res://tilesets/ground_tiles.tres") as TileSet
+		if existing_ts and existing_ts.get_source_count() > 0:
+			need_tileset = false
+	if need_tileset:
 		var tileset_gen_script = load("res://scripts/tileset_generator.gd")
 		if tileset_gen_script:
 			var tileset_gen = Node.new()
