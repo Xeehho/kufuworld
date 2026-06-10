@@ -10,8 +10,10 @@ const BUILD_OFFSET = 48.0
 const STAGGER_DURATION = 1.2
 
 enum State {IDLE, MOVE, ATTACK, BLOCK, DODGE, MEDITATE, BUILD, STAGGER}
+enum Direction {DOWN, LEFT, RIGHT, UP}
 
 var state: State = State.IDLE
+var facing: Direction = Direction.DOWN
 var current_skill: Skill = null
 var frame_counter: int = 0
 var skill_phase: String = ""
@@ -23,7 +25,7 @@ var equipped_light_skill: String = ""
 var equipped_heavy_skill: String = ""
 var combo_tree: ComboTree = null
 var stagger_timer: float = 0.0
-var combat_stance: Node = null  # CombatStance引用
+var combat_stance: Node = null
 var build_place_cooldown: float = 0.0
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
@@ -37,6 +39,33 @@ func _ready():
 	attack_indicator.visible = false
 	combo_tree = load("res://resources/combo_tree.tres") if ResourceLoader.exists("res://resources/combo_tree.tres") else null
 	combat_stance = get_node_or_null("/root/Main/CombatStance")
+
+func _update_facing(dir: Vector2):
+	if abs(dir.x) > abs(dir.y):
+		if dir.x < 0:
+			facing = Direction.LEFT
+		else:
+			facing = Direction.RIGHT
+	else:
+		if dir.y < 0:
+			facing = Direction.UP
+		else:
+			facing = Direction.DOWN
+
+func _dir_suffix() -> String:
+	match facing:
+		Direction.DOWN: return "down"
+		Direction.LEFT: return "left"
+		Direction.RIGHT: return "right"
+		Direction.UP: return "up"
+		_: return "down"
+
+func _play_anim(prefix: String):
+	var anim_name = prefix + "_" + _dir_suffix()
+	if anim and anim.sprite_frames and anim.sprite_frames.has_animation(anim_name):
+		anim.play(anim_name)
+	elif anim and anim.sprite_frames and anim.sprite_frames.has_animation(prefix):
+		anim.play(prefix)
 
 func _physics_process(delta):
 	match state:
@@ -60,26 +89,25 @@ func _physics_process(delta):
 func _process_idle(_delta):
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if input_dir != Vector2.ZERO:
+		_update_facing(input_dir)
 		state = State.MOVE
 		return
+	_play_anim("idle")
 	_check_combat_input()
 
 func _process_move(_delta):
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if input_dir == Vector2.ZERO:
 		state = State.IDLE
-		anim.play("idle")
+		_play_anim("idle")
 		return
+	_update_facing(input_dir)
 	var spd = SPEED
 	if Input.is_action_pressed("player_dodge") and GameManager.stamina > 0:
 		spd = SPRINT_SPEED
 		GameManager.stamina = max(GameManager.stamina - 8.0 * _delta, 0)
 	velocity = input_dir * spd
-	if input_dir.x < 0:
-		anim.flip_h = true
-	elif input_dir.x > 0:
-		anim.flip_h = false
-	anim.play("walk")
+	_play_anim("walk")
 	move_and_slide()
 	_check_combat_input()
 
@@ -122,7 +150,7 @@ func _start_attack(is_light: bool):
 	current_skill = skill
 	frame_counter = 0
 	skill_phase = "startup"
-	anim.play("idle")
+	_play_anim("attack")
 	velocity = Vector2.ZERO
 
 func _get_skill(is_light: bool) -> Skill:
@@ -135,14 +163,14 @@ func _get_skill(is_light: bool) -> Skill:
 		skill = load("res://resources/skills/直拳.tres")
 	else:
 		skill = load("res://resources/skills/破山拳.tres")
-	
+
 	if combo_timer > 0 and combo_tree != null and combo_input_queue.size() > 0:
 		var last_skill = combo_input_queue[-1] as Skill
 		if last_skill and last_skill.combo_tag != "无" and last_skill.combo_tag != "终结":
 			var candidates = combo_tree.get_next_skills(last_skill.combo_tag)
 			if candidates.has(skill.skill_name):
 				skill.damage += _get_combo_bonus(last_skill.combo_tag, skill.skill_name)
-	
+
 	combo_input_queue.append(skill)
 	combo_timer = COMBO_WINDOW
 	return skill
@@ -157,7 +185,7 @@ func _get_combo_bonus(from_tag: String, next_skill_name: String) -> float:
 
 func _process_attack(_delta):
 	frame_counter += 1
-	
+
 	if skill_phase == "startup":
 		attack_indicator.visible = false
 		if frame_counter >= current_skill.startup_frames:
@@ -165,20 +193,29 @@ func _process_attack(_delta):
 			skill_phase = "active"
 			attack_indicator.visible = true
 			attack_indicator.color.a = 0.7
-			
+
 	elif skill_phase == "active":
-		if anim.flip_h:
-			attack_indicator.position.x = -48
-		else:
-			attack_indicator.position.x = 16
+		match facing:
+			Direction.LEFT:
+				attack_indicator.position.x = -48
+				attack_indicator.position.y = -16
+			Direction.RIGHT:
+				attack_indicator.position.x = 16
+				attack_indicator.position.y = -16
+			Direction.UP:
+				attack_indicator.position.x = -16
+				attack_indicator.position.y = -48
+			Direction.DOWN:
+				attack_indicator.position.x = -16
+				attack_indicator.position.y = 16
 		attack_indicator.color = _damage_color()
-		
+
 		if frame_counter >= current_skill.active_frames:
 			frame_counter = 0
 			skill_phase = "recovery"
 			attack_indicator.visible = false
 			_deal_damage()
-			
+
 	elif skill_phase == "recovery":
 		if frame_counter >= current_skill.recovery_frames:
 			_end_attack()
@@ -196,10 +233,8 @@ func _deal_damage():
 	GameManager.consume_qi(current_skill.cost)
 	var base_damage = current_skill.damage
 	var final_damage = base_damage
-	# 架势伤害修正
 	if combat_stance:
 		var dmg_mult = combat_stance.on_hit_dealt()
-		# 格挡反击
 		var counter_mult = combat_stance.get_block_counter_damage_mult()
 		final_damage = base_damage * dmg_mult * counter_mult
 		if counter_mult > 1.0:
@@ -218,20 +253,18 @@ func _end_attack():
 func _start_block():
 	if GameManager.qi < BLOCK_QI_COST:
 		return
-	# 格挡反击：如果在反击窗口内，轻攻击键触发反击
 	if combat_stance and combat_stance.is_in_block_counter:
 		if combat_stance.try_block_counter():
 			_start_attack(true)
 			return
 	state = State.BLOCK
-	anim.play("idle")
+	_play_anim("block")
 	velocity = Vector2.ZERO
 	attack_indicator.visible = true
 	attack_indicator.color = Color(0.2, 0.5, 1, 0.6)
 
 func _process_block(_delta):
 	GameManager.consume_qi(BLOCK_QI_COST * 0.016)
-	# 格挡时被攻击触发反击窗口
 	if combat_stance and combat_stance.is_in_block_counter:
 		attack_indicator.color = Color(0.3, 0.8, 1, 0.8)
 	if not Input.is_action_pressed("player_block"):
@@ -243,6 +276,8 @@ func _start_dodge():
 	dodge_timer = DODGE_DURATION
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	dodge_dir = input_dir.normalized() if input_dir != Vector2.ZERO else Vector2(0, 1)
+	if dodge_dir != Vector2.ZERO:
+		_update_facing(dodge_dir)
 	attack_indicator.visible = true
 	attack_indicator.color = Color(0.3, 1, 0.4, 0.5)
 	GameManager.consume_qi(5)
@@ -471,13 +506,16 @@ func _spawn_building_visual(pos: Vector2, tpl: BuildingTemplate):
 	var bld_node = Node2D.new()
 	bld_node.name = "Building_" + tpl.building_name
 	bld_node.global_position = pos
+	bld_node.y_sort_enabled = true
+	# 使用瓦片纹理代替ColorRect
+	var tile_tex = _building_tile_texture(tpl.building_type)
 	for sx in range(tpl.size_x):
 		for sy in range(tpl.size_y):
-			var rect = ColorRect.new()
-			rect.color = _building_color(tpl.building_type)
-			rect.size = Vector2(BUILD_OFFSET, BUILD_OFFSET)
-			rect.position = Vector2(sx * BUILD_OFFSET, sy * BUILD_OFFSET)
-			bld_node.add_child(rect)
+			var sprite = Sprite2D.new()
+			sprite.texture = tile_tex
+			sprite.position = Vector2(sx * BUILD_OFFSET + BUILD_OFFSET / 2, sy * BUILD_OFFSET + BUILD_OFFSET / 2)
+			sprite.z_index = 1
+			bld_node.add_child(sprite)
 	var lbl = Label.new()
 	lbl.text = tpl.building_name
 	lbl.position = Vector2(0, -18)
@@ -485,6 +523,20 @@ func _spawn_building_visual(pos: Vector2, tpl: BuildingTemplate):
 	lbl.add_theme_color_override("font_color", Color.WHITE)
 	bld_node.add_child(lbl)
 	get_parent().add_child(bld_node)
+
+func _building_tile_texture(type_str: String) -> Texture2D:
+	var path = ""
+	match type_str:
+		"茅屋": path = "res://sprites/tiles/house_cottage.png"
+		"练功房": path = "res://sprites/tiles/house_temple.png"
+		"炼丹房": path = "res://sprites/tiles/house_cottage.png"
+		"农田": path = "res://sprites/tiles/farmland.png"
+		"围墙": path = "res://sprites/tiles/fence.png"
+		_: path = "res://sprites/tiles/house_cottage.png"
+	if ResourceLoader.exists(path):
+		return load(path)
+	# 回退到ColorRect方式
+	return null
 
 func _building_color(type_str: String) -> Color:
 	match type_str:
@@ -523,15 +575,15 @@ func _betray_clan():
 
 func _switch_stance_attack():
 	if combat_stance:
-		combat_stance.switch_stance(1)  # Stance.ATTACK
+		combat_stance.switch_stance(1)
 
 func _switch_stance_defense():
 	if combat_stance:
-		combat_stance.switch_stance(2)  # Stance.DEFENSE
+		combat_stance.switch_stance(2)
 
 func _switch_stance_neutral():
 	if combat_stance:
-		combat_stance.switch_stance(0)  # Stance.NEUTRAL
+		combat_stance.switch_stance(0)
 
 func _process_stagger(delta):
 	stagger_timer -= delta
@@ -558,10 +610,8 @@ func take_hit_with_stance(damage: float):
 	var actual_damage = damage
 	if combat_stance:
 		actual_damage = combat_stance.on_hit_received(damage)
-		# 格挡状态触发反击窗口
 		if state == State.BLOCK:
 			combat_stance.on_block_hit()
-		# 破绽满触发大硬直
 		if combat_stance.is_staggered():
 			enter_stagger()
 	GameManager.take_hit(actual_damage)

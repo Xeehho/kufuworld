@@ -3,33 +3,35 @@
 [ext_resource type="Script" uid="uid://cb8jvd2t7t2q4" path="res://scripts/npc_character.gd" id="1_nh2m4"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_abqhh"]
-size = Vector2(32, 40)
+size = Vector2(24, 36)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_npc"]
 
 [node name="NPCBase" type="CharacterBody2D" unique_id=1766615235]
 script = ExtResource("1_nh2m4")
 
-[node name="ColorRect" type="ColorRect" parent="." unique_id=760936575]
-offset_left = -12.0
-offset_top = -16.0
-offset_right = 12.0
-offset_bottom = 16.0
-color = Color(0.4, 0.65, 0.4, 1)
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+scale = Vector2(1.5, 1.5)
+sprite_frames = SubResource("SpriteFrames_npc")
+animation = &"idle_down"
 
-[node name="NameLabel" type="Label" parent="." unique_id=173379378]
+[node name="NameLabel" type="Label" parent="."]
 offset_left = -30.0
-offset_top = -36.0
-offset_right = -29.0
-offset_bottom = -13.0
+offset_top = -42.0
+offset_right = 30.0
+offset_bottom = -20.0
 theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_font_sizes/font_size = 11
+horizontal_alignment = 1
 
-[node name="StateLabel" type="Label" parent="." unique_id=492095394]
+[node name="StateLabel" type="Label" parent="."]
 offset_left = -20.0
-offset_top = -50.0
-offset_right = -19.0
-offset_bottom = -27.0
+offset_top = -54.0
+offset_right = 20.0
+offset_bottom = -42.0
 theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 10
+theme_override_font_sizes/font_size = 9
+horizontal_alignment = 1
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=2091781593]
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 shape = SubResource("RectangleShape2D_abqhh")

@@ -5,6 +5,9 @@ extends Node2D
 func _ready():
 	print("Godot Trae Project initialized!")
 	print("MCP Server URL: http://127.0.0.1:8000/mcp")
+	_ensure_textures()
+	# 延迟一帧再初始化其他系统，确保纹理资源已就绪
+	await get_tree().process_frame
 	_setup_world_generator()
 	_setup_weather()
 	_setup_hud()
@@ -22,6 +25,38 @@ func _ready():
 	_setup_shop_hud()
 	_setup_death_system()
 	_setup_death_hud()
+	# NPC生成延迟到纹理和世界都就绪后
+	_setup_npc_spawner()
+
+func _ensure_textures():
+	# 检查关键纹理是否存在，如果不存在则运行生成器
+	if not ResourceLoader.exists("res://sprites/tiles/grass.png") or not ResourceLoader.exists("res://sprites/player/idle_down_0.png") or not ResourceLoader.exists("res://sprites/npc/warrior_idle_down_0.png"):
+		var gen_script = load("res://scripts/texture_generator.gd")
+		if gen_script:
+			var gen = Node.new()
+			gen.set_script(gen_script)
+			add_child(gen)
+			gen.generate_all()
+			gen.queue_free()
+			print("[Main] Textures generated on first run")
+	# 检查帧资源是否存在，如果不存在则运行帧生成器
+	if not ResourceLoader.exists("res://sprites/player/player_frames.tres"):
+		var frame_gen_script = load("res://scripts/frames_generator.gd")
+		if frame_gen_script:
+			var frame_gen = Node.new()
+			frame_gen.set_script(frame_gen_script)
+			add_child(frame_gen)
+			frame_gen.queue_free()
+			print("[Main] Frame resources generated")
+	# 检查瓦片集是否存在，如果不存在则运行瓦片集生成器
+	if not ResourceLoader.exists("res://tilesets/ground_tiles.tres"):
+		var tileset_gen_script = load("res://scripts/tileset_generator.gd")
+		if tileset_gen_script:
+			var tileset_gen = Node.new()
+			tileset_gen.set_script(tileset_gen_script)
+			add_child(tileset_gen)
+			tileset_gen.queue_free()
+			print("[Main] TileSet resources generated")
 
 func _setup_quest_system():
 	var qs = Node.new()
@@ -79,7 +114,8 @@ func _setup_world_generator():
 	gen.name = "WorldGenerator"
 	gen.set_script(load("res://scripts/world_generator.gd"))
 	world.add_child(gen)
-	world.move_child(gen, 0)
+	# 确保WorldGenerator在TileMap之后，这样POI渲染在瓦片之上
+	world.move_child(gen, world.get_child_count() - 1)
 
 func _setup_weather():
 	if world == null:
@@ -130,3 +166,16 @@ func _setup_death_hud():
 	dh.name = "DeathHUD"
 	dh.set_script(load("res://scripts/death_hud.gd"))
 	$World/UI.add_child(dh)
+
+func _setup_npc_spawner():
+	# 移除场景中的自动NPCSpawner（如果有），改为代码控制延迟生成
+	var old_spawner = world.get_node_or_null("NPCSpawner")
+	if old_spawner:
+		old_spawner.queue_free()
+	# 等待旧spawner清理完
+	await get_tree().process_frame
+	var spawner = Node2D.new()
+	spawner.name = "NPCSpawner"
+	spawner.set_script(load("res://scripts/npc_spawner.gd"))
+	world.add_child(spawner)
+	print("[Main] NPCSpawner created after textures ready")

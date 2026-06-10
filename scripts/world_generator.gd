@@ -1,12 +1,12 @@
 extends Node2D
 
 const CHUNK_SIZE = 16
-const TILE_SIZE_PX = 16
+const TILE_SIZE_PX = 32
 const CHUNK_PX = CHUNK_SIZE * TILE_SIZE_PX
-const LOAD_RADIUS = 1
+const LOAD_RADIUS = 3
 const WORLD_SEED = 12345
 
-enum Terrain {WATER, SAND, GRASS, FOREST, MOUNTAIN, SNOW}
+enum Terrain {WATER, SAND, GRASS, GRASS_DARK, FOREST, MOUNTAIN, SNOW}
 
 var height_noise: FastNoiseLite
 var humidity_noise: FastNoiseLite
@@ -20,14 +20,17 @@ var world_cells: Dictionary = {}
 var poi_templates = []
 
 var tile_map_parent: Node2D = null
+var main_tile_map: TileMap = null  # 场景中的主TileMap
 @onready var player: CharacterBody2D = $"../Player"
 
 func _ready():
 	_setup_noise()
 	_load_tileset()
-	_create_tilemap_parent()
+	_setup_tilemap_parent()
 	_setup_poi_templates()
 	_scatter_pois()
+	# 初始加载玩家周围的chunk
+	_initial_load()
 	print("[WorldGen] Ready - seed=" + str(WORLD_SEED))
 
 func _setup_noise():
@@ -54,11 +57,20 @@ func _load_tileset():
 	if ResourceLoader.exists("res://tilesets/ground_tiles.tres"):
 		tile_set = load("res://tilesets/ground_tiles.tres")
 
-func _create_tilemap_parent():
-	var p = Node2D.new()
-	p.name = "TileMapParent"
-	add_child(p)
-	tile_map_parent = p
+func _setup_tilemap_parent():
+	# 使用场景中已有的TileMap作为主地图
+	main_tile_map = get_node_or_null("../TileMap")
+	if main_tile_map and main_tile_map.tile_set:
+		tile_map_parent = main_tile_map.get_parent()
+		# 清空主TileMap中已有的瓦片（如果有）
+		main_tile_map.clear()
+	else:
+		# 如果没有主TileMap，创建一个容器
+		var p = Node2D.new()
+		p.name = "TileMapParent"
+		p.y_sort_enabled = true
+		add_child(p)
+		tile_map_parent = p
 
 func get_height(x: int, y: int) -> float:
 	return height_noise.get_noise_2d(x, y)
@@ -74,8 +86,10 @@ func get_terrain(x: int, y: int) -> Terrain:
 	elif h < -0.05:
 		return Terrain.SAND
 	elif h < 0.25:
-		if w > 0.1:
+		if w > 0.2:
 			return Terrain.FOREST
+		elif w > 0.0:
+			return Terrain.GRASS_DARK
 		return Terrain.GRASS
 	elif h < 0.55:
 		return Terrain.MOUNTAIN
@@ -83,16 +97,32 @@ func get_terrain(x: int, y: int) -> Terrain:
 
 func get_tile_id(x: int, y: int) -> int:
 	var t = get_terrain(x, y)
+	var d = detail_noise.get_noise_2d(x, y)
 	match t:
-		Terrain.WATER: return -1
-		Terrain.SAND: return 0
+		Terrain.WATER: return 5
+		Terrain.SAND: return 6
 		Terrain.GRASS: return 0
+		Terrain.GRASS_DARK: return 18
 		Terrain.FOREST:
-			if fmod(detail_noise.get_noise_2d(x, y) + 1, 1) > 0.65:
-				return 4
+			# 森林中随机放置树木和花朵
+			var r = fmod(d + 1.0, 1.0)
+			if r > 0.85:
+				return 4  # 松树
+			elif r > 0.75:
+				return 8  # 橡树
+			elif r > 0.70:
+				return 9  # 竹子
+			elif r > 0.67:
+				return 13 # 花
 			return 0
-		Terrain.MOUNTAIN: return 3
-		Terrain.SNOW: return 3
+		Terrain.MOUNTAIN:
+			if d > 0.3:
+				return 14 # 石头
+			return 3
+		Terrain.SNOW:
+			if d > 0.4:
+				return 7  # 雪山
+			return 7
 	return 0
 
 func world_to_chunk(world_pos: Vector2) -> Vector2i:
@@ -110,6 +140,14 @@ func _process(_delta):
 	if pc != player_chunk:
 		player_chunk = pc
 		_update_chunks()
+
+func _initial_load():
+	# 加载玩家初始位置周围的chunk
+	if player:
+		player_chunk = world_to_chunk(player.global_position)
+	else:
+		player_chunk = Vector2i(0, 0)
+	_update_chunks()
 
 func _update_chunks():
 	var needed: Array = []
@@ -132,13 +170,11 @@ func _update_chunks():
 func _load_chunk(chunk: Vector2i):
 	if tile_set == null:
 		return
-	var tm = TileMap.new()
-	tm.tile_set = tile_set
-	tm.name = "Chunk_" + str(chunk.x) + "_" + str(chunk.y)
-	tm.position = chunk_to_world(chunk)
-	tm.scale = Vector2(3, 3)
-	tm.y_sort_enabled = true
-	tile_map_parent.add_child(tm)
+
+	# 使用主TileMap直接设置瓦片，避免创建多个TileMap导致空隙
+	var tm = main_tile_map
+	if tm == null:
+		return
 
 	var start_x = chunk.x * CHUNK_SIZE
 	var start_y = chunk.y * CHUNK_SIZE
@@ -146,18 +182,20 @@ func _load_chunk(chunk: Vector2i):
 		for y in range(CHUNK_SIZE):
 			var wx = start_x + x
 			var wy = start_y + y
-			var tid = get_tile_id(wx, wy)
-			if tid >= 0:
-				tm.set_cell(0, Vector2i(x, y), tid, Vector2i(0, 0))
-			world_cells[Vector2i(wx, wy)] = tid
+			var cell = Vector2i(wx, wy)
+			# 只设置尚未设置的瓦片
+			if tm.get_cell_source_id(0, cell) == -1:
+				var tid = get_tile_id(wx, wy)
+				if tid >= 0:
+					tm.set_cell(0, cell, tid, Vector2i(0, 0))
+			world_cells[cell] = get_tile_id(wx, wy)
 
-	loaded_chunks[chunk] = tm
+	loaded_chunks[chunk] = true  # 标记chunk已加载
 
 func _unload_chunk(chunk: Vector2i):
-	if loaded_chunks.has(chunk):
-		var tm = loaded_chunks[chunk] as TileMap
-		tm.queue_free()
-		loaded_chunks.erase(chunk)
+	# 使用单一TileMap时，不卸载chunk以避免空隙
+	# 只标记为已加载，不实际删除瓦片
+	loaded_chunks.erase(chunk)
 
 func _setup_poi_templates():
 	var shaolin = POITemplate.new()
@@ -258,7 +296,7 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 			continue
 		if w < tpl.min_humidity or w > tpl.max_humidity:
 			continue
-		var pos = Vector2(wx * TILE_SIZE_PX * 3, wy * TILE_SIZE_PX * 3)
+		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 		if _too_close_to_other_poi(pos, tpl.min_distance):
 			continue
 		_create_poi_marker(tpl, pos)
@@ -279,27 +317,67 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	var marker = Node2D.new()
 	marker.name = "POI_" + tpl.poi_name.replace(" ", "_")
 	marker.global_position = pos
+	marker.y_sort_enabled = true
+	marker.z_index = 10  # 确保在地面瓦片之上
 
+	# 建筑群 - 根据POI类型放置不同建筑
+	var building_tile = _poi_building_tile(tpl.poi_type)
+	var building_count = _poi_building_count(tpl.poi_type)
+	var rng = RandomNumberGenerator.new()
+	rng.seed = hash(tpl.poi_name)
+
+	# 中心建筑
+	var center_sprite = Sprite2D.new()
+	center_sprite.texture = load(building_tile) if ResourceLoader.exists(building_tile) else null
+	center_sprite.z_index = 10
+	center_sprite.y_sort_enabled = true
+	marker.add_child(center_sprite)
+
+	# 周围建筑
+	for i in range(building_count - 1):
+		var bx = rng.randi_range(-3, 3) * TILE_SIZE_PX
+		var by = rng.randi_range(-2, 2) * TILE_SIZE_PX
+		var bld_sprite = Sprite2D.new()
+		var bld_tile = _poi_secondary_building_tile(tpl.poi_type, rng)
+		if ResourceLoader.exists(bld_tile):
+			bld_sprite.texture = load(bld_tile)
+		bld_sprite.position = Vector2(bx, by)
+		bld_sprite.z_index = 10
+		bld_sprite.y_sort_enabled = true
+		marker.add_child(bld_sprite)
+
+	# 装饰物
+	var deco_count = rng.randi_range(2, 5)
+	for i in range(deco_count):
+		var dx = rng.randi_range(-4, 4) * TILE_SIZE_PX
+		var dy = rng.randi_range(-3, 3) * TILE_SIZE_PX
+		var deco_sprite = Sprite2D.new()
+		var deco_tile = _random_decoration(rng)
+		if ResourceLoader.exists(deco_tile):
+			deco_sprite.texture = load(deco_tile)
+		deco_sprite.position = Vector2(dx, dy)
+		deco_sprite.z_index = 10
+		deco_sprite.y_sort_enabled = true
+		marker.add_child(deco_sprite)
+
+	# 地点名称标签 - 使用Label3D风格，确保在最上层
 	var label = Label.new()
 	label.text = tpl.poi_name
-	label.position = Vector2(-30, -20)
+	label.position = Vector2(-30, -40)
+	label.z_index = 20  # 标签在建筑之上
 	label.add_theme_color_override("font_color", tpl.icon_color)
-	label.add_theme_font_size_override("font_size", 12)
+	label.add_theme_font_size_override("font_size", 13)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	marker.add_child(label)
 
-	var rect = ColorRect.new()
-	rect.color = tpl.icon_color
-	rect.color.a = 0.6
-	rect.size = Vector2(16, 16)
-	rect.position = Vector2(-8, -8)
-	marker.add_child(rect)
-
+	# 环境区域
 	var env_zone = Area2D.new()
 	env_zone.name = "EnvironmentZone"
 	env_zone.position = Vector2.ZERO
+	env_zone.z_index = 0  # 碰撞区域不需要z_index
 	var col_shape = CollisionShape2D.new()
 	col_shape.shape = RectangleShape2D.new()
-	col_shape.shape.size = Vector2(100, 80)
+	col_shape.shape.size = Vector2(150, 120)
 	env_zone.add_child(col_shape)
 	var zone_script = load("res://scripts/environment_zone.gd")
 	if zone_script:
@@ -310,6 +388,49 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	add_child(marker)
 	pois.append({"template": tpl, "position": pos, "node": marker})
 	print("[WorldGen] Placed POI: " + tpl.poi_name + " at " + str(pos))
+
+func _poi_building_tile(poi_type: String) -> String:
+	match poi_type:
+		"门派": return "res://sprites/tiles/house_temple.png"
+		"城镇": return "res://sprites/tiles/house_town.png"
+		"洞穴": return "res://sprites/tiles/house_cave.png"
+		"修炼场": return "res://sprites/tiles/house_temple.png"
+		"遗迹": return "res://sprites/tiles/house_cave.png"
+		"集市": return "res://sprites/tiles/house_town.png"
+		_: return "res://sprites/tiles/house_cottage.png"
+
+func _poi_secondary_building_tile(poi_type: String, rng: RandomNumberGenerator) -> String:
+	match poi_type:
+		"门派":
+			return ["res://sprites/tiles/house_cottage.png", "res://sprites/tiles/house_temple.png"][rng.randi() % 2]
+		"城镇":
+			return ["res://sprites/tiles/house_town.png", "res://sprites/tiles/house_cottage.png", "res://sprites/tiles/farmland.png"][rng.randi() % 3]
+		"洞穴":
+			return "res://sprites/tiles/rock.png"
+		"修炼场":
+			return "res://sprites/tiles/house_cottage.png"
+		_:
+			return "res://sprites/tiles/house_cottage.png"
+
+func _poi_building_count(poi_type: String) -> int:
+	match poi_type:
+		"门派": return 4
+		"城镇": return 5
+		"洞穴": return 2
+		"修炼场": return 3
+		"遗迹": return 2
+		"集市": return 4
+		_: return 2
+
+func _random_decoration(rng: RandomNumberGenerator) -> String:
+	var options = [
+		"res://sprites/tiles/tree_pine.png",
+		"res://sprites/tiles/tree_oak.png",
+		"res://sprites/tiles/flower.png",
+		"res://sprites/tiles/rock.png",
+		"res://sprites/tiles/fence.png",
+	]
+	return options[rng.randi() % options.size()]
 
 func _too_close_to_other_poi(pos: Vector2, min_dist: float) -> bool:
 	for p in pois:

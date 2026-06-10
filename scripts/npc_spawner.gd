@@ -7,10 +7,10 @@ var interaction_ui: Control = null
 var current_target: CharacterBody2D = null
 
 var npc_configs = [
-	{"id":"npc_001","name":"谢云鹤","personality":"儒雅","pos":Vector2(300,300)},
-	{"id":"npc_002","name":"铁三娘","personality":"豪爽","pos":Vector2(500,450)},
-	{"id":"npc_003","name":"柳如烟","personality":"阴沉","pos":Vector2(700,350)},
-	{"id":"npc_004","name":"老樵夫","personality":"慈悲","pos":Vector2(350,550)},
+	{"id":"npc_001","name":"谢云鹤","personality":"儒雅","npc_type":"scholar","pos":Vector2(300,300)},
+	{"id":"npc_002","name":"铁三娘","personality":"豪爽","npc_type":"warrior","pos":Vector2(500,450)},
+	{"id":"npc_003","name":"柳如烟","personality":"阴沉","npc_type":"mysterious","pos":Vector2(700,350)},
+	{"id":"npc_004","name":"老樵夫","personality":"慈悲","npc_type":"elder","pos":Vector2(350,550)},
 ]
 
 func _ready():
@@ -22,6 +22,7 @@ func _spawn_npcs():
 		var npc = NPC_SCENE.instantiate()
 		npc.global_position = cfg["pos"]
 		npc.name = cfg["name"]
+		npc.npc_type = cfg.get("npc_type", "warrior")
 		npc.npc_data = _create_npc_data(cfg)
 		add_child(npc)
 		npc_list.append(npc)
@@ -43,7 +44,7 @@ func _init_interaction_ui():
 	interaction_ui.name = "InteractionUI"
 	interaction_ui.visible = false
 	interaction_ui.set_anchors_preset(Control.PRESET_FULL_RECT)
-	
+
 	var bg = ColorRect.new()
 	bg.color = Color(0, 0, 0, 0.7)
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)

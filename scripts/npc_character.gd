@@ -3,6 +3,7 @@ extends CharacterBody2D
 const SPEED = 60.0
 
 enum ScheduleState {IDLE, WALK, WORK, SLEEP}
+enum Direction {DOWN, LEFT, RIGHT, UP}
 
 var npc_data: NPCData = null
 var schedule_state: ScheduleState = ScheduleState.IDLE
@@ -13,8 +14,10 @@ var idle_switch_interval: float = 3.0
 var is_interacting: bool = false
 var is_homestead: bool = false
 var homestead_waypoints: Array = []
+var facing: Direction = Direction.DOWN
+var npc_type: String = "warrior"
 
-@onready var sprite: ColorRect = $ColorRect
+@onready var anim: AnimatedSprite2D = $AnimatedSprite2D
 @onready var name_label: Label = $NameLabel
 @onready var state_label: Label = $StateLabel
 
@@ -24,6 +27,7 @@ func _ready():
 	if npc_data == null:
 		_setup_default_npc()
 	name_label.text = npc_data.npc_name
+	_setup_sprite_frames()
 	_generate_waypoints()
 	_update_schedule()
 
@@ -35,6 +39,92 @@ func _setup_default_npc():
 	npc_data.personality = personalities[hash(name) % personalities.size()]
 	npc_data.home_position = global_position
 	npc_data.work_position = global_position + Vector2(randi_range(-100, 100), randi_range(-60, 60))
+	match npc_data.personality:
+		"豪爽", "暴躁":
+			npc_type = "warrior"
+		"儒雅", "慈悲":
+			npc_type = "scholar"
+		"市侩", "狡诈":
+			npc_type = "merchant"
+		"孤傲":
+			npc_type = "mysterious"
+		"阴沉":
+			npc_type = "elder"
+
+func _setup_sprite_frames():
+	if anim == null:
+		return
+	var sf = SpriteFrames.new()
+	var dir_names = ["down", "left", "right", "up"]
+	var has_any_frame = false
+	for dir_name in dir_names:
+		var idle_name = "idle_" + dir_name
+		sf.add_animation(idle_name)
+		sf.set_animation_speed(idle_name, 4.0)
+		sf.set_animation_loop(idle_name, true)
+		for i in range(4):
+			var tex_path = "res://sprites/npc/%s_idle_%s_%d.png" % [npc_type, dir_name, i]
+			if ResourceLoader.exists(tex_path):
+				sf.add_frame(idle_name, load(tex_path))
+				has_any_frame = true
+
+		var walk_name = "walk_" + dir_name
+		sf.add_animation(walk_name)
+		sf.set_animation_speed(walk_name, 8.0)
+		sf.set_animation_loop(walk_name, true)
+		for i in range(6):
+			var tex_path = "res://sprites/npc/%s_walk_%s_%d.png" % [npc_type, dir_name, i]
+			if ResourceLoader.exists(tex_path):
+				sf.add_frame(walk_name, load(tex_path))
+				has_any_frame = true
+
+	anim.sprite_frames = sf
+	# 如果没有任何帧，创建一个占位可见色块
+	if not has_any_frame:
+		_create_fallback_visual()
+	else:
+		anim.play("idle_down")
+
+func _create_fallback_visual():
+	# 如果纹理未生成，用彩色矩形作为占位
+	var fallback = ColorRect.new()
+	fallback.name = "FallbackVisual"
+	fallback.size = Vector2(24, 36)
+	fallback.position = Vector2(-12, -36)
+	var colors = {
+		"warrior": Color(0.5, 0.18, 0.12),
+		"scholar": Color(0.75, 0.72, 0.60),
+		"merchant": Color(0.55, 0.40, 0.20),
+		"elder": Color(0.40, 0.42, 0.50),
+		"mysterious": Color(0.18, 0.15, 0.25),
+	}
+	fallback.color = colors.get(npc_type, Color(0.5, 0.5, 0.3))
+	add_child(fallback)
+
+func _update_facing(dir: Vector2):
+	if abs(dir.x) > abs(dir.y):
+		if dir.x < 0:
+			facing = Direction.LEFT
+		else:
+			facing = Direction.RIGHT
+	else:
+		if dir.y < 0:
+			facing = Direction.UP
+		else:
+			facing = Direction.DOWN
+
+func _dir_suffix() -> String:
+	match facing:
+		Direction.DOWN: return "down"
+		Direction.LEFT: return "left"
+		Direction.RIGHT: return "right"
+		Direction.UP: return "up"
+		_: return "down"
+
+func _play_anim(prefix: String):
+	var anim_name = prefix + "_" + _dir_suffix()
+	if anim and anim.sprite_frames and anim.sprite_frames.has_animation(anim_name):
+		anim.play(anim_name)
 
 func _generate_waypoints():
 	var base = global_position
@@ -45,13 +135,10 @@ func _update_schedule():
 	var hour = _current_game_hour()
 	if hour >= npc_data.sleep_start_hour or hour < 6:
 		schedule_state = ScheduleState.SLEEP
-		sprite.color = Color(0.3, 0.3, 0.5)
 	elif hour >= npc_data.work_start_hour and hour < npc_data.sleep_start_hour:
 		schedule_state = ScheduleState.WORK
-		sprite.color = Color(0.5, 0.5, 0.3)
 	else:
 		schedule_state = ScheduleState.WALK
-		sprite.color = Color(0.3, 0.6, 0.4)
 
 func _current_game_hour() -> int:
 	return int(GameManager.world_hour)
@@ -93,6 +180,7 @@ func _process_idle(delta):
 		idle_timer = 0.0
 		schedule_state = ScheduleState.WALK
 	velocity = Vector2.ZERO
+	_play_anim("idle")
 
 func _process_walk(_delta):
 	if waypoints.is_empty():
@@ -100,7 +188,9 @@ func _process_walk(_delta):
 		return
 	var target = waypoints[waypoint_index]
 	var dir = global_position.direction_to(target)
+	_update_facing(dir)
 	velocity = dir * SPEED
+	_play_anim("walk")
 	if global_position.distance_to(target) < 8:
 		waypoint_index = (waypoint_index + 1) % waypoints.size()
 		idle_timer = 0.0
@@ -112,19 +202,25 @@ func _process_work(_delta):
 	var dir = global_position.direction_to(target)
 	if global_position.distance_to(target) < 16:
 		velocity = Vector2.ZERO
+		_play_anim("idle")
 		idle_timer += _delta
 		if idle_timer > 5.0:
 			idle_timer = 0.0
 	else:
+		_update_facing(dir)
 		velocity = dir * SPEED * 0.7
+		_play_anim("walk")
 
 func _process_sleep(_delta):
 	var target = npc_data.home_position
 	var dir = global_position.direction_to(target)
 	if global_position.distance_to(target) < 16:
 		velocity = Vector2.ZERO
+		_play_anim("idle")
 	else:
+		_update_facing(dir)
 		velocity = dir * SPEED * 0.5
+		_play_anim("walk")
 
 func set_interacting(value: bool):
 	is_interacting = value
@@ -134,7 +230,6 @@ func set_interacting(value: bool):
 func set_homestead(value: bool):
 	is_homestead = value
 	if value:
-		sprite.color = Color(0.8, 0.6, 0.2)
 		schedule_state = ScheduleState.WORK
 		var player_pos = _get_player_position()
 		for _i in range(4):
