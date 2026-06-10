@@ -78,6 +78,12 @@ func _setup_tilemap_parent():
 		if tile_set and not main_tile_map.tile_set:
 			main_tile_map.tile_set = tile_set
 		if main_tile_map.tile_set:
+			# 确保有2个layer：0=地面，1=装饰
+			if main_tile_map.get_layers_count() < 2:
+				main_tile_map.add_layer(1)
+				main_tile_map.set_layer_name(1, "Decor")
+				main_tile_map.set_layer_z_index(1, 1)
+				main_tile_map.set_layer_y_sort_enabled(1, true)
 			tile_map_parent = main_tile_map.get_parent()
 			# 清空主TileMap中已有的瓦片（如果有）
 			main_tile_map.clear()
@@ -379,6 +385,10 @@ func _load_chunk(chunk: Vector2i):
 	if tm == null:
 		return
 
+	# 装饰瓦片ID（有透明区域，需要地面底层）
+	# 注意：碰撞瓦片(3=山, 7=雪山, 5=水)不在此列表，始终在layer 0
+	var decor_tiles = [2, 4, 8, 9, 10, 11, 12, 13, 14, 15, 17]
+
 	var start_x = chunk.x * CHUNK_SIZE
 	var start_y = chunk.y * CHUNK_SIZE
 	for x in range(CHUNK_SIZE):
@@ -390,10 +400,30 @@ func _load_chunk(chunk: Vector2i):
 			if tm.get_cell_source_id(0, cell) == -1:
 				var tid = get_tile_id(wx, wy)
 				if tid >= 0:
-					tm.set_cell(0, cell, tid, Vector2i(0, 0))
+					# 装饰瓦片放在layer 1，地面放在layer 0
+					if tid in decor_tiles:
+						# 先铺地面底层
+						var ground_id = _get_ground_tile(wx, wy)
+						tm.set_cell(0, cell, ground_id, Vector2i(0, 0))
+						tm.set_cell(1, cell, tid, Vector2i(0, 0))
+					else:
+						tm.set_cell(0, cell, tid, Vector2i(0, 0))
 			world_cells[cell] = get_tile_id(wx, wy)
 
 	loaded_chunks[chunk] = true
+
+func _get_ground_tile(x: int, y: int) -> int:
+	"""获取指定位置的地面瓦片ID（不含装饰物）"""
+	var t = get_terrain(x, y)
+	match t:
+		Terrain.WATER: return 5
+		Terrain.SAND: return 6
+		Terrain.GRASS: return 0
+		Terrain.GRASS_DARK: return 18
+		Terrain.FOREST: return 0  # 森林地面是草地
+		Terrain.MOUNTAIN: return 6  # 山区地面用沙地
+		Terrain.SNOW: return 6  # 雪区地面用沙地
+	return 0
 
 func _unload_chunk(chunk: Vector2i):
 	# 使用单一TileMap时，不卸载chunk以避免空隙
