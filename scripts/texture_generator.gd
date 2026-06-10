@@ -585,7 +585,7 @@ func _draw_player_body(img: Image, dir: int, frame: int, bob: int, action: Strin
 					img.set_pixel(x, y, boot)
 
 	# 身体/长袍
-	for y in range(22 + bob, 40 + bob):
+	for y in range(22 + bob, 38 + bob):
 		if y >= 0 and y < CHAR_H:
 			for x in range(11, 21):
 				var col = robe
@@ -596,6 +596,12 @@ func _draw_player_body(img: Image, dir: int, frame: int, bob: int, action: Strin
 				elif (x + y) % 7 == 0:
 					col = robe_dark
 				img.set_pixel(x, y, col)
+
+	# 裤腿过渡（长袍底部到靴子之间）
+	for y in range(38 + bob, 40 + bob):
+		if y >= 0 and y < CHAR_H:
+			for x in range(11, 21):
+				img.set_pixel(x, y, robe_dark)
 
 	# 腰带
 	for x in range(11, 21):
@@ -825,7 +831,7 @@ func _draw_npc_body(img: Image, npc_type: String, dir: int, frame: int, bob: int
 					img.set_pixel(x, y, boot)
 
 	# 身体
-	for y in range(22 + bob, 40 + bob):
+	for y in range(22 + bob, 38 + bob):
 		if y >= 0 and y < CHAR_H:
 			for x in range(11, 21):
 				var col = robe
@@ -836,6 +842,12 @@ func _draw_npc_body(img: Image, npc_type: String, dir: int, frame: int, bob: int
 				elif dir == 3 and y > 30 and x < 16:
 					col = robe_light
 				img.set_pixel(x, y, col)
+
+	# 裤腿过渡（长袍底部到靴子之间）
+	for y in range(38 + bob, 40 + bob):
+		if y >= 0 and y < CHAR_H:
+			for x in range(11, 21):
+				img.set_pixel(x, y, robe_dark)
 
 	# 腰带
 	for x in range(11, 21):

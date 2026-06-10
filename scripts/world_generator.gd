@@ -6,6 +6,9 @@ const CHUNK_PX = CHUNK_SIZE * TILE_SIZE_PX
 const LOAD_RADIUS = 3
 const WORLD_SEED = 12345
 
+# 世界边界半径（瓦片坐标）
+const WORLD_RADIUS = 80
+
 enum Terrain {WATER, SAND, GRASS, GRASS_DARK, FOREST, MOUNTAIN, SNOW}
 
 var height_noise: FastNoiseLite
@@ -16,6 +19,11 @@ var loaded_chunks: Dictionary = {}
 var player_chunk: Vector2i = Vector2i(0, 0)
 var pois: Array = []
 var world_cells: Dictionary = {}
+
+# 河流和城镇的覆盖数据（瓦片坐标 -> tile_id）
+var override_cells: Dictionary = {}
+# 需要碰撞的瓦片集合
+var collision_tiles: Array = [5, 3, 7]
 
 var poi_templates = []
 
@@ -28,9 +36,14 @@ func _ready():
 	_load_tileset()
 	_setup_tilemap_parent()
 	_setup_poi_templates()
+	_generate_rivers()
+	_generate_towns()
 	_scatter_pois()
+	_apply_poi_terrain()
 	# 初始加载玩家周围的chunk
 	_initial_load()
+	# 强制加载POI所在位置的chunk
+	_load_poi_chunks()
 	print("[WorldGen] Ready - seed=" + str(WORLD_SEED))
 
 func _setup_noise():
@@ -60,17 +73,196 @@ func _load_tileset():
 func _setup_tilemap_parent():
 	# 使用场景中已有的TileMap作为主地图
 	main_tile_map = get_node_or_null("../TileMap")
-	if main_tile_map and main_tile_map.tile_set:
-		tile_map_parent = main_tile_map.get_parent()
-		# 清空主TileMap中已有的瓦片（如果有）
-		main_tile_map.clear()
-	else:
-		# 如果没有主TileMap，创建一个容器
-		var p = Node2D.new()
-		p.name = "TileMapParent"
-		p.y_sort_enabled = true
-		add_child(p)
-		tile_map_parent = p
+	if main_tile_map:
+		# 运行时动态赋值tileset
+		if tile_set and not main_tile_map.tile_set:
+			main_tile_map.tile_set = tile_set
+		if main_tile_map.tile_set:
+			tile_map_parent = main_tile_map.get_parent()
+			# 清空主TileMap中已有的瓦片（如果有）
+			main_tile_map.clear()
+			return
+	# 如果没有主TileMap，创建一个容器
+	var p = Node2D.new()
+	p.name = "TileMapParent"
+	p.y_sort_enabled = true
+	add_child(p)
+	tile_map_parent = p
+
+# ============ 世界边界系统 ============
+
+func _get_world_border_tile(x: int, y: int) -> int:
+	"""检查瓦片是否在世界边界之外，返回强制覆盖的tile_id，-1表示不覆盖"""
+	var dist = sqrt(x * x + y * y)
+	if dist > WORLD_RADIUS:
+		return 5  # 深水
+	elif dist > WORLD_RADIUS - 5:
+		# 边缘过渡带：根据距离插值
+		var t = (dist - (WORLD_RADIUS - 5)) / 5.0
+		if t > 0.6:
+			return 5  # 水
+		else:
+			return 6  # 沙
+	return -1  # 不覆盖
+
+# ============ 河流系统 ============
+
+func _generate_rivers():
+	"""使用正弦曲线生成2-3条河流"""
+	var rng = RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 3000
+
+	var river_count = rng.randi_range(2, 3)
+	for i in range(river_count):
+		var amplitude = rng.randf_range(10.0, 25.0)
+		var frequency = rng.randf_range(0.03, 0.08)
+		var phase = rng.randf_range(0.0, TAU)
+		var offset_y = rng.randi_range(-40, 40)
+		var width = rng.randi_range(3, 5)
+		var horizontal = rng.randf() > 0.5  # 水平或垂直河流
+
+		# 河流路径
+		for t in range(-WORLD_RADIUS, WORLD_RADIUS):
+			var curve_val = offset_y + amplitude * sin(frequency * t + phase)
+			var center: int
+			if horizontal:
+				center = int(round(curve_val))
+			else:
+				center = int(round(curve_val))
+
+			for w in range(-width / 2, width / 2 + 1):
+				var rx: int
+				var ry: int
+				if horizontal:
+					rx = t
+					ry = center + w
+				else:
+					rx = center + w
+					ry = t
+
+				var cell = Vector2i(rx, ry)
+				# 河流中心是水，边缘是沙
+				if abs(w) <= 1:
+					override_cells[cell] = 5  # 水
+				else:
+					if not override_cells.has(cell):
+						override_cells[cell] = 6  # 沙
+
+		# 在河流上放置桥（每隔一定距离）
+		for t in range(-WORLD_RADIUS + 10, WORLD_RADIUS - 10, 15):
+			var curve_val = offset_y + amplitude * sin(frequency * t + phase)
+			var center: int
+			if horizontal:
+				center = int(round(curve_val))
+			else:
+				center = int(round(curve_val))
+
+			var bridge_cell: Vector2i
+			if horizontal:
+				bridge_cell = Vector2i(t, center)
+			else:
+				bridge_cell = Vector2i(center, t)
+
+			# 桥替换水面
+			override_cells[bridge_cell] = 17  # 桥
+			# 桥两端铺路
+			if horizontal:
+				override_cells[Vector2i(t - 1, center)] = 1  # 路
+				override_cells[Vector2i(t + 1, center)] = 1  # 路
+			else:
+				override_cells[Vector2i(center, t - 1)] = 1  # 路
+				override_cells[Vector2i(center, t + 1)] = 1  # 路
+
+	print("[WorldGen] Generated " + str(river_count) + " rivers")
+
+# ============ 城镇系统 ============
+
+func _generate_towns():
+	"""在合适位置生成3-5个城镇区域"""
+	var rng = RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 4000
+
+	var town_count = rng.randi_range(3, 5)
+	var town_positions: Array = []
+
+	for i in range(town_count):
+		var placed = false
+		for _attempt in range(30):
+			var tx = rng.randi_range(-50, 50)
+			var ty = rng.randi_range(-40, 40)
+			var h = get_height(tx, ty)
+			var w = get_humidity(tx, ty)
+
+			# 城镇只在平地（草地）生成
+			if h < -0.15 or h > 0.2:
+				continue
+			if w < -0.3 or w > 0.6:
+				continue
+
+			# 检查与其他城镇的距离
+			var too_close = false
+			for tp in town_positions:
+				if Vector2(tx, ty).distance_to(tp) < 20:
+					too_close = true
+					break
+			if too_close:
+				continue
+
+			# 检查是否在边界内
+			if sqrt(tx * tx + ty * ty) > WORLD_RADIUS - 10:
+				continue
+
+			town_positions.append(Vector2(tx, ty))
+			_generate_single_town(tx, ty, rng)
+			placed = true
+			break
+
+		if not placed:
+			print("[WorldGen] Could not place town " + str(i))
+
+	print("[WorldGen] Generated " + str(town_positions.size()) + " towns")
+
+func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
+	"""在指定位置生成一个城镇"""
+	var size = rng.randi_range(3, 5)  # 3x3 到 5x5
+	var half = size / 2
+
+	# 城镇周围先铺农田和栅栏
+	for dx in range(-half - 2, half + 3):
+		for dy in range(-half - 2, half + 3):
+			var wx = cx + dx
+			var wy = cy + dy
+			var cell = Vector2i(wx, wy)
+			var local_dist = max(abs(dx), abs(dy))
+
+			if local_dist == half + 2:
+				# 外围栅栏
+				override_cells[cell] = 15  # 栅栏
+			elif local_dist == half + 1:
+				# 农田环
+				override_cells[cell] = 16  # 农田
+
+	# 城镇内部
+	for dx in range(-half, half + 1):
+		for dy in range(-half, half + 1):
+			var wx = cx + dx
+			var wy = cy + dy
+			var cell = Vector2i(wx, wy)
+
+			# 中心十字路
+			if dx == 0 or dy == 0:
+				override_cells[cell] = 1  # 路
+			else:
+				# 房屋
+				var r = rng.randf()
+				if r < 0.4:
+					override_cells[cell] = 2   # 城镇房
+				elif r < 0.6:
+					override_cells[cell] = 10  # 茅屋
+				else:
+					override_cells[cell] = 0   # 草地（院子）
+
+# ============ 地形生成（含边界和覆盖） ============
 
 func get_height(x: int, y: int) -> float:
 	return height_noise.get_noise_2d(x, y)
@@ -96,6 +288,17 @@ func get_terrain(x: int, y: int) -> Terrain:
 	return Terrain.SNOW
 
 func get_tile_id(x: int, y: int) -> int:
+	# 1. 检查世界边界覆盖
+	var border_tile = _get_world_border_tile(x, y)
+	if border_tile >= 0:
+		return border_tile
+
+	# 2. 检查河流/城镇覆盖
+	var cell = Vector2i(x, y)
+	if override_cells.has(cell):
+		return override_cells[cell]
+
+	# 3. 默认噪声地形
 	var t = get_terrain(x, y)
 	var d = detail_noise.get_noise_2d(x, y)
 	match t:
@@ -104,7 +307,6 @@ func get_tile_id(x: int, y: int) -> int:
 		Terrain.GRASS: return 0
 		Terrain.GRASS_DARK: return 18
 		Terrain.FOREST:
-			# 森林中随机放置树木和花朵
 			var r = fmod(d + 1.0, 1.0)
 			if r > 0.85:
 				return 4  # 松树
@@ -124,6 +326,8 @@ func get_tile_id(x: int, y: int) -> int:
 				return 7  # 雪山
 			return 7
 	return 0
+
+# ============ Chunk系统 ============
 
 func world_to_chunk(world_pos: Vector2) -> Vector2i:
 	var cx = int(floor(world_pos.x / CHUNK_PX))
@@ -171,7 +375,6 @@ func _load_chunk(chunk: Vector2i):
 	if tile_set == null:
 		return
 
-	# 使用主TileMap直接设置瓦片，避免创建多个TileMap导致空隙
 	var tm = main_tile_map
 	if tm == null:
 		return
@@ -190,12 +393,119 @@ func _load_chunk(chunk: Vector2i):
 					tm.set_cell(0, cell, tid, Vector2i(0, 0))
 			world_cells[cell] = get_tile_id(wx, wy)
 
-	loaded_chunks[chunk] = true  # 标记chunk已加载
+	loaded_chunks[chunk] = true
 
 func _unload_chunk(chunk: Vector2i):
 	# 使用单一TileMap时，不卸载chunk以避免空隙
-	# 只标记为已加载，不实际删除瓦片
 	loaded_chunks.erase(chunk)
+
+# ============ POI周围chunk强制加载 ============
+
+func _load_poi_chunks():
+	"""确保所有POI位置周围的chunk被加载"""
+	for p in pois:
+		var poi_pos: Vector2 = p["position"]
+		var poi_chunk = world_to_chunk(poi_pos)
+		# 加载POI所在chunk及周围1格
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				var c = poi_chunk + Vector2i(dx, dy)
+				if not loaded_chunks.has(c):
+					_load_chunk(c)
+	print("[WorldGen] POI chunks loaded")
+
+func _apply_poi_terrain():
+	"""在POI周围铺上专属地形瓦片"""
+	for p in pois:
+		var poi_pos: Vector2 = p["position"]
+		var tpl: POITemplate = p["template"]
+		# 将像素坐标转为瓦片坐标
+		var tx = int(round(poi_pos.x / TILE_SIZE_PX))
+		var ty = int(round(poi_pos.y / TILE_SIZE_PX))
+
+		match tpl.poi_type:
+			"门派":
+				_apply_sect_terrain(tx, ty)
+			"城镇":
+				_apply_town_poi_terrain(tx, ty)
+			"洞穴":
+				_apply_cave_terrain(tx, ty)
+			"修炼场":
+				_apply_training_terrain(tx, ty)
+
+func _apply_sect_terrain(cx: int, cy: int):
+	"""门派周围铺山地+寺庙"""
+	for dx in range(-4, 5):
+		for dy in range(-4, 5):
+			var cell = Vector2i(cx + dx, cy + dy)
+			var dist = max(abs(dx), abs(dy))
+			if dist <= 1:
+				# 中心：寺庙
+				if dx == 0 and dy == 0:
+					override_cells[cell] = 11  # 寺
+				else:
+					override_cells[cell] = 1   # 路
+			elif dist <= 2:
+				override_cells[cell] = 3   # 山
+			elif dist <= 3:
+				# 外围松树
+				var r = fmod(detail_noise.get_noise_2d(cx + dx, cy + dy) + 1.0, 1.0)
+				if r > 0.5:
+					override_cells[cell] = 4   # 松树
+				else:
+					override_cells[cell] = 0   # 草
+
+func _apply_town_poi_terrain(cx: int, cy: int):
+	"""城镇POI周围铺房屋+农田"""
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			var cell = Vector2i(cx + dx, cy + dy)
+			var dist = max(abs(dx), abs(dy))
+			if dist == 0:
+				override_cells[cell] = 2   # 城镇房
+			elif dist == 1:
+				if dx == 0 or dy == 0:
+					override_cells[cell] = 1   # 路
+				else:
+					override_cells[cell] = 10  # 茅屋
+			elif dist == 2:
+				override_cells[cell] = 16  # 农田
+			elif dist == 3:
+				override_cells[cell] = 15  # 栅栏
+
+func _apply_cave_terrain(cx: int, cy: int):
+	"""洞穴周围铺石头"""
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			var cell = Vector2i(cx + dx, cy + dy)
+			var dist = max(abs(dx), abs(dy))
+			if dist == 0:
+				override_cells[cell] = 12  # 洞
+			elif dist <= 1:
+				override_cells[cell] = 14  # 石头
+			elif dist <= 2:
+				var r = fmod(detail_noise.get_noise_2d(cx + dx, cy + dy) + 1.0, 1.0)
+				if r > 0.6:
+					override_cells[cell] = 14  # 石头
+				else:
+					override_cells[cell] = 3   # 山
+
+func _apply_training_terrain(cx: int, cy: int):
+	"""修炼场周围铺草地+花"""
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			var cell = Vector2i(cx + dx, cy + dy)
+			var dist = max(abs(dx), abs(dy))
+			if dist == 0:
+				override_cells[cell] = 11  # 寺
+			elif dist <= 1:
+				override_cells[cell] = 1   # 路
+			elif dist <= 2:
+				override_cells[cell] = 13  # 花
+			else:
+				override_cells[cell] = 0   # 草
+
+# ============ POI系统 ============
 
 func _setup_poi_templates():
 	var shaolin = POITemplate.new()
@@ -288,8 +598,8 @@ func _scatter_pois():
 
 func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 	for _attempt in range(20):
-		var wx = rng.randi_range(-80, 80)
-		var wy = rng.randi_range(-60, 60)
+		var wx = rng.randi_range(-60, 60)
+		var wy = rng.randi_range(-45, 45)
 		var h = get_height(wx, wy)
 		var w = get_humidity(wx, wy)
 		if h < tpl.min_height or h > tpl.max_height:
@@ -298,6 +608,9 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 			continue
 		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 		if _too_close_to_other_poi(pos, tpl.min_distance):
+			continue
+		# 检查是否在世界边界内
+		if sqrt(wx * wx + wy * wy) > WORLD_RADIUS - 10:
 			continue
 		_create_poi_marker(tpl, pos)
 		return true
@@ -318,7 +631,7 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	marker.name = "POI_" + tpl.poi_name.replace(" ", "_")
 	marker.global_position = pos
 	marker.y_sort_enabled = true
-	marker.z_index = 10  # 确保在地面瓦片之上
+	marker.z_index = 10
 
 	# 建筑群 - 根据POI类型放置不同建筑
 	var building_tile = _poi_building_tile(tpl.poi_type)
@@ -360,11 +673,11 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 		deco_sprite.y_sort_enabled = true
 		marker.add_child(deco_sprite)
 
-	# 地点名称标签 - 使用Label3D风格，确保在最上层
+	# 地点名称标签
 	var label = Label.new()
 	label.text = tpl.poi_name
 	label.position = Vector2(-30, -40)
-	label.z_index = 20  # 标签在建筑之上
+	label.z_index = 20
 	label.add_theme_color_override("font_color", tpl.icon_color)
 	label.add_theme_font_size_override("font_size", 13)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -374,7 +687,7 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	var env_zone = Area2D.new()
 	env_zone.name = "EnvironmentZone"
 	env_zone.position = Vector2.ZERO
-	env_zone.z_index = 0  # 碰撞区域不需要z_index
+	env_zone.z_index = 0
 	var col_shape = CollisionShape2D.new()
 	col_shape.shape = RectangleShape2D.new()
 	col_shape.shape.size = Vector2(150, 120)

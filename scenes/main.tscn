@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://ca6u5yulgh32i" path="res://scripts/Main.gd" id="1_5q0c9"]
 [ext_resource type="Script" uid="uid://ywcgiggvkmp6" path="res://scripts/map_builder.gd" id="2_tbgi4"]
 [ext_resource type="Script" uid="uid://cfy0o5ilmksof" path="res://scripts/player.gd" id="3_jyhfs"]
-[ext_resource type="TileSet" uid="uid://bujqo5kyisj5o" path="res://tilesets/ground_tiles.tres" id="3_tbgi4"]
 [ext_resource type="SpriteFrames" path="res://sprites/player/player_frames.tres" id="5_tefeu"]
 [ext_resource type="Script" uid="uid://cwbmp63uln88x" path="res://scripts/environment_zone.gd" id="6_tefeu"]
 
@@ -28,10 +27,10 @@ script = ExtResource("2_tbgi4")
 
 [node name="TileMap" type="TileMap" parent="World" unique_id=1652901419]
 y_sort_enabled = true
-tile_set = ExtResource("3_tbgi4")
 format = 2
 
 [node name="Player" type="CharacterBody2D" parent="World" unique_id=1921514354 groups=["player"]]
+z_index = 5
 position = Vector2(576, 500)
 script = ExtResource("3_jyhfs")
 
