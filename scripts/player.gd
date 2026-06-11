@@ -34,11 +34,16 @@ var interact_cooldown: float = 0.0
 var build_menu: Control = null
 var build_labels: Array = []
 var build_selected_index: int = -1
+# 玩家碰撞形状半尺寸（与CollisionShape2D一致：24x36）
+const COLLISION_HALF_W = 12.0
+const COLLISION_HALF_H = 18.0
+var _world_gen: Node2D = null
 
 func _ready():
 	attack_indicator.visible = false
 	combo_tree = load("res://resources/combo_tree.tres") if ResourceLoader.exists("res://resources/combo_tree.tres") else null
 	combat_stance = get_node_or_null("/root/Main/CombatStance")
+	_world_gen = get_node_or_null("/root/Main/World/WorldGenerator")
 
 func _update_facing(dir: Vector2):
 	if abs(dir.x) > abs(dir.y):
@@ -66,6 +71,40 @@ func _play_anim(prefix: String):
 		anim.play(anim_name)
 	elif anim and anim.sprite_frames and anim.sprite_frames.has_animation(prefix):
 		anim.play(prefix)
+
+func _check_tile_collision():
+	"""检测玩家碰撞矩形四角是否在碰撞瓦片上，阻止对应方向的移动"""
+	if _world_gen == null or not _world_gen.has_method("is_tile_blocking"):
+		return
+	var pos = global_position
+	# 检测X方向：用前方两个角
+	var x_blocked = false
+	if velocity.x > 0:
+		# 向右移动，检查右侧两角
+		if _world_gen.is_tile_blocking(Vector2(pos.x + COLLISION_HALF_W, pos.y - COLLISION_HALF_H)) or \
+		   _world_gen.is_tile_blocking(Vector2(pos.x + COLLISION_HALF_W, pos.y + COLLISION_HALF_H)):
+			x_blocked = true
+	elif velocity.x < 0:
+		# 向左移动，检查左侧两角
+		if _world_gen.is_tile_blocking(Vector2(pos.x - COLLISION_HALF_W, pos.y - COLLISION_HALF_H)) or \
+		   _world_gen.is_tile_blocking(Vector2(pos.x - COLLISION_HALF_W, pos.y + COLLISION_HALF_H)):
+			x_blocked = true
+	# 检测Y方向：用前方两个角
+	var y_blocked = false
+	if velocity.y > 0:
+		# 向下移动，检查下方两角
+		if _world_gen.is_tile_blocking(Vector2(pos.x - COLLISION_HALF_W, pos.y + COLLISION_HALF_H)) or \
+		   _world_gen.is_tile_blocking(Vector2(pos.x + COLLISION_HALF_W, pos.y + COLLISION_HALF_H)):
+			y_blocked = true
+	elif velocity.y < 0:
+		# 向上移动，检查上方两角
+		if _world_gen.is_tile_blocking(Vector2(pos.x - COLLISION_HALF_W, pos.y - COLLISION_HALF_H)) or \
+		   _world_gen.is_tile_blocking(Vector2(pos.x + COLLISION_HALF_W, pos.y - COLLISION_HALF_H)):
+			y_blocked = true
+	if x_blocked:
+		velocity.x = 0
+	if y_blocked:
+		velocity.y = 0
 
 func _physics_process(delta):
 	match state:
@@ -107,6 +146,7 @@ func _process_move(_delta):
 		spd = SPRINT_SPEED
 		GameManager.stamina = max(GameManager.stamina - 8.0 * _delta, 0)
 	velocity = input_dir * spd
+	_check_tile_collision()
 	_play_anim("walk")
 	move_and_slide()
 	_check_combat_input()
@@ -285,6 +325,7 @@ func _start_dodge():
 func _process_dodge(delta):
 	dodge_timer -= delta
 	velocity = dodge_dir * DODGE_SPEED
+	_check_tile_collision()
 	move_and_slide()
 	if dodge_timer <= 0:
 		attack_indicator.visible = false

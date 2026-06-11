@@ -23,7 +23,7 @@ var world_cells: Dictionary = {}
 # 河流和城镇的覆盖数据（瓦片坐标 -> tile_id）
 var override_cells: Dictionary = {}
 # 需要碰撞的瓦片集合
-var collision_tiles: Array = [5, 3, 7]
+var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15]
 
 var poi_templates = []
 
@@ -163,21 +163,22 @@ func _generate_rivers():
 			else:
 				center = int(round(curve_val))
 
-			var bridge_cell: Vector2i
-			if horizontal:
-				bridge_cell = Vector2i(t, center)
-			else:
-				bridge_cell = Vector2i(center, t)
+			# 桥横跨河流水面部分（水面固定3格宽：w=-1,0,1）
+			for w in range(-1, 2):
+				var bridge_cell: Vector2i
+				if horizontal:
+					bridge_cell = Vector2i(t, center + w)
+				else:
+					bridge_cell = Vector2i(center + w, t)
+				override_cells[bridge_cell] = 17  # 桥
 
-			# 桥替换水面
-			override_cells[bridge_cell] = 17  # 桥
-			# 桥两端铺路
+			# 桥两端连接河岸铺路
 			if horizontal:
-				override_cells[Vector2i(t - 1, center)] = 1  # 路
-				override_cells[Vector2i(t + 1, center)] = 1  # 路
+				override_cells[Vector2i(t, center - 2)] = 1  # 上岸路
+				override_cells[Vector2i(t, center + 2)] = 1  # 下岸路
 			else:
-				override_cells[Vector2i(center, t - 1)] = 1  # 路
-				override_cells[Vector2i(center, t + 1)] = 1  # 路
+				override_cells[Vector2i(center - 2, t)] = 1  # 左岸路
+				override_cells[Vector2i(center + 2, t)] = 1  # 右岸路
 
 	print("[WorldGen] Generated " + str(river_count) + " rivers")
 
@@ -414,6 +415,12 @@ func _load_chunk(chunk: Vector2i):
 
 func _get_ground_tile(x: int, y: int) -> int:
 	"""获取指定位置的地面瓦片ID（不含装饰物）"""
+	var cell = Vector2i(x, y)
+	if override_cells.has(cell):
+		var ov = override_cells[cell]
+		# 桥下面铺路，使桥可通行（避免水面碰撞阻挡）
+		if ov == 17:
+			return 1  # 路
 	var t = get_terrain(x, y)
 	match t:
 		Terrain.WATER: return 5
@@ -428,6 +435,22 @@ func _get_ground_tile(x: int, y: int) -> int:
 func _unload_chunk(chunk: Vector2i):
 	# 使用单一TileMap时，不卸载chunk以避免空隙
 	loaded_chunks.erase(chunk)
+
+# ============ 瓦片碰撞查询 ============
+
+func is_tile_blocking(world_pos: Vector2) -> bool:
+	"""检查世界坐标位置是否在碰撞瓦片上（供玩家移动检测使用）"""
+	var tx = int(floor(world_pos.x / TILE_SIZE_PX))
+	var ty = int(floor(world_pos.y / TILE_SIZE_PX))
+	var cell = Vector2i(tx, ty)
+	# 优先查world_cells缓存
+	if world_cells.has(cell):
+		return world_cells[cell] in collision_tiles
+	# 回退：查override_cells或计算地形
+	if override_cells.has(cell):
+		return override_cells[cell] in collision_tiles
+	var tid = get_tile_id(tx, ty)
+	return tid in collision_tiles
 
 # ============ POI周围chunk强制加载 ============
 

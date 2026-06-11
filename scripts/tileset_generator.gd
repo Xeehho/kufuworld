@@ -3,8 +3,6 @@ extends Node
 
 func _ready():
 	_generate_tileset()
-	if not Engine.is_editor_hint():
-		get_tree().quit()
 
 func _generate_tileset():
 	var ts = TileSet.new()
@@ -32,8 +30,8 @@ func _generate_tileset():
 		18: "res://sprites/tiles/grass_dark.png",
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山, 7=雪山
-	var collision_tile_ids = [5, 3, 7]
+	# 需要碰撞的瓦片ID：5=水, 3=山, 7=雪山, 2=城镇房屋, 10=茅屋, 11=寺庙, 12=洞穴入口, 14=石头, 15=栅栏
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 

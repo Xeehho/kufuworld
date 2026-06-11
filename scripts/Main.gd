@@ -49,11 +49,11 @@ func _ensure_textures():
 			add_child(frame_gen)
 			frame_gen.queue_free()
 			print("[Main] Frame resources generated")
-	# 检查瓦片集是否有效（文件存在且有瓦片源）
+	# 检查瓦片集是否有效（文件存在、有瓦片源、有物理碰撞层）
 	var need_tileset = true
 	if ResourceLoader.exists("res://tilesets/ground_tiles.tres"):
 		var existing_ts = load("res://tilesets/ground_tiles.tres") as TileSet
-		if existing_ts and existing_ts.get_source_count() > 0:
+		if existing_ts and existing_ts.get_source_count() > 0 and existing_ts.get_physics_layers_count() > 0:
 			need_tileset = false
 	if need_tileset:
 		var tileset_gen_script = load("res://scripts/tileset_generator.gd")
