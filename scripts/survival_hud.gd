@@ -1,100 +1,335 @@
 extends Control
 
-var icons: Dictionary = {}
-var bars: Dictionary = {}
-var bg_panel: Panel = null
+# 圆形人物信息HUD - 中间头像（仅头部），周围环形属性条，下方可展开任务日志
 
-const BAR_W = 120
-const BAR_H = 12
-const GAP = 18
+var avatar_texture: Texture2D = null
+var stat_arcs: Dictionary = {}
+var resource_labels: Dictionary = {}
+var name_label: Label = null
+
+# 任务日志相关
+var quest_toggle_btn: Button = null
+var quest_panel: Panel = null
+var quest_active_label: Label = null
+var quest_avail_label: Label = null
+var quest_expanded: bool = false
+
+# 布局常量
+const CENTER_X = 90.0
+const CENTER_Y = 90.0
+const RING_OUTER_R = 72.0
+const RING_INNER_R = 58.0
+const AVATAR_R = 46.0
+const ARC_GAP_DEG = 10.0
+const ARC_SEGMENTS = 32
+const RING_MASK_SEGS = 48
+
+# 头部裁剪区域（基于32x48角色精灵帧）
+# 斗笠顶部y≈7，脸部底部y≈22，帽檐左x≈7，帽檐右x≈25
+const HEAD_CROP_X = 5
+const HEAD_CROP_Y = 5
+const HEAD_CROP_W = 22
+const HEAD_CROP_H = 19
+
+# 属性配置: key -> [标签, 颜色, 最大值, 起始角度]
+var stat_config = {
+	"health":  ["伤势", Color(1, 0.2, 0.2),  100.0, 0],
+	"hunger":  ["饥饿", Color(1, 0.6, 0.2),  100.0, 72],
+	"stamina": ["体力", Color(0.3, 0.8, 0.3), 100.0, 144],
+	"poison":  ["中毒", Color(0.6, 0.2, 0.8), 100.0, 216],
+	"qi":      ["内力", Color(0.3, 0.7, 1),   0.0,   288],
+}
+
+# 内圈背景色
+const INNER_BG = Color(0.08, 0.08, 0.1, 0.95)
 
 func _ready():
 	position = Vector2(10, 10)
-	_create_bg_panel()
-	_setup_stat("hunger", "饥饿", Color(1, 0.6, 0.2), 0)
-	_setup_stat("stamina", "体力", Color(0.3, 0.8, 0.3), 1)
-	_setup_stat("health", "伤势", Color(1, 0.2, 0.2), 2)
-	_setup_stat("poison", "中毒", Color(0.6, 0.2, 0.8), 3)
-	_setup_resource("wood", "木材", Color(0.6, 0.4, 0.2), 4)
-	_setup_resource("stone", "石料", Color(0.5, 0.5, 0.5), 5)
-	_setup_resource("gold", "金钱", Color(1, 0.85, 0.2), 6)
-	_setup_qi_bar()
+	_load_avatar()
+	_create_name_label()
+	_create_resource_labels()
+	_create_quest_section()
+	stat_arcs = {
+		"health": GameManager.health / 100.0,
+		"hunger": GameManager.hunger / 100.0,
+		"stamina": GameManager.stamina / 100.0,
+		"poison": GameManager.poison / 100.0,
+		"qi": GameManager.qi / GameManager.max_qi if GameManager.max_qi > 0 else 0.0,
+	}
 
-func _create_bg_panel():
-	bg_panel = Panel.new()
-	bg_panel.size = Vector2(180, 148)
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.08, 0.75)
-	style.border_color = Color(0.3, 0.3, 0.4, 0.5)
-	style.border_width_bottom = 1
-	style.border_width_top = 1
-	style.border_width_left = 1
-	style.border_width_right = 1
-	bg_panel.add_theme_stylebox_override("panel", style)
-	add_child(bg_panel)
-	move_child(bg_panel, 0)
+func _load_avatar():
+	var tex_path = "res://sprites/player/idle_down_0.png"
+	if ResourceLoader.exists(tex_path):
+		var full_tex = load(tex_path)
+		# 裁剪出头部区域
+		var img = full_tex.get_image()
+		var head_img = img.get_region(Rect2i(HEAD_CROP_X, HEAD_CROP_Y, HEAD_CROP_W, HEAD_CROP_H))
+		avatar_texture = ImageTexture.create_from_image(head_img)
 
-func _setup_stat(key: String, label_text: String, color: Color, idx: int):
-	var y = 8 + idx * GAP
-	var lbl = Label.new()
-	lbl.text = label_text
-	lbl.position = Vector2(8, y)
-	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", Color.WHITE)
-	add_child(lbl)
-	icons[key] = lbl
+func _create_name_label():
+	name_label = Label.new()
+	name_label.text = "少侠"
+	name_label.position = Vector2(CENTER_X - 30, CENTER_Y - 8)
+	name_label.size = Vector2(60, 16)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 12)
+	name_label.add_theme_color_override("font_color", Color(1, 0.95, 0.8))
+	add_child(name_label)
 
-	var bg = ColorRect.new()
-	bg.color = Color(0.15, 0.15, 0.15, 0.8)
-	bg.position = Vector2(48, y + 2)
-	bg.size = Vector2(BAR_W, BAR_H)
-	add_child(bg)
+func _create_resource_labels():
+	var resources = [
+		["wood",  "木", Color(0.6, 0.4, 0.2)],
+		["stone", "石", Color(0.5, 0.5, 0.5)],
+		["gold",  "金", Color(1, 0.85, 0.2)],
+	]
+	for i in range(resources.size()):
+		var key = resources[i][0]
+		var icon = resources[i][1]
+		var color = resources[i][2]
+		var lbl = Label.new()
+		lbl.text = icon + ":0"
+		lbl.position = Vector2(10 + i * 60, CENTER_Y + RING_OUTER_R + 14)
+		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.add_theme_color_override("font_color", color)
+		add_child(lbl)
+		resource_labels[key] = lbl
 
-	var fg = ColorRect.new()
-	fg.color = color
-	fg.position = Vector2(48, y + 2)
-	fg.size = Vector2(BAR_W, BAR_H)
-	add_child(fg)
-	bars[key] = fg
+func _create_quest_section():
+	# 任务日志展开/收起按钮
+	var btn_y = CENTER_Y + RING_OUTER_R + 36
+	quest_toggle_btn = Button.new()
+	quest_toggle_btn.text = "  任务日志  ▼"
+	quest_toggle_btn.position = Vector2(20, btn_y)
+	quest_toggle_btn.size = Vector2(140, 22)
+	quest_toggle_btn.add_theme_font_size_override("font_size", 11)
+	quest_toggle_btn.add_theme_color_override("font_color", Color(1, 0.85, 0.3))
+	quest_toggle_btn.add_theme_color_override("font_hover_color", Color(1, 0.95, 0.5))
+	var btn_style = StyleBoxFlat.new()
+	btn_style.bg_color = Color(0.08, 0.08, 0.1, 0.85)
+	btn_style.border_color = Color(0.4, 0.35, 0.2, 0.5)
+	btn_style.border_width_bottom = 1
+	btn_style.border_width_top = 1
+	btn_style.border_width_left = 1
+	btn_style.border_width_right = 1
+	btn_style.corner_radius_top_left = 4
+	btn_style.corner_radius_top_right = 4
+	btn_style.corner_radius_bottom_left = 4
+	btn_style.corner_radius_bottom_right = 4
+	quest_toggle_btn.add_theme_stylebox_override("normal", btn_style)
+	var btn_hover = btn_style.duplicate()
+	btn_hover.bg_color = Color(0.12, 0.12, 0.15, 0.9)
+	quest_toggle_btn.add_theme_stylebox_override("hover", btn_hover)
+	quest_toggle_btn.pressed.connect(_toggle_quest)
+	add_child(quest_toggle_btn)
 
-func _setup_resource(key: String, label_text: String, color: Color, idx: int):
-	var y = 8 + idx * GAP
-	var lbl = Label.new()
-	lbl.text = label_text + ": 0"
-	lbl.position = Vector2(8, y)
-	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", color)
-	add_child(lbl)
-	icons[key] = lbl
+	# 任务面板（默认隐藏）
+	var panel_y = btn_y + 26
+	quest_panel = Panel.new()
+	quest_panel.position = Vector2(10, panel_y)
+	quest_panel.size = Vector2(160, 200)
+	quest_panel.visible = false
+	var panel_style = StyleBoxFlat.new()
+	panel_style.bg_color = Color(0.06, 0.06, 0.08, 0.92)
+	panel_style.border_color = Color(0.4, 0.35, 0.2, 0.4)
+	panel_style.border_width_bottom = 1
+	panel_style.border_width_top = 1
+	panel_style.border_width_left = 1
+	panel_style.border_width_right = 1
+	panel_style.corner_radius_bottom_left = 6
+	panel_style.corner_radius_bottom_right = 6
+	quest_panel.add_theme_stylebox_override("panel", panel_style)
+	add_child(quest_panel)
 
-func _setup_qi_bar():
-	var y = 8 + 7 * GAP
-	var lbl = Label.new()
-	lbl.text = "内力"
-	lbl.position = Vector2(8, y)
-	lbl.add_theme_font_size_override("font_size", 10)
-	lbl.add_theme_color_override("font_color", Color(0.3, 0.8, 1))
-	add_child(lbl)
+	# 进行中任务标签
+	quest_active_label = Label.new()
+	quest_active_label.position = Vector2(4, 4)
+	quest_active_label.size = Vector2(152, 90)
+	quest_active_label.add_theme_font_size_override("font_size", 9)
+	quest_active_label.add_theme_color_override("font_color", Color(1, 1, 1))
+	quest_panel.add_child(quest_active_label)
 
-	var bg = ColorRect.new()
-	bg.color = Color(0.15, 0.15, 0.15, 0.8)
-	bg.position = Vector2(48, y + 2)
-	bg.size = Vector2(BAR_W, BAR_H)
-	add_child(bg)
+	# 可接任务标签
+	quest_avail_label = Label.new()
+	quest_avail_label.position = Vector2(4, 96)
+	quest_avail_label.size = Vector2(152, 90)
+	quest_avail_label.add_theme_font_size_override("font_size", 9)
+	quest_avail_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1))
+	quest_panel.add_child(quest_avail_label)
 
-	var fg = ColorRect.new()
-	fg.color = Color(0.3, 0.7, 1)
-	fg.position = Vector2(48, y + 2)
-	fg.size = Vector2(BAR_W, BAR_H)
-	add_child(fg)
-	bars["qi"] = fg
+	# 操作提示
+	var hint = Label.new()
+	hint.text = "[N]刷新 [1-5]接 [F1]弃"
+	hint.position = Vector2(4, 184)
+	hint.add_theme_font_size_override("font_size", 8)
+	hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	quest_panel.add_child(hint)
+
+func _toggle_quest():
+	quest_expanded = !quest_expanded
+	quest_panel.visible = quest_expanded
+	if quest_expanded:
+		quest_toggle_btn.text = "  任务日志  ▲"
+	else:
+		quest_toggle_btn.text = "  任务日志  ▼"
+
+func _draw():
+	# 1. 外圈背景
+	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 3, Color(0.2, 0.2, 0.25, 0.4))
+	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 1, Color(0.05, 0.05, 0.08, 0.9))
+
+	# 2. 绘制各属性弧段
+	for key in stat_config:
+		var cfg = stat_config[key]
+		var start_deg = cfg[3]
+		var ratio = stat_arcs.get(key, 0.0)
+		_draw_arc_segment(start_deg, ARC_GAP_DEG, cfg[1], ratio)
+
+	# 3. 内圈背景
+	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_INNER_R - 1, INNER_BG)
+
+	# 4. 绘制头像（仅头部）
+	if avatar_texture:
+		var img_size = avatar_texture.get_size()
+		var scale_factor = (AVATAR_R * 2) / max(img_size.x, img_size.y)
+		var draw_size = img_size * scale_factor
+		var draw_pos = Vector2(CENTER_X - draw_size.x / 2, CENTER_Y - draw_size.y / 2)
+		draw_texture_rect(avatar_texture, Rect2(draw_pos, draw_size), false)
+		_draw_full_ring(AVATAR_R, RING_INNER_R - 1, INNER_BG)
+	else:
+		draw_circle(Vector2(CENTER_X, CENTER_Y), AVATAR_R, Color(0.15, 0.15, 0.2, 1.0))
+		draw_string(_get_default_font(), Vector2(CENTER_X - 12, CENTER_Y + 4), "侠", HORIZONTAL_ALIGNMENT_CENTER, -1, 16, Color(1, 0.9, 0.7))
+
+	# 5. 边框
+	draw_arc(Vector2(CENTER_X, CENTER_Y), RING_INNER_R - 1, 0, TAU, 64, Color(0.4, 0.35, 0.2, 0.5), 1.5)
+	draw_arc(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 1, 0, TAU, 64, Color(0.4, 0.35, 0.2, 0.5), 1.5)
+
+	# 6. 属性标签
+	for key in stat_config:
+		var cfg = stat_config[key]
+		var label_text = cfg[0]
+		var start_deg = cfg[3]
+		var mid_deg = start_deg + (72.0 - ARC_GAP_DEG) / 2.0
+		var mid_rad = deg_to_rad(mid_deg - 90)
+		var label_r = RING_OUTER_R + 16
+		var lx = CENTER_X + cos(mid_rad) * label_r
+		var ly = CENTER_Y + sin(mid_rad) * label_r
+		var ratio = stat_arcs.get(key, 0.0)
+		var val_text = str(int(ratio * 100)) if key != "qi" else str(int(ratio * GameManager.max_qi))
+		draw_string(_get_default_font(), Vector2(lx - 10, ly + 2), label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, Color(0.9, 0.9, 0.9, 0.9))
+		draw_string(_get_default_font(), Vector2(lx - 8, ly + 13), val_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, cfg[1])
+
+func _draw_arc_segment(start_deg: float, gap_deg: float, color: Color, ratio: float):
+	var arc_deg = 72.0 - gap_deg
+	var actual_start = start_deg + gap_deg / 2.0
+	_draw_filled_arc(actual_start, arc_deg, RING_INNER_R, RING_OUTER_R, Color(0.15, 0.15, 0.18, 0.8))
+	if ratio > 0.001:
+		var fill_deg = arc_deg * clamp(ratio, 0, 1)
+		_draw_filled_arc(actual_start, fill_deg, RING_INNER_R, RING_OUTER_R, color)
+
+func _draw_filled_arc(start_deg: float, arc_deg: float, inner_r: float, outer_r: float, color: Color):
+	if arc_deg <= 0:
+		return
+	var points = []
+	var start_rad = deg_to_rad(start_deg - 90)
+	var end_rad = deg_to_rad(start_deg + arc_deg - 90)
+	for i in range(ARC_SEGMENTS + 1):
+		var t = float(i) / ARC_SEGMENTS
+		var angle = start_rad + (end_rad - start_rad) * t
+		points.append(Vector2(CENTER_X + cos(angle) * outer_r, CENTER_Y + sin(angle) * outer_r))
+	for i in range(ARC_SEGMENTS, -1, -1):
+		var t = float(i) / ARC_SEGMENTS
+		var angle = start_rad + (end_rad - start_rad) * t
+		points.append(Vector2(CENTER_X + cos(angle) * inner_r, CENTER_Y + sin(angle) * inner_r))
+	draw_colored_polygon(points, color)
+
+func _draw_full_ring(inner_r: float, outer_r: float, color: Color):
+	for i in range(RING_MASK_SEGS):
+		var a1 = (i * TAU) / RING_MASK_SEGS
+		var a2 = ((i + 1) * TAU) / RING_MASK_SEGS
+		var p1 = Vector2(CENTER_X + cos(a1) * outer_r, CENTER_Y + sin(a1) * outer_r)
+		var p2 = Vector2(CENTER_X + cos(a2) * outer_r, CENTER_Y + sin(a2) * outer_r)
+		var p3 = Vector2(CENTER_X + cos(a2) * inner_r, CENTER_Y + sin(a2) * inner_r)
+		var p4 = Vector2(CENTER_X + cos(a1) * inner_r, CENTER_Y + sin(a1) * inner_r)
+		draw_colored_polygon([p1, p2, p3, p4], color)
+
+func _get_default_font() -> Font:
+	return ThemeDB.fallback_font
 
 func _process(_delta):
-	bars["hunger"].size.x = BAR_W * GameManager.hunger / 100.0
-	bars["stamina"].size.x = BAR_W * GameManager.stamina / 100.0
-	bars["health"].size.x = BAR_W * GameManager.health / 100.0
-	bars["poison"].size.x = BAR_W * GameManager.poison / 100.0
-	bars["qi"].size.x = BAR_W * GameManager.qi / GameManager.max_qi
-	icons["wood"].text = "木材: " + str(GameManager.wood)
-	icons["stone"].text = "石料: " + str(GameManager.stone)
-	icons["gold"].text = "金钱: " + str(GameManager.gold)
+	stat_arcs["health"] = GameManager.health / 100.0
+	stat_arcs["hunger"] = GameManager.hunger / 100.0
+	stat_arcs["stamina"] = GameManager.stamina / 100.0
+	stat_arcs["poison"] = GameManager.poison / 100.0
+	stat_arcs["qi"] = GameManager.qi / GameManager.max_qi if GameManager.max_qi > 0 else 0.0
+	resource_labels["wood"].text = "木:" + str(GameManager.wood)
+	resource_labels["stone"].text = "石:" + str(GameManager.stone)
+	resource_labels["gold"].text = "金:" + str(GameManager.gold)
+	queue_redraw()
+	_update_quest_display()
+
+func _update_quest_display():
+	if not quest_expanded:
+		return
+	var qs = get_node_or_null("/root/Main/QuestSystem")
+	if qs == null:
+		return
+
+	var t = "— 进行中 —\n"
+	var tasks = qs.get_active_quests()
+	if tasks.size() == 0:
+		t += "  (暂无)\n"
+	else:
+		for i in range(tasks.size()):
+			var q = tasks[i]
+			var bar = _progress_bar(q.completion_ratio())
+			t += str(i + 1) + "." + q.title + "\n"
+			t += "  " + bar + " " + str(q.current_count) + "/" + str(q.target_count) + "\n"
+	quest_active_label.text = t
+
+	var t2 = "— 可接任务 —\n"
+	var avail = qs.get_available_quests()
+	if avail.size() == 0:
+		t2 += "  (暂无)\n"
+	else:
+		for i in range(min(avail.size(), 4)):
+			var q = avail[i]
+			var stars = ""
+			for _s in range(q.difficulty):
+				stars += "*"
+			t2 += str(i + 1) + "." + q.title + " " + stars + " " + str(q.reward_gold) + "金\n"
+	quest_avail_label.text = t2
+
+func _input(event):
+	if event is InputEventKey and event.pressed:
+		if GameManager.is_build_mode:
+			return
+		var shop_hud = get_node_or_null("/root/Main/ShopHUD")
+		if shop_hud and shop_hud.is_open:
+			return
+		var qs = get_node_or_null("/root/Main/QuestSystem")
+		if qs == null:
+			return
+		if event.keycode == KEY_N:
+			qs.refresh_available_quests()
+			return
+		if event.keycode == KEY_F1:
+			var tasks = qs.get_active_quests()
+			if tasks.size() > 0:
+				qs.abandon_quest(tasks[0].quest_id)
+			return
+		if event.keycode >= KEY_1 and event.keycode <= KEY_9:
+			var idx = event.keycode - KEY_1
+			qs.accept_quest(idx)
+			return
+
+func _progress_bar(ratio: float) -> String:
+	var w = 8
+	var filled = int(ratio * w)
+	var s = "["
+	for i in range(w):
+		if i < filled:
+			s += "="
+		else:
+			s += "-"
+	s += "]"
+	return s

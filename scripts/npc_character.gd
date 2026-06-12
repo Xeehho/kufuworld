@@ -24,6 +24,7 @@ var npc_type: String = "warrior"
 func _ready():
 	add_to_group("npc")
 	add_to_group("interactable")
+	input_pickable = true
 	if npc_data == null:
 		_setup_default_npc()
 	name_label.text = npc_data.npc_name
@@ -226,6 +227,12 @@ func set_interacting(value: bool):
 	is_interacting = value
 	if value:
 		velocity = Vector2.ZERO
+
+func _input_event(_viewport, event, _shape_idx):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		var npc_info = get_node_or_null("/root/Main/World/UI/NPCInfoHUD")
+		if npc_info and npc_info.has_method("show_npc_info"):
+			npc_info.show_npc_info(self)
 
 func set_homestead(value: bool):
 	is_homestead = value

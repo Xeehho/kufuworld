@@ -13,7 +13,7 @@ var bg_panel: Panel = null
 var stagger_flash_timer: float = 0.0
 
 func _ready():
-	position = Vector2(10, 172)
+	position = Vector2(185, 10)
 	_create_ui()
 
 func _create_ui():

@@ -16,7 +16,6 @@ func _ready():
 	_setup_quest_system()
 	_setup_encounter_system()
 	_setup_oath_system()
-	_setup_quest_log()
 	_setup_quick_menu()
 	_setup_combat_stance()
 	_setup_combat_hud()
@@ -27,6 +26,7 @@ func _ready():
 	_setup_death_hud()
 	# NPC生成延迟到纹理和世界都就绪后
 	_setup_npc_spawner()
+	_setup_npc_info_hud()
 
 func _ensure_textures():
 	# 检查关键纹理是否存在，如果不存在则运行生成器
@@ -81,13 +81,6 @@ func _setup_oath_system():
 	os.name = "OathSystem"
 	os.set_script(load("res://scripts/oath_system.gd"))
 	add_child(os)
-
-func _setup_quest_log():
-	var ql = Control.new()
-	ql.name = "QuestLogHUD"
-	ql.set_script(load("res://scripts/quest_log_hud.gd"))
-	ql.position = Vector2(1640, 140)
-	$World/UI.add_child(ql)
 
 func _setup_quick_menu():
 	var qm = Control.new()
@@ -185,3 +178,9 @@ func _setup_npc_spawner():
 	spawner.set_script(load("res://scripts/npc_spawner.gd"))
 	world.add_child(spawner)
 	print("[Main] NPCSpawner created after textures ready")
+
+func _setup_npc_info_hud():
+	var nih = Control.new()
+	nih.name = "NPCInfoHUD"
+	nih.set_script(load("res://scripts/npc_info_hud.gd"))
+	$World/UI.add_child(nih)
