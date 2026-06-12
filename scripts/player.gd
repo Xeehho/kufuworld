@@ -142,9 +142,8 @@ func _process_move(_delta):
 		return
 	_update_facing(input_dir)
 	var spd = SPEED
-	if Input.is_action_pressed("player_dodge") and GameManager.stamina > 0:
+	if Input.is_action_pressed("player_dodge"):
 		spd = SPRINT_SPEED
-		GameManager.stamina = max(GameManager.stamina - 8.0 * _delta, 0)
 	velocity = input_dir * spd
 	_check_tile_collision()
 	_play_anim("walk")

@@ -25,7 +25,6 @@ var is_snowing: bool = false
 var is_daytime: bool = true
 
 var hunger: float = 100.0
-var stamina: float = 100.0
 var health: float = 100.0
 var poison: float = 0.0
 
@@ -142,16 +141,9 @@ func _process(delta):
 
 func _tick_survival(delta):
 	hunger = max(hunger - 0.5 * delta, 0)
-	if hunger < 20:
-		stamina = max(stamina - 1.0 * delta, 0)
-	if stamina < 0:
-		stamina = 0
 	poison = max(poison - 0.1 * delta, 0)
 	if poison > 50:
 		health = max(health - 0.5 * delta, 0)
-	if health < 30:
-		stamina = max(stamina - 0.5 * delta, 0)
-	stamina = min(stamina + 2.0 * delta, 100.0) if hunger > 30 and health > 50 else stamina
 	world_state_changed.emit()
 
 func take_hit(damage: float):

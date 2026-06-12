@@ -110,7 +110,6 @@ func _apply_rescue():
 	# 被救：恢复部分气血，损失部分金钱
 	GameManager.health = 40.0
 	GameManager.hunger = 50.0
-	GameManager.stamina = 50.0
 	GameManager.qi = GameManager.max_qi * 0.5
 	GameManager.poison = 0
 	var gold_loss = int(GameManager.gold * 0.2)
@@ -122,7 +121,6 @@ func _apply_imprisonment():
 	# 囚禁：关押一段时间，损失金钱和声望
 	GameManager.health = 20.0
 	GameManager.hunger = 30.0
-	GameManager.stamina = 20.0
 	GameManager.qi = GameManager.max_qi * 0.2
 	GameManager.poison = 0
 	imprisonment_timer = imprisonment_duration
@@ -141,7 +139,6 @@ func _apply_inheritance():
 	# 重置基础属性
 	GameManager.health = 80.0
 	GameManager.hunger = 80.0
-	GameManager.stamina = 80.0
 	GameManager.qi = GameManager.max_qi * 0.6
 	GameManager.poison = 0
 	GameManager.morality = 0

@@ -106,6 +106,7 @@ func _create_ui():
 	close_btn.position = Vector2(PANEL_W - 28, 4)
 	close_btn.size = Vector2(22, 20)
 	close_btn.add_theme_font_size_override("font_size", 10)
+	close_btn.focus_mode = Control.FOCUS_NONE
 	close_btn.pressed.connect(_on_close)
 	add_child(close_btn)
 
@@ -174,6 +175,14 @@ func _load_npc_avatar(npc_type: String):
 func _process(delta):
 	if not visible:
 		return
+	# 检查NPC是否还在可视范围内
+	if current_npc != null:
+		var player = get_node_or_null("/root/Main/World/Player")
+		if player != null:
+			var dist = player.global_position.distance_to(current_npc.global_position)
+			if dist > 300.0:
+				hide_npc_info()
+				return
 	# 持续刷新NPC信息（状态可能变化）
 	visible_timer += delta
 	if visible_timer >= 0.5:

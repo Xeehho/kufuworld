@@ -62,7 +62,7 @@ func _create_prototype_encounters():
 
 	# 8 - 酒馆斗酒
 	encounters.append(_make_encounter("enc_008", "酒馆斗酒", "几位江湖豪客正在比拼酒量，看到你便邀你加入。",
-		"stamina > 50", -100, 100, 0, 0, "城镇",
+		"health > 50", -100, 100, 0, 0, "城镇",
 		[_opt("加入斗酒", "豪饮三大碗！豪客们对你刮目相看。", 20, -30, 0, 12),
 		 _opt("观战助兴", "你在旁边叫好，也分到几两散碎银子。", 10, 0, 0, 2),
 		 _opt("敬谢不敏", "豪客们略有失望，但并未强求。", 0, 0, 0, 0)], 0.2))
@@ -153,8 +153,8 @@ func _check_encounter_condition(enc: Encounter) -> bool:
 		return GameManager.reputation > 20
 	if cond == "gold > 50":
 		return GameManager.gold > 50
-	if cond == "stamina > 50":
-		return GameManager.stamina > 50
+	if cond == "health > 50":
+		return GameManager.health > 50
 	if cond == "qi > 50":
 		return GameManager.qi > 50
 	if cond == "is_daytime == false":

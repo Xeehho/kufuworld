@@ -20,28 +20,33 @@ const CENTER_Y = 90.0
 const RING_OUTER_R = 72.0
 const RING_INNER_R = 58.0
 const AVATAR_R = 46.0
-const ARC_GAP_DEG = 10.0
+const ARC_GAP_DEG = 8.0
 const ARC_SEGMENTS = 32
 const RING_MASK_SEGS = 48
 
 # 头部裁剪区域（基于32x48角色精灵帧）
-# 斗笠顶部y≈7，脸部底部y≈22，帽檐左x≈7，帽檐右x≈25
 const HEAD_CROP_X = 5
 const HEAD_CROP_Y = 5
 const HEAD_CROP_W = 22
 const HEAD_CROP_H = 19
 
-# 属性配置: key -> [标签, 颜色, 最大值, 起始角度]
+# 属性配置: key -> [标签, 颜色, 最大值]
+# 起始角度和弧度在_draw中动态计算
 var stat_config = {
-	"health":  ["伤势", Color(1, 0.2, 0.2),  100.0, 0],
-	"hunger":  ["饥饿", Color(1, 0.6, 0.2),  100.0, 72],
-	"stamina": ["体力", Color(0.3, 0.8, 0.3), 100.0, 144],
-	"poison":  ["中毒", Color(0.6, 0.2, 0.8), 100.0, 216],
-	"qi":      ["内力", Color(0.3, 0.7, 1),   0.0,   288],
+	"health": ["伤势", Color(1, 0.2, 0.2),  100.0],
+	"hunger": ["饥饿", Color(1, 0.6, 0.2),  100.0],
+	"poison": ["中毒", Color(0.6, 0.2, 0.8), 100.0],
+	"qi":     ["内力", Color(0.3, 0.7, 1),   0.0],
 }
+
+# 属性显示顺序（决定环形排列顺序）
+var stat_order = ["health", "hunger", "poison", "qi"]
 
 # 内圈背景色
 const INNER_BG = Color(0.08, 0.08, 0.1, 0.95)
+
+# 任务面板宽度（与按钮一致）
+const QUEST_W = 140.0
 
 func _ready():
 	position = Vector2(10, 10)
@@ -52,7 +57,6 @@ func _ready():
 	stat_arcs = {
 		"health": GameManager.health / 100.0,
 		"hunger": GameManager.hunger / 100.0,
-		"stamina": GameManager.stamina / 100.0,
 		"poison": GameManager.poison / 100.0,
 		"qi": GameManager.qi / GameManager.max_qi if GameManager.max_qi > 0 else 0.0,
 	}
@@ -61,7 +65,6 @@ func _load_avatar():
 	var tex_path = "res://sprites/player/idle_down_0.png"
 	if ResourceLoader.exists(tex_path):
 		var full_tex = load(tex_path)
-		# 裁剪出头部区域
 		var img = full_tex.get_image()
 		var head_img = img.get_region(Rect2i(HEAD_CROP_X, HEAD_CROP_Y, HEAD_CROP_W, HEAD_CROP_H))
 		avatar_texture = ImageTexture.create_from_image(head_img)
@@ -77,6 +80,7 @@ func _create_name_label():
 	add_child(name_label)
 
 func _create_resource_labels():
+	var res_y = CENTER_Y + RING_OUTER_R + 16
 	var resources = [
 		["wood",  "木", Color(0.6, 0.4, 0.2)],
 		["stone", "石", Color(0.5, 0.5, 0.5)],
@@ -88,19 +92,19 @@ func _create_resource_labels():
 		var color = resources[i][2]
 		var lbl = Label.new()
 		lbl.text = icon + ":0"
-		lbl.position = Vector2(10 + i * 60, CENTER_Y + RING_OUTER_R + 14)
+		lbl.position = Vector2(15 + i * 55, res_y)
 		lbl.add_theme_font_size_override("font_size", 11)
 		lbl.add_theme_color_override("font_color", color)
 		add_child(lbl)
 		resource_labels[key] = lbl
 
 func _create_quest_section():
-	# 任务日志展开/收起按钮
-	var btn_y = CENTER_Y + RING_OUTER_R + 36
+	var btn_y = CENTER_Y + RING_OUTER_R + 38
 	quest_toggle_btn = Button.new()
 	quest_toggle_btn.text = "  任务日志  ▼"
 	quest_toggle_btn.position = Vector2(20, btn_y)
-	quest_toggle_btn.size = Vector2(140, 22)
+	quest_toggle_btn.size = Vector2(QUEST_W, 22)
+	quest_toggle_btn.focus_mode = Control.FOCUS_NONE
 	quest_toggle_btn.add_theme_font_size_override("font_size", 11)
 	quest_toggle_btn.add_theme_color_override("font_color", Color(1, 0.85, 0.3))
 	quest_toggle_btn.add_theme_color_override("font_hover_color", Color(1, 0.95, 0.5))
@@ -122,11 +126,11 @@ func _create_quest_section():
 	quest_toggle_btn.pressed.connect(_toggle_quest)
 	add_child(quest_toggle_btn)
 
-	# 任务面板（默认隐藏）
+	# 任务面板（默认隐藏），宽度与按钮一致
 	var panel_y = btn_y + 26
 	quest_panel = Panel.new()
-	quest_panel.position = Vector2(10, panel_y)
-	quest_panel.size = Vector2(160, 200)
+	quest_panel.position = Vector2(20, panel_y)
+	quest_panel.size = Vector2(QUEST_W, 200)
 	quest_panel.visible = false
 	var panel_style = StyleBoxFlat.new()
 	panel_style.bg_color = Color(0.06, 0.06, 0.08, 0.92)
@@ -140,23 +144,20 @@ func _create_quest_section():
 	quest_panel.add_theme_stylebox_override("panel", panel_style)
 	add_child(quest_panel)
 
-	# 进行中任务标签
 	quest_active_label = Label.new()
 	quest_active_label.position = Vector2(4, 4)
-	quest_active_label.size = Vector2(152, 90)
+	quest_active_label.size = Vector2(QUEST_W - 8, 90)
 	quest_active_label.add_theme_font_size_override("font_size", 9)
 	quest_active_label.add_theme_color_override("font_color", Color(1, 1, 1))
 	quest_panel.add_child(quest_active_label)
 
-	# 可接任务标签
 	quest_avail_label = Label.new()
 	quest_avail_label.position = Vector2(4, 96)
-	quest_avail_label.size = Vector2(152, 90)
+	quest_avail_label.size = Vector2(QUEST_W - 8, 90)
 	quest_avail_label.add_theme_font_size_override("font_size", 9)
 	quest_avail_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1))
 	quest_panel.add_child(quest_avail_label)
 
-	# 操作提示
 	var hint = Label.new()
 	hint.text = "[N]刷新 [1-5]接 [F1]弃"
 	hint.position = Vector2(4, 184)
@@ -172,17 +173,31 @@ func _toggle_quest():
 	else:
 		quest_toggle_btn.text = "  任务日志  ▼"
 
+# 获取当前活跃的属性列表（中毒>0时包含，否则不包含）
+func _get_active_stats() -> Array:
+	var result = []
+	for key in stat_order:
+		if key == "poison" and GameManager.poison <= 0:
+			continue
+		result.append(key)
+	return result
+
 func _draw():
 	# 1. 外圈背景
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 3, Color(0.2, 0.2, 0.25, 0.4))
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 1, Color(0.05, 0.05, 0.08, 0.9))
 
-	# 2. 绘制各属性弧段
-	for key in stat_config:
+	# 2. 动态计算弧段：3个属性均分120度，4个属性均分90度
+	var active_stats = _get_active_stats()
+	var count = active_stats.size()
+	var seg_deg = 360.0 / count  # 3→120, 4→90
+
+	for i in range(count):
+		var key = active_stats[i]
 		var cfg = stat_config[key]
-		var start_deg = cfg[3]
+		var start_deg = i * seg_deg
 		var ratio = stat_arcs.get(key, 0.0)
-		_draw_arc_segment(start_deg, ARC_GAP_DEG, cfg[1], ratio)
+		_draw_arc_segment(start_deg, ARC_GAP_DEG, cfg[1], ratio, seg_deg)
 
 	# 3. 内圈背景
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_INNER_R - 1, INNER_BG)
@@ -203,12 +218,13 @@ func _draw():
 	draw_arc(Vector2(CENTER_X, CENTER_Y), RING_INNER_R - 1, 0, TAU, 64, Color(0.4, 0.35, 0.2, 0.5), 1.5)
 	draw_arc(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 1, 0, TAU, 64, Color(0.4, 0.35, 0.2, 0.5), 1.5)
 
-	# 6. 属性标签
-	for key in stat_config:
+	# 6. 属性标签（在弧段外侧）
+	for i in range(count):
+		var key = active_stats[i]
 		var cfg = stat_config[key]
 		var label_text = cfg[0]
-		var start_deg = cfg[3]
-		var mid_deg = start_deg + (72.0 - ARC_GAP_DEG) / 2.0
+		var start_deg = i * seg_deg
+		var mid_deg = start_deg + (seg_deg - ARC_GAP_DEG) / 2.0
 		var mid_rad = deg_to_rad(mid_deg - 90)
 		var label_r = RING_OUTER_R + 16
 		var lx = CENTER_X + cos(mid_rad) * label_r
@@ -218,8 +234,8 @@ func _draw():
 		draw_string(_get_default_font(), Vector2(lx - 10, ly + 2), label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, Color(0.9, 0.9, 0.9, 0.9))
 		draw_string(_get_default_font(), Vector2(lx - 8, ly + 13), val_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, cfg[1])
 
-func _draw_arc_segment(start_deg: float, gap_deg: float, color: Color, ratio: float):
-	var arc_deg = 72.0 - gap_deg
+func _draw_arc_segment(start_deg: float, gap_deg: float, color: Color, ratio: float, total_deg: float):
+	var arc_deg = total_deg - gap_deg
 	var actual_start = start_deg + gap_deg / 2.0
 	_draw_filled_arc(actual_start, arc_deg, RING_INNER_R, RING_OUTER_R, Color(0.15, 0.15, 0.18, 0.8))
 	if ratio > 0.001:
@@ -258,7 +274,6 @@ func _get_default_font() -> Font:
 func _process(_delta):
 	stat_arcs["health"] = GameManager.health / 100.0
 	stat_arcs["hunger"] = GameManager.hunger / 100.0
-	stat_arcs["stamina"] = GameManager.stamina / 100.0
 	stat_arcs["poison"] = GameManager.poison / 100.0
 	stat_arcs["qi"] = GameManager.qi / GameManager.max_qi if GameManager.max_qi > 0 else 0.0
 	resource_labels["wood"].text = "木:" + str(GameManager.wood)

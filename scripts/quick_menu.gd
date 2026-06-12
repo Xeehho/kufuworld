@@ -14,6 +14,7 @@ func _create_buttons():
 	btn_e.text = "奇遇"
 	btn_e.size = Vector2(60, 28)
 	btn_e.position = Vector2(0, 0)
+	btn_e.focus_mode = Control.FOCUS_NONE
 	btn_e.pressed.connect(_on_encounter)
 	add_child(btn_e)
 
@@ -21,6 +22,7 @@ func _create_buttons():
 	btn_o.text = "立誓"
 	btn_o.size = Vector2(60, 28)
 	btn_o.position = Vector2(65, 0)
+	btn_o.focus_mode = Control.FOCUS_NONE
 	btn_o.pressed.connect(_on_oath)
 	add_child(btn_o)
 
@@ -71,7 +73,10 @@ func _input(event):
 	if event is InputEventKey and event.pressed:
 		if not is_visible:
 			return
-		# 当建造模式或商店开启时，不处理按键，避免冲突
+		# 仅在对话面板打开时拦截按键，避免与移动键冲突
+		if DialogManager.dialogue_box == null:
+			return
+		# 当建造模式或商店开启时，不处理按键
 		if GameManager.is_build_mode:
 			return
 		var shop_hud = get_node_or_null("/root/Main/ShopHUD")
