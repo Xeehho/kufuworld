@@ -11,54 +11,46 @@ var inheritance_label: Label
 var show_timer: float = 0.0
 
 func _ready():
+	# 全屏锚定以便面板居中；根节点不拦截鼠标
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_create_ui()
 	visible = false
 
 func _create_ui():
 	death_panel = Panel.new()
-	death_panel.size = Vector2(400, 220)
-	death_panel.position = Vector2(760, 340)
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.02, 0.02, 0.95)
-	style.border_color = Color(0.8, 0.2, 0.2)
-	style.border_width_bottom = 2
-	style.border_width_top = 2
-	style.border_width_left = 2
-	style.border_width_right = 2
-	death_panel.add_theme_stylebox_override("panel", style)
+	UITheme.center_panel(death_panel, 420, 240)
+	death_panel.add_theme_stylebox_override("panel", UITheme.panel_style())
 	add_child(death_panel)
-	
+
 	outcome_label = Label.new()
-	outcome_label.name = "Outcome"
-	outcome_label.position = Vector2(20, 15)
-	outcome_label.add_theme_font_size_override("font_size", 20)
-	outcome_label.add_theme_color_override("font_color", Color(1, 0.3, 0.3))
+	outcome_label.position = Vector2(20, 14)
+	outcome_label.size = Vector2(380, 28)
+	outcome_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.style_label(outcome_label, 20, Color(1, 0.3, 0.3))
 	outcome_label.text = "气血归零..."
-	add_child(outcome_label)
-	
+	death_panel.add_child(outcome_label)
+
 	detail_label = Label.new()
-	detail_label.name = "Detail"
-	detail_label.position = Vector2(20, 50)
-	detail_label.add_theme_font_size_override("font_size", 13)
-	detail_label.add_theme_color_override("font_color", Color(0.9, 0.8, 0.7))
-	detail_label.text = ""
-	add_child(detail_label)
-	
+	detail_label.position = Vector2(20, 52)
+	detail_label.size = Vector2(380, 110)
+	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	UITheme.style_label(detail_label, 13, Color(0.9, 0.8, 0.7))
+	death_panel.add_child(detail_label)
+
 	timer_label = Label.new()
-	timer_label.name = "Timer"
-	timer_label.position = Vector2(20, 130)
-	timer_label.add_theme_font_size_override("font_size", 12)
-	timer_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	timer_label.text = ""
-	add_child(timer_label)
-	
+	timer_label.position = Vector2(20, 168)
+	timer_label.size = Vector2(380, 22)
+	timer_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.style_label(timer_label, 13, UITheme.TEXT_DIM)
+	death_panel.add_child(timer_label)
+
 	inheritance_label = Label.new()
-	inheritance_label.name = "Inheritance"
-	inheritance_label.position = Vector2(20, 160)
-	inheritance_label.add_theme_font_size_override("font_size", 11)
-	inheritance_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1))
-	inheritance_label.text = ""
-	add_child(inheritance_label)
+	inheritance_label.position = Vector2(20, 194)
+	inheritance_label.size = Vector2(380, 36)
+	inheritance_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	UITheme.style_label(inheritance_label, 11, Color(0.6, 0.8, 1))
+	death_panel.add_child(inheritance_label)
 
 func _process(delta):
 	var ds = _get_death_system()

@@ -1,10 +1,19 @@
 @tool
 extends Node
 
+const TextureGen = preload("res://scripts/texture_generator.gd")
+
 func _ready():
 	_generate_tileset()
 
 func _generate_tileset():
+	var ts = build_tileset()
+	if ts:
+		ResourceSaver.save(ts, "res://tilesets/ground_tiles.tres")
+		print("[TileSetGen] TileSet saved")
+
+# 运行时内存构建TileSet（纹理直接解码PNG，不依赖import系统）
+static func build_tileset() -> TileSet:
 	var ts = TileSet.new()
 	ts.tile_size = Vector2i(32, 32)
 
@@ -28,30 +37,45 @@ func _generate_tileset():
 		16: "res://sprites/tiles/farmland.png",
 		17: "res://sprites/tiles/bridge.png",
 		18: "res://sprites/tiles/grass_dark.png",
+		# 多格建筑部件（19-32）：2/3/4/5格宽中式建筑的水平拼接瓦片
+		19: "res://sprites/tiles/house2_l.png",
+		20: "res://sprites/tiles/house2_r.png",
+		21: "res://sprites/tiles/house3_l.png",
+		22: "res://sprites/tiles/house3_m.png",
+		23: "res://sprites/tiles/house3_r.png",
+		24: "res://sprites/tiles/house4_l.png",
+		25: "res://sprites/tiles/house4_lm.png",
+		26: "res://sprites/tiles/house4_rm.png",
+		27: "res://sprites/tiles/house4_r.png",
+		28: "res://sprites/tiles/house5_l.png",
+		29: "res://sprites/tiles/house5_lm.png",
+		30: "res://sprites/tiles/house5_m.png",
+		31: "res://sprites/tiles/house5_rm.png",
+		32: "res://sprites/tiles/house5_r.png",
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山, 7=雪山, 2=城镇房屋, 10=茅屋, 11=寺庙, 12=洞穴入口, 14=石头, 15=栅栏
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15]
+	# 需要碰撞的瓦片ID：5=水, 3=山, 7=雪山, 2=城镇房屋, 10=茅屋, 11=寺庙, 12=洞穴入口, 14=石头, 15=栅栏, 19-32=多格建筑
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
 	for id in textures:
-		var tex = load(textures[id])
+		var tex = TextureGen.load_png_texture(textures[id])
 		if tex:
 			var source = TileSetAtlasSource.new()
 			source.texture = tex
 			source.texture_region_size = Vector2i(32, 32)
 			source.create_tile(Vector2i(0, 0))
-			# 树木和建筑使用Y排序
-			if id in [4, 8, 9, 2, 10, 11, 12, 14]:
-				var tile_data = source.get_tile_data(Vector2i(0, 0), 0)
-				if tile_data:
+			# 必须先add_source，TileData才关联TileSet的物理层，否则碰撞设置会报越界错误
+			ts.add_source(source, id)
+			var tile_data = source.get_tile_data(Vector2i(0, 0), 0)
+			if tile_data:
+				# 树木和建筑使用Y排序（含多格建筑部件19-32）
+				if id in [4, 8, 9, 2, 10, 11, 12, 14, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]:
 					tile_data.y_sort_origin = 16
 					tile_data.z_index = 1
-			# 为水域和山脉瓦片添加物理碰撞
-			if id in collision_tile_ids:
-				var tile_data = source.get_tile_data(Vector2i(0, 0), 0)
-				if tile_data:
+				# 为水域和山脉瓦片添加物理碰撞
+				if id in collision_tile_ids:
 					# 碰撞多边形以瓦片中心为原点
 					var poly = PackedVector2Array([
 						Vector2(-16, -16),
@@ -61,8 +85,4 @@ func _generate_tileset():
 					])
 					tile_data.set_collision_polygons_count(0, 1)
 					tile_data.set_collision_polygon_points(0, 0, poly)
-			ts.add_source(source, id)
-			print("[TileSetGen] Added tile id=" + str(id))
-
-	ResourceSaver.save(ts, "res://tilesets/ground_tiles.tres")
-	print("[TileSetGen] TileSet saved with " + str(textures.size()) + " tiles")
+	return ts

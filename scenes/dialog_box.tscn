@@ -2,50 +2,59 @@
 
 [ext_resource type="Script" uid="uid://bf3xbfcovynyb" path="res://scripts/dialog_box.gd" id="1_xvd2c"]
 
-[node name="DialogBox" type="Control" unique_id=1751016548]
+[node name="DialogBox" type="Control"]
 layout_mode = 3
-anchors_preset = 0
-script = ExtResource("1_xvd2c")
-
-[node name="Panel" type="Panel" parent="." unique_id=1886715250]
-self_modulate = Color(0.1, 0.1, 0.15, 0.9)
-layout_mode = 0
-anchor_top = 0.65
+anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_xvd2c")
 
-[node name="Portrait" type="TextureRect" parent="." unique_id=408054480]
-self_modulate = Color(0.3, 0.3, 0.4, 1)
+[node name="Panel" type="Panel" parent="."]
 layout_mode = 0
-offset_left = 40.0
-offset_top = 720.0
-offset_right = 200.0
-offset_bottom = 920.0
-expand_mode = 1
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -400.0
+offset_top = -250.0
+offset_right = 400.0
+offset_bottom = -30.0
+grow_horizontal = 2
+grow_vertical = 0
 
-[node name="CharacterName" type="Label" parent="." unique_id=908666147]
+[node name="NamePlate" type="Panel" parent="Panel"]
 layout_mode = 0
-offset_left = 220.0
-offset_top = 730.0
-offset_right = 221.0
-offset_bottom = 753.0
-theme_override_colors/font_color = Color(1, 0.85, 0.4, 1)
-theme_override_font_sizes/font_size = 22
+offset_left = 24.0
+offset_top = -18.0
+offset_right = 224.0
+offset_bottom = 18.0
 
-[node name="DialogText" type="Label" parent="." unique_id=2125895151]
+[node name="CharacterName" type="Label" parent="Panel/NamePlate"]
 layout_mode = 0
-offset_left = 220.0
-offset_top = 770.0
-offset_right = 1620.0
-offset_bottom = 950.0
-theme_override_colors/font_color = Color(0.95, 0.95, 0.95, 1)
+offset_left = 12.0
+offset_right = 188.0
+offset_bottom = 36.0
+theme_override_colors/font_color = Color(0.92, 0.78, 0.42, 1)
 theme_override_font_sizes/font_size = 18
+vertical_alignment = 1
+
+[node name="DialogText" type="Label" parent="Panel"]
+layout_mode = 0
+offset_left = 28.0
+offset_top = 34.0
+offset_right = 772.0
+offset_bottom = 160.0
+theme_override_colors/font_color = Color(0.93, 0.91, 0.86, 1)
+theme_override_font_sizes/font_size = 17
 autowrap_mode = 2
 
-[node name="NextButton" type="Button" parent="." unique_id=1985346449]
+[node name="NextButton" type="Button" parent="Panel"]
 layout_mode = 0
-offset_left = 1700.0
-offset_top = 960.0
-offset_right = 1840.0
-offset_bottom = 1010.0
-text = "下一步"
+offset_left = 664.0
+offset_top = 168.0
+offset_right = 776.0
+offset_bottom = 206.0
+text = "继续 ▼"

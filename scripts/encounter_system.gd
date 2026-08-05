@@ -2,7 +2,8 @@ extends Node
 
 var encounters: Array = []
 var active_encounter: Encounter = null
-var cooldown: float = 0.0
+# 开局宽限期：避免游戏第一帧就强制触发奇遇弹出面板
+var cooldown: float = 25.0
 const COOLDOWN_MAX = 30.0
 
 func _ready():
@@ -80,6 +81,76 @@ func _create_prototype_encounters():
 		[_opt("结伴同行", "一路相谈甚欢，临别互赠信物。", 0, 0, 10, 15),
 		 _opt("切磋武艺", "点到为止的比试，互相受益匪浅。", 0, -15, 5, 10),
 		 _opt("独自离去", "侠客微微一笑，策马离去。", 0, 0, 0, 0)], 0.18))
+
+	# 11 - 山贼拦路
+	encounters.append(_make_encounter("enc_011", "山贼拦路", "“此山是我开！”一伙山贼挥舞钢刀拦住去路。",
+		"true", -100, 100, 0, 0, "山地",
+		[_opt("杀出重围", "刀光剑影过后，山贼落荒而逃，丢下不少财物。", 80, -20, 5, 8, 8, 0),
+		 _opt("破财免灾", "你交出买路钱，山贼哄笑着让开道路。", -50, 0, 0, -3),
+		 _opt("绕路而行", "你翻山越岭绕开贼人，颇费了一番脚力。", 0, -10, 0, 0)], 0.2))
+
+	# 12 - 乞丐讨饭
+	encounters.append(_make_encounter("enc_012", "乞丐讨饭", "一位衣衫褴褛的老乞丐向你伸出破碗，目光浑浊却隐含精光。",
+		"gold > 20", -100, 100, 0, 0, "城镇",
+		[_opt("施舍百钱", "老乞丐接过铜钱，低声传你一句心法口诀。", -10, 30, 8, 5),
+		 _opt("给些干粮", "老乞丐狼吞虎咽，临别赠你半张残破地图。", 0, 0, 5, 3),
+		 _opt("挥手驱赶", "老乞丐深深看了你一眼，蹒跚而去。", 0, 0, -8, -5)], 0.22))
+
+	# 13 - 比武招亲
+	encounters.append(_make_encounter("enc_013", "比武招亲", "大户人家设下擂台比武招亲，台下人山人海，热闹非凡。",
+		"reputation > 40", -100, 100, 40, 0, "城镇",
+		[_opt("上台打擂", "你连胜三场技惊四座！虽婉拒婚事，名声却传遍全城。", 100, -25, 0, 20),
+		 _opt("台下观战", "你观摩各路招式，若有所悟。", 0, 10, 0, 3),
+		 _opt("转身离开", "喧嚣渐远，你继续自己的江湖路。", 0, 0, 0, 0)], 0.15))
+
+	# 14 - 夜观天象
+	encounters.append(_make_encounter("enc_014", "夜观天象", "夜深人静，你抬头望见紫微星大放异彩，似有玄机。",
+		"is_daytime == false", -100, 100, 0, 0, "任意",
+		[_opt("静心参悟", "星光如水流入眉心，你对武学有了新的领悟。", 0, 40, 0, 8),
+		 _opt("盘膝打坐", "借星月之华修炼内功，事半功倍。", 0, 25, 0, 0),
+		 _opt("倒头便睡", "天象再好，不如一觉到天明。", 0, 5, 0, 0)], 0.2))
+
+	# 15 - 落水孩童
+	encounters.append(_make_encounter("enc_015", "落水孩童", "河中传来呼救声，一个孩童正在水中挣扎！",
+		"morality > -20", -20, 100, 0, 0, "水域附近",
+		[_opt("跳水救人", "你救起孩童，村民敲锣打鼓感谢你。", 30, -15, 15, 15),
+		 _opt("竹竿施救", "你急中生智用竹竿将其拉上岸，孩子家人千恩万谢。", 20, 0, 10, 8),
+		 _opt("熟视无睹", "你加快脚步离开，呼救声渐渐听不见了。", 0, 0, -15, -10)], 0.18))
+
+	# 16 - 秘境寻宝
+	encounters.append(_make_encounter("enc_016", "秘境寻宝", "按残图指引，你在乱石间发现一处隐秘石缝，隐约有宝光透出。",
+		"qi > 30", -100, 100, 0, 30, "山地",
+		[_opt("探入取宝", "石缝中藏着前朝遗物，价值连城！", 150, -20, 0, 5, 5, 0),
+		 _opt("小心查探", "你避开机关，只取了外围几件小物。", 50, 0, 0, 2),
+		 _opt("疑有埋伏", "你怀疑是圈套，退了出来。", 0, 0, 0, 0)], 0.12))
+
+	# 17 - 瘟疫村庄
+	encounters.append(_make_encounter("enc_017", "瘟疫村庄", "路过一个村庄，村口挂着白幡，瘟疫正在蔓延。",
+		"morality > 0", 0, 100, 0, 0, "任意",
+		[_opt("留下施救", "你以内力为村民驱毒疗疾，耗尽心力却救了全村。", 50, -40, 20, 25),
+		 _opt("赠药离开", "你留下些药材，略尽绵薄之力。", -20, 0, 10, 8),
+		 _opt("绕道避开", "疫病凶险，你掩鼻匆匆绕过村庄。", 0, 0, -5, 0)], 0.15))
+
+	# 18 - 剑客挑战
+	encounters.append(_make_encounter("enc_018", "剑客挑战", "一名背负长剑的冷面剑客拦住你：“久闻大名，请赐教！”",
+		"reputation > 50", -100, 100, 50, 0, "任意",
+		[_opt("拔剑应战", "三十招后你险胜半招，剑客抱剑一揖：“后会有期！”", 0, -30, 0, 25, 10, 0),
+		 _opt("以和为贵", "你拱手谢绝，剑客也不纠缠，飘然远去。", 0, 0, 0, 5),
+		 _opt("转身就跑", "你施展轻功甩开剑客，颇为狼狈。", 0, -15, 0, -8)], 0.14))
+
+	# 19 - 古寺听经
+	encounters.append(_make_encounter("enc_019", "古寺听经", "深山古寺传来阵阵梵音，让人心神宁静。",
+		"true", -100, 100, 0, 0, "山地",
+		[_opt("入寺听经", "经文涤荡心灵，多日戾气一扫而空。", 0, 15, 10, 5),
+		 _opt("上香祈福", "你虔诚上香，祈求江湖路顺遂。", -5, 5, 3, 3),
+		 _opt("过门不入", "你双手合十行了一礼，继续赶路。", 0, 0, 0, 0)], 0.18))
+
+	# 20 - 黑市交易
+	encounters.append(_make_encounter("enc_020", "黑市交易", "阴暗巷子里，蒙面人低声兜售来路不明的宝物。",
+		"gold > 100", -100, 30, 0, 0, "城镇",
+		[_opt("买下宝物(150金)", "到手一看竟是稀世珍品，转手可翻数倍！", -150, 0, -5, 5),
+		 _opt("讨价还价(80金)", "你三寸不烂之舌砍下大半价，捡了个漏。", -80, 0, -3, 2),
+		 _opt("报官揭发", "蒙面人闻风而逃，官府赏你一笔线人费。", 40, 0, 10, 5)], 0.16))
 
 func _make_encounter(id: String, title: String, desc: String, cond: String,
 		min_m: float, max_m: float, min_r: float, min_q: float, location: String,
@@ -162,35 +233,55 @@ func _check_encounter_condition(enc: Encounter) -> bool:
 	return true
 
 func emit_signal_encounter_start(enc: Encounter):
-	GameManager.emit_event("奇遇触发", enc.title + " - " + enc.description, 5)
+	GameManager.emit_event("奇遇触发", "⚡ " + enc.title + "（点击右上角【奇遇】处理）", 5)
 	print("[Encounter] Triggered: " + enc.title)
 
-func resolve_encounter(option_index: int):
+# 结算奇遇选项，返回结果字典供面板展示：
+# {ok: bool, title: String, result_text: String, rewards: Array[Dictionary{text,good}], error: String}
+# 铜钱不足时 ok=false 且 active_encounter 保持不清除，玩家可重新选择
+func resolve_encounter(option_index: int) -> Dictionary:
 	if active_encounter == null:
-		return
+		return {"ok": false, "error": ""}
 	if option_index < 0 or option_index >= active_encounter.options.size():
 		active_encounter = null
-		return
+		return {"ok": false, "error": ""}
 	var opt = active_encounter.options[option_index] as EncounterOption
 	print("[Encounter] Chose: " + opt.text + " -> " + opt.result_text)
 	if opt.reward_gold < 0 and GameManager.gold < abs(opt.reward_gold):
-		DialogManager.show_dialog("奇遇", ["铜钱不足，无法选择此项!"])
-		return
-	GameManager.modify_gold(opt.reward_gold)
+		return {"ok": false, "error": "铜钱不足，无法选择此项！"}
+
+	var rewards: Array = []
+	if opt.reward_gold != 0:
+		GameManager.modify_gold(opt.reward_gold)
+		rewards.append({"text": "金钱 %s%d" % ["+" if opt.reward_gold > 0 else "", opt.reward_gold], "good": opt.reward_gold > 0})
 	if opt.reward_qi > 0:
 		GameManager.restore_qi(opt.reward_qi)
+		rewards.append({"text": "内力 +%d" % int(opt.reward_qi), "good": true})
 	elif opt.reward_qi < 0:
 		GameManager.consume_qi(-opt.reward_qi)
+		rewards.append({"text": "内力 %d" % int(opt.reward_qi), "good": false})
 	if opt.reward_morality != 0:
 		GameManager.modify_morality(opt.reward_morality)
+		rewards.append({"text": "道德 %s%d" % ["+" if opt.reward_morality > 0 else "", int(opt.reward_morality)], "good": opt.reward_morality > 0})
 	if opt.reward_reputation != 0:
 		GameManager.modify_reputation(opt.reward_reputation)
+		rewards.append({"text": "声望 %s%d" % ["+" if opt.reward_reputation > 0 else "", int(opt.reward_reputation)], "good": opt.reward_reputation > 0})
 	if opt.damage > 0:
 		GameManager.take_hit(opt.damage)
+		rewards.append({"text": "受伤 生命 -%d" % int(opt.damage), "good": false})
 	if opt.poison_amount > 0:
 		GameManager.apply_poison(opt.poison_amount)
+		rewards.append({"text": "中毒 %d" % int(opt.poison_amount), "good": false})
 	if opt.unlock_skill != "":
 		if not GameManager.unlocked_skills.has(opt.unlock_skill):
 			GameManager.unlocked_skills.append(opt.unlock_skill)
-	DialogManager.show_dialog("奇遇", [active_encounter.title, opt.result_text])
+		rewards.append({"text": "习得技能「%s」" % opt.unlock_skill, "good": true})
+
+	var title = active_encounter.title
 	active_encounter = null
+	# 同步到江湖风云事件流
+	var gain_text = ""
+	for r in rewards:
+		gain_text += (" " if gain_text == "" else "，") + r["text"]
+	GameManager.emit_event("奇遇·" + title, opt.result_text + ("（" + gain_text + "）" if gain_text != "" else ""), 3)
+	return {"ok": true, "title": title, "result_text": opt.result_text, "rewards": rewards}

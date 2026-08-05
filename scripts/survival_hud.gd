@@ -1,5 +1,7 @@
 extends Control
 
+const TextureGen = preload("res://scripts/texture_generator.gd")
+
 # 圆形人物信息HUD - 中间头像（仅头部），周围环形属性条，下方可展开任务日志
 
 var avatar_texture: Texture2D = null
@@ -48,12 +50,25 @@ const INNER_BG = Color(0.08, 0.08, 0.1, 0.95)
 # 任务面板宽度（与按钮一致）
 const QUEST_W = 140.0
 
+# 操作指南
+var help_btn: Button = null
+var help_panel: Panel = null
+var help_expanded: bool = false
+
+# 时辰天气
+var datetime_label: Label = null
+
 func _ready():
-	position = Vector2(10, 10)
+	# 全屏锚定以便子元素使用底部锚点；自身不拦截鼠标
+	# 注意：必须用 set_anchors_and_offsets_preset，否则0尺寸节点会永远保持0尺寸（底部锚点失效）
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_load_avatar()
 	_create_name_label()
 	_create_resource_labels()
 	_create_quest_section()
+	_create_help_section()
+	_create_datetime_label()
 	stat_arcs = {
 		"health": GameManager.health / 100.0,
 		"hunger": GameManager.hunger / 100.0,
@@ -62,9 +77,8 @@ func _ready():
 	}
 
 func _load_avatar():
-	var tex_path = "res://sprites/player/idle_down_0.png"
-	if ResourceLoader.exists(tex_path):
-		var full_tex = load(tex_path)
+	var full_tex = TextureGen.load_png_texture("res://sprites/player/idle_down_0.png")
+	if full_tex:
 		var img = full_tex.get_image()
 		var head_img = img.get_region(Rect2i(HEAD_CROP_X, HEAD_CROP_Y, HEAD_CROP_W, HEAD_CROP_H))
 		avatar_texture = ImageTexture.create_from_image(head_img)
@@ -104,25 +118,8 @@ func _create_quest_section():
 	quest_toggle_btn.text = "  任务日志  ▼"
 	quest_toggle_btn.position = Vector2(20, btn_y)
 	quest_toggle_btn.size = Vector2(QUEST_W, 22)
-	quest_toggle_btn.focus_mode = Control.FOCUS_NONE
-	quest_toggle_btn.add_theme_font_size_override("font_size", 11)
-	quest_toggle_btn.add_theme_color_override("font_color", Color(1, 0.85, 0.3))
-	quest_toggle_btn.add_theme_color_override("font_hover_color", Color(1, 0.95, 0.5))
-	var btn_style = StyleBoxFlat.new()
-	btn_style.bg_color = Color(0.08, 0.08, 0.1, 0.85)
-	btn_style.border_color = Color(0.4, 0.35, 0.2, 0.5)
-	btn_style.border_width_bottom = 1
-	btn_style.border_width_top = 1
-	btn_style.border_width_left = 1
-	btn_style.border_width_right = 1
-	btn_style.corner_radius_top_left = 4
-	btn_style.corner_radius_top_right = 4
-	btn_style.corner_radius_bottom_left = 4
-	btn_style.corner_radius_bottom_right = 4
-	quest_toggle_btn.add_theme_stylebox_override("normal", btn_style)
-	var btn_hover = btn_style.duplicate()
-	btn_hover.bg_color = Color(0.12, 0.12, 0.15, 0.9)
-	quest_toggle_btn.add_theme_stylebox_override("hover", btn_hover)
+	UITheme.style_button(quest_toggle_btn, 11)
+	quest_toggle_btn.add_theme_color_override("font_color", UITheme.GOLD)
 	quest_toggle_btn.pressed.connect(_toggle_quest)
 	add_child(quest_toggle_btn)
 
@@ -132,16 +129,7 @@ func _create_quest_section():
 	quest_panel.position = Vector2(20, panel_y)
 	quest_panel.size = Vector2(QUEST_W, 200)
 	quest_panel.visible = false
-	var panel_style = StyleBoxFlat.new()
-	panel_style.bg_color = Color(0.06, 0.06, 0.08, 0.92)
-	panel_style.border_color = Color(0.4, 0.35, 0.2, 0.4)
-	panel_style.border_width_bottom = 1
-	panel_style.border_width_top = 1
-	panel_style.border_width_left = 1
-	panel_style.border_width_right = 1
-	panel_style.corner_radius_bottom_left = 6
-	panel_style.corner_radius_bottom_right = 6
-	quest_panel.add_theme_stylebox_override("panel", panel_style)
+	quest_panel.add_theme_stylebox_override("panel", UITheme.inset_style())
 	add_child(quest_panel)
 
 	quest_active_label = Label.new()
@@ -172,6 +160,52 @@ func _toggle_quest():
 		quest_toggle_btn.text = "  任务日志  ▲"
 	else:
 		quest_toggle_btn.text = "  任务日志  ▼"
+
+func _create_help_section():
+	# 左下角操作指南（可折叠）
+	help_btn = Button.new()
+	help_btn.text = "  操作指南  ▲"
+	help_btn.size = Vector2(140, 24)
+	help_btn.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	help_btn.position = Vector2(10, -34)
+	UITheme.style_button(help_btn, 11)
+	help_btn.add_theme_color_override("font_color", UITheme.GOLD)
+	help_btn.pressed.connect(_toggle_help)
+	add_child(help_btn)
+
+	help_panel = Panel.new()
+	help_panel.size = Vector2(250, 210)
+	help_panel.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	help_panel.position = Vector2(10, -248)
+	help_panel.visible = false
+	help_panel.add_theme_stylebox_override("panel", UITheme.inset_style())
+	add_child(help_panel)
+
+	var help_text = Label.new()
+	help_text.position = Vector2(10, 8)
+	help_text.size = Vector2(230, 194)
+	UITheme.style_label(help_text, 11, UITheme.TEXT_MAIN)
+	help_text.text = "WASD / 方向键  移动\n左键  轻击    右键  重击\nQ  格挡    空格  闪避/疾跑\nE  打坐修炼    F  与人交谈\nB  建造    K  商店\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  门派信息\n\n奇遇触发时会自动弹出面板\n点击选项或按数字键抉择"
+	help_panel.add_child(help_text)
+
+func _toggle_help():
+	help_expanded = !help_expanded
+	help_panel.visible = help_expanded
+	help_btn.text = "  操作指南  ▼" if help_expanded else "  操作指南  ▲"
+
+func _create_datetime_label():
+	datetime_label = Label.new()
+	datetime_label.position = Vector2(370, 14)
+	datetime_label.size = Vector2(160, 20)
+	UITheme.style_label(datetime_label, 13, UITheme.GOLD_DIM)
+	add_child(datetime_label)
+
+func _update_datetime():
+	var hour = int(GameManager.world_hour) % 24
+	var shichen = ["子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥"][int(hour / 2) % 12]
+	var weather = "雪" if GameManager.is_snowing else ("雨" if GameManager.is_raining else "晴")
+	var daynight = "" if GameManager.is_daytime else " · 夜"
+	datetime_label.text = shichen + "时 · " + weather + daynight
 
 # 获取当前活跃的属性列表（中毒>0时包含，否则不包含）
 func _get_active_stats() -> Array:
@@ -281,6 +315,7 @@ func _process(_delta):
 	resource_labels["gold"].text = "金:" + str(GameManager.gold)
 	queue_redraw()
 	_update_quest_display()
+	_update_datetime()
 
 func _update_quest_display():
 	if not quest_expanded:
@@ -318,7 +353,15 @@ func _input(event):
 	if event is InputEventKey and event.pressed:
 		if GameManager.is_build_mode:
 			return
-		var shop_hud = get_node_or_null("/root/Main/ShopHUD")
+		# 面板未展开时不拦截数字键，避免与奇遇/商店/建造冲突
+		if not quest_expanded:
+			return
+		if DialogManager.is_dialog_open():
+			return
+		var quick_menu = get_node_or_null("/root/Main/World/UI/QuickMenu")
+		if quick_menu and quick_menu.is_panel_open():
+			return
+		var shop_hud = get_node_or_null("/root/Main/World/UI/ShopHUD")
 		if shop_hud and shop_hud.is_open:
 			return
 		var qs = get_node_or_null("/root/Main/QuestSystem")

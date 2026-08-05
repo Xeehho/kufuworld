@@ -13,7 +13,7 @@ var weather_transition: float = 0.0
 var weather_duration: float = 0.0
 
 var day_colors: Dictionary = {}
-var night_color: Color = Color(0.25, 0.28, 0.65, 1.0)
+var night_color: Color = Color(0.45, 0.48, 0.75, 1.0)  # 夜晚调亮：保证可读性（原0.25,0.28,0.65过暗）
 var dawn_color: Color = Color(0.75, 0.55, 0.6, 1.0)
 var noon_color: Color = Color(1.0, 0.95, 0.88, 1.0)
 var dusk_color: Color = Color(0.7, 0.45, 0.55, 1.0)

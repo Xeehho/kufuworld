@@ -1,12 +1,16 @@
 extends Control
 
-# 商店UI - 买卖界面、供求价格显示、物品详情
+# 商店UI - 居中面板，买卖切换，可点击物品行，统一样式
+
 const ITEM_WEAPON = 0
 const ITEM_ARMOR = 1
 const ITEM_CONSUMABLE = 2
 const ITEM_MATERIAL = 3
 const ITEM_MANUAL = 4
 const ITEM_ACCESSORY = 5
+
+const PANEL_W = 560
+const PANEL_H = 520
 
 var shop_panel: Panel
 var title_label: Label
@@ -21,147 +25,128 @@ var sell_btn: Button = null
 var feedback_label: Label = null
 var equipped_label: Label = null
 var is_open: bool = false
-var selected_index: int = -1
 var mode: String = "buy"
-var displayed_items: Array = []  # Tracks actual items shown in list
+var displayed_items: Array = []
 var feedback_timer: float = 0.0
 
 func _ready():
+	# 全屏锚定以便面板居中；根节点不拦截鼠标
+	# 注意：必须用 set_anchors_and_offsets_preset，否则0尺寸节点会永远保持0尺寸
+	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_create_ui()
 	visible = false
 
 func _create_ui():
 	shop_panel = Panel.new()
-	shop_panel.size = Vector2(520, 500)
-	shop_panel.position = Vector2(700, 290)
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.06, 0.06, 0.1, 0.97)
-	style.border_color = Color(0.6, 0.5, 0.3)
-	style.border_width_bottom = 2
-	style.border_width_top = 2
-	style.border_width_left = 2
-	style.border_width_right = 2
-	style.corner_radius_top_left = 4
-	style.corner_radius_top_right = 4
-	style.corner_radius_bottom_left = 4
-	style.corner_radius_bottom_right = 4
-	shop_panel.add_theme_stylebox_override("panel", style)
+	UITheme.center_panel(shop_panel, PANEL_W, PANEL_H)
+	shop_panel.add_theme_stylebox_override("panel", UITheme.panel_style(true))
 	add_child(shop_panel)
 
 	# 标题
 	title_label = Label.new()
-	title_label.name = "Title"
-	title_label.position = Vector2(15, 10)
-	title_label.add_theme_font_size_override("font_size", 16)
-	title_label.add_theme_color_override("font_color", Color(1, 0.9, 0.4))
-	add_child(title_label)
+	title_label.position = Vector2(20, 10)
+	title_label.size = Vector2(280, 24)
+	UITheme.style_title(title_label, 17)
+	shop_panel.add_child(title_label)
 
 	# 金钱
 	gold_label = Label.new()
-	gold_label.name = "Gold"
-	gold_label.position = Vector2(300, 10)
-	gold_label.add_theme_font_size_override("font_size", 14)
-	gold_label.add_theme_color_override("font_color", Color(1, 0.85, 0.2))
-	add_child(gold_label)
+	gold_label.position = Vector2(PANEL_W - 210, 12)
+	gold_label.size = Vector2(150, 22)
+	gold_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	UITheme.style_label(gold_label, 14, UITheme.GOLD)
+	shop_panel.add_child(gold_label)
 
 	# 关闭按钮
 	close_btn = Button.new()
-	close_btn.text = "X"
-	close_btn.size = Vector2(30, 24)
-	close_btn.position = Vector2(480, 6)
+	close_btn.text = "✕"
+	close_btn.size = Vector2(30, 26)
+	close_btn.position = Vector2(PANEL_W - 40, 8)
+	UITheme.style_button(close_btn, 12)
 	close_btn.pressed.connect(close_shop)
-	add_child(close_btn)
+	shop_panel.add_child(close_btn)
 
-	# 买入/卖出切换按钮
+	# 买入/卖出切换
 	buy_btn = Button.new()
 	buy_btn.text = " 买入 "
-	buy_btn.size = Vector2(70, 26)
-	buy_btn.position = Vector2(15, 34)
+	buy_btn.size = Vector2(76, 28)
+	buy_btn.position = Vector2(20, 42)
+	UITheme.style_button(buy_btn, 13)
 	buy_btn.pressed.connect(func(): mode = "buy"; _refresh_display())
-	add_child(buy_btn)
+	shop_panel.add_child(buy_btn)
 
 	sell_btn = Button.new()
 	sell_btn.text = " 卖出 "
-	sell_btn.size = Vector2(70, 26)
-	sell_btn.position = Vector2(90, 34)
+	sell_btn.size = Vector2(76, 28)
+	sell_btn.position = Vector2(104, 42)
+	UITheme.style_button(sell_btn, 13)
 	sell_btn.pressed.connect(func(): mode = "sell"; _refresh_display())
-	add_child(sell_btn)
+	shop_panel.add_child(sell_btn)
 
 	# 物品列表
 	scroll = ScrollContainer.new()
-	scroll.position = Vector2(15, 66)
-	scroll.size = Vector2(490, 280)
+	scroll.position = Vector2(16, 78)
+	scroll.size = Vector2(PANEL_W - 32, 260)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	add_child(scroll)
+	shop_panel.add_child(scroll)
 
 	item_list = VBoxContainer.new()
-	item_list.name = "ItemList"
-	item_list.add_theme_constant_override("separation", 3)
+	item_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	item_list.add_theme_constant_override("separation", 4)
 	scroll.add_child(item_list)
 
-	# 物品详情区域
+	# 物品详情
 	var detail_bg = Panel.new()
-	detail_bg.position = Vector2(15, 352)
-	detail_bg.size = Vector2(490, 70)
-	var detail_style = StyleBoxFlat.new()
-	detail_style.bg_color = Color(0.04, 0.04, 0.08, 0.9)
-	detail_style.border_color = Color(0.3, 0.3, 0.4)
-	detail_style.border_width_bottom = 1
-	detail_style.border_width_top = 1
-	detail_style.border_width_left = 1
-	detail_style.border_width_right = 1
-	detail_bg.add_theme_stylebox_override("panel", detail_style)
-	add_child(detail_bg)
+	detail_bg.position = Vector2(16, 346)
+	detail_bg.size = Vector2(PANEL_W - 32, 78)
+	detail_bg.add_theme_stylebox_override("panel", UITheme.inset_style())
+	shop_panel.add_child(detail_bg)
 
 	detail_label = Label.new()
-	detail_label.position = Vector2(20, 356)
-	detail_label.size = Vector2(480, 62)
-	detail_label.add_theme_font_size_override("font_size", 10)
-	detail_label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.9))
+	detail_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	detail_label.offset_left = 8
+	detail_label.offset_top = 6
+	detail_label.offset_right = -8
+	detail_label.offset_bottom = -6
 	detail_label.autowrap_mode = TextServer.AUTOWRAP_WORD
+	UITheme.style_label(detail_label, 11, Color(0.85, 0.84, 0.88))
 	detail_label.text = "选择物品查看详情"
-	add_child(detail_label)
+	detail_bg.add_child(detail_label)
 
 	# 装备信息（卖出模式显示）
 	equipped_label = Label.new()
-	equipped_label.position = Vector2(15, 426)
-	equipped_label.size = Vector2(490, 40)
-	equipped_label.add_theme_font_size_override("font_size", 10)
-	equipped_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1))
+	equipped_label.position = Vector2(16, 430)
+	equipped_label.size = Vector2(PANEL_W - 32, 36)
 	equipped_label.autowrap_mode = TextServer.AUTOWRAP_WORD
-	equipped_label.text = ""
+	UITheme.style_label(equipped_label, 11, Color(0.6, 0.8, 1))
 	equipped_label.visible = false
-	add_child(equipped_label)
+	shop_panel.add_child(equipped_label)
 
 	# 交易反馈
 	feedback_label = Label.new()
-	feedback_label.position = Vector2(15, 470)
-	feedback_label.size = Vector2(490, 20)
-	feedback_label.add_theme_font_size_override("font_size", 11)
-	feedback_label.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
-	feedback_label.text = ""
-	add_child(feedback_label)
+	feedback_label.position = Vector2(16, 468)
+	feedback_label.size = Vector2(PANEL_W - 32, 20)
+	UITheme.style_label(feedback_label, 12, Color(0.3, 1, 0.3))
+	shop_panel.add_child(feedback_label)
 
 	# 操作提示
 	hint_label = Label.new()
-	hint_label.name = "Hint"
-	hint_label.position = Vector2(15, 486)
-	hint_label.add_theme_font_size_override("font_size", 9)
-	hint_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	hint_label.text = "K=开关 | 1-9=选择 | Tab=切换买/卖 | R=使用/装备"
-	add_child(hint_label)
+	hint_label.position = Vector2(16, 492)
+	UITheme.style_label(hint_label, 10, UITheme.TEXT_DIM)
+	hint_label.text = "K=开关商店 | 点击物品=交易 | Tab=切换买/卖 | R=使用/装备"
+	shop_panel.add_child(hint_label)
 
 func _input(event):
 	if event is InputEventKey and event.pressed:
 		if event.is_action_pressed("toggle_shop"):
 			toggle_shop()
 		elif is_open:
-			if event.keycode == KEY_TAB:
+			if event.keycode == KEY_ESCAPE:
+				close_shop()
+			elif event.keycode == KEY_TAB:
 				mode = "sell" if mode == "buy" else "buy"
 				_refresh_display()
-			elif event.keycode >= KEY_1 and event.keycode <= KEY_9:
-				var idx = event.keycode - KEY_1
-				_handle_select(idx)
 			elif event.is_action_pressed("shop_use_equip"):
 				_handle_use_equipped()
 
@@ -180,6 +165,9 @@ func toggle_shop():
 func open_shop():
 	is_open = true
 	visible = true
+	shop_panel.modulate.a = 0.0
+	var tw = create_tween()
+	tw.tween_property(shop_panel, "modulate:a", 1.0, 0.15)
 	var shop = _get_shop()
 	if shop:
 		shop.open_shop()
@@ -197,36 +185,16 @@ func _refresh_display():
 	if shop == null:
 		return
 
-	title_label.text = shop.shop_name
+	title_label.text = "🏪 " + shop.shop_name
 	gold_label.text = "铜钱: " + str(GameManager.gold)
 
-	# 更新买入/卖出按钮样式
-	var active_style = StyleBoxFlat.new()
-	active_style.bg_color = Color(0.2, 0.15, 0.05, 1.0)
-	active_style.border_color = Color(1, 0.85, 0.3)
-	active_style.border_width_bottom = 2
-	active_style.border_width_top = 2
-	active_style.border_width_left = 2
-	active_style.border_width_right = 2
-
-	var inactive_style = StyleBoxFlat.new()
-	inactive_style.bg_color = Color(0.1, 0.1, 0.12, 0.8)
-	inactive_style.border_color = Color(0.3, 0.3, 0.3)
-	inactive_style.border_width_bottom = 1
-	inactive_style.border_width_top = 1
-	inactive_style.border_width_left = 1
-	inactive_style.border_width_right = 1
-
+	# 买入/卖出按钮高亮当前模式
 	if mode == "buy":
-		buy_btn.add_theme_stylebox_override("normal", active_style)
-		sell_btn.add_theme_stylebox_override("normal", inactive_style)
-		buy_btn.add_theme_color_override("font_color", Color(1, 0.9, 0.3))
-		sell_btn.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		buy_btn.add_theme_color_override("font_color", UITheme.GOLD)
+		sell_btn.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 	else:
-		sell_btn.add_theme_stylebox_override("normal", active_style)
-		buy_btn.add_theme_stylebox_override("normal", inactive_style)
-		sell_btn.add_theme_color_override("font_color", Color(1, 0.9, 0.3))
-		buy_btn.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+		sell_btn.add_theme_color_override("font_color", UITheme.GOLD)
+		buy_btn.add_theme_color_override("font_color", UITheme.TEXT_DIM)
 
 	for child in item_list.get_children():
 		child.queue_free()
@@ -242,52 +210,61 @@ func _refresh_display():
 		_show_equipped_info()
 		equipped_label.visible = true
 
+func _make_item_row(text_str: String, color: Color, idx: int) -> Button:
+	var btn = Button.new()
+	btn.text = text_str
+	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	btn.custom_minimum_size = Vector2(0, 28)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	UITheme.style_button(btn, 12)
+	btn.add_theme_color_override("font_color", color)
+	btn.pressed.connect(_on_item_row_pressed.bind(idx))
+	btn.mouse_entered.connect(func(): if idx < displayed_items.size(): _show_item_detail(displayed_items[idx]["item"]))
+	item_list.add_child(btn)
+	return btn
+
 func _show_buy_list(shop):
 	displayed_items.clear()
-	var display_idx = 0
 	for i in range(shop.shop_items.size()):
 		var slot = shop.shop_items[i]
 		var item = slot["item"]
 		if slot["stock"] <= 0:
 			continue
-
 		var price = shop.get_buy_price(item)
 		var rarity_badge = _get_rarity_badge(item.rarity)
 		var supply_indicator = _get_supply_indicator(item.supply_level)
 		var color = _get_rarity_color(item.rarity)
-
-		var lbl = Label.new()
-		var key_str = str(display_idx + 1) if display_idx < 9 else "-"
-		lbl.text = "[%s] %s %s %s | %d铜 %s | 库存:%d" % [key_str, rarity_badge, item.item_name, item.get_type_name(), price, supply_indicator, slot["stock"]]
-		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", color)
-		item_list.add_child(lbl)
-
+		var idx = displayed_items.size()
+		var text_str = "%s %s %s | %d铜 %s | 库存:%d" % [rarity_badge, item.item_name, item.get_type_name(), price, supply_indicator, slot["stock"]]
+		_make_item_row(text_str, color, idx)
 		displayed_items.append({"item": item, "shop_index": i, "price": price, "stock": slot["stock"]})
-		display_idx += 1
+	if displayed_items.is_empty():
+		var empty = Label.new()
+		empty.text = "（货架空空如也）"
+		UITheme.style_label(empty, 12, UITheme.TEXT_DIM)
+		item_list.add_child(empty)
 
 func _show_sell_list():
 	var inv = _get_inventory()
 	if inv == null:
 		return
 	displayed_items.clear()
-	var idx = 0
-	for slot in inv.inventory:
+	var shop = _get_shop()
+	for i in range(inv.inventory.size()):
+		var slot = inv.inventory[i]
 		var item = slot["item"]
-		var shop = _get_shop()
 		var price = shop.get_sell_price(item) if shop else int(item.base_price * 0.5)
 		var rarity_badge = _get_rarity_badge(item.rarity)
 		var color = _get_rarity_color(item.rarity)
-
-		var lbl = Label.new()
-		var key_str = str(idx + 1) if idx < 9 else "-"
-		lbl.text = "[%s] %s %s x%d | 卖%d铜 | %s" % [key_str, rarity_badge, item.item_name, slot["count"], price, item.get_effect_description().left(20)]
-		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", color)
-		item_list.add_child(lbl)
-
-		displayed_items.append({"item": item, "inv_index": idx, "price": price, "count": slot["count"]})
-		idx += 1
+		var idx = displayed_items.size()
+		var text_str = "%s %s x%d | 卖%d铜 | %s" % [rarity_badge, item.item_name, slot["count"], price, item.get_effect_description().left(16)]
+		_make_item_row(text_str, color, idx)
+		displayed_items.append({"item": item, "inv_index": i, "price": price, "count": slot["count"]})
+	if displayed_items.is_empty():
+		var empty = Label.new()
+		empty.text = "（背包空空如也，去商店买入或完成任务获取物品吧）"
+		UITheme.style_label(empty, 12, UITheme.TEXT_DIM)
+		item_list.add_child(empty)
 
 func _show_equipped_info():
 	var inv = _get_inventory()
@@ -308,23 +285,17 @@ func _show_equipped_info():
 		info += "饰品[无]"
 	equipped_label.text = info
 
-func _handle_select(idx: int):
+func _on_item_row_pressed(idx: int):
 	if idx < 0 or idx >= displayed_items.size():
 		return
-
 	var entry = displayed_items[idx]
 	var item = entry["item"]
-
-	# Show detail
 	_show_item_detail(item)
-
 	var shop = _get_shop()
 	if shop == null:
 		return
-
 	if mode == "buy":
-		var shop_idx = entry["shop_index"]
-		if shop.buy_item(shop_idx):
+		if shop.buy_item(entry["shop_index"]):
 			_show_feedback("已购买 %s -%d铜" % [item.item_name, entry["price"]])
 		else:
 			_show_feedback("购买失败! 铜钱不足或库存不足")

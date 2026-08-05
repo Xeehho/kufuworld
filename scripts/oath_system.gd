@@ -30,8 +30,12 @@ var milestone_templates = {
 }
 
 func create_oath(title: String, description: String = "") -> Dictionary:
-	if title == "自定义":
-		title = description
+	# 同时只能持有一个誓言：立新誓言前自动放弃未达成的旧誓言
+	for i in range(oaths.size() - 1, -1, -1):
+		if not oaths[i]["is_fulfilled"]:
+			GameManager.emit_event("背誓", "你放弃了旧誓言「" + oaths[i]["title"] + "」", 3)
+			print("[Oath] Abandoned: " + oaths[i]["title"])
+			oaths.remove_at(i)
 	var milestones: Array = []
 	if milestone_templates.has(title):
 		milestones = milestone_templates[title].duplicate()

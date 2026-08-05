@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+const TextureGen = preload("res://scripts/texture_generator.gd")
+
 const SPEED = 200.0
 const SPRINT_SPEED = 350.0
 const DODGE_SPEED = 500.0
@@ -34,7 +36,7 @@ var interact_cooldown: float = 0.0
 var build_menu: Control = null
 var build_labels: Array = []
 var build_selected_index: int = -1
-# 玩家碰撞形状半尺寸（与CollisionShape2D一致：24x36）
+# 玩家碰撞形状半尺寸（与CollisionShape2D一致：24x36，供建造区域校验使用）
 const COLLISION_HALF_W = 12.0
 const COLLISION_HALF_H = 18.0
 var _world_gen: Node2D = null
@@ -44,6 +46,36 @@ func _ready():
 	combo_tree = load("res://resources/combo_tree.tres") if ResourceLoader.exists("res://resources/combo_tree.tres") else null
 	combat_stance = get_node_or_null("/root/Main/CombatStance")
 	_world_gen = get_node_or_null("/root/Main/World/WorldGenerator")
+	# 纹理可能在Main._ensure_textures()中才生成（晚于本_ready），故延迟一帧重建帧动画
+	call_deferred("rebuild_sprite_frames")
+
+# 运行时从PNG直接重建SpriteFrames：绕过import系统，保证新生成的贴图立即生效
+func rebuild_sprite_frames():
+	var sf = SpriteFrames.new()
+	var dir_names = ["down", "left", "right", "up"]
+	var specs = [
+		["idle", 4, 4.0, true],
+		["walk", 6, 8.0, true],
+		["attack", 4, 10.0, false],
+		["block", 2, 5.0, true],
+	]
+	var loaded_any = false
+	for spec in specs:
+		var prefix = spec[0]
+		for dir_name in dir_names:
+			var anim_name = prefix + "_" + dir_name
+			if not sf.has_animation(anim_name):
+				sf.add_animation(anim_name)
+			sf.set_animation_speed(anim_name, spec[2])
+			sf.set_animation_loop(anim_name, spec[3])
+			for i in range(spec[1]):
+				var tex = TextureGen.load_png_texture("res://sprites/player/%s_%s_%d.png" % [prefix, dir_name, i])
+				if tex:
+					sf.add_frame(anim_name, tex)
+					loaded_any = true
+	if loaded_any:
+		anim.sprite_frames = sf
+		_play_anim("idle")
 
 func _update_facing(dir: Vector2):
 	if abs(dir.x) > abs(dir.y):
@@ -72,41 +104,10 @@ func _play_anim(prefix: String):
 	elif anim and anim.sprite_frames and anim.sprite_frames.has_animation(prefix):
 		anim.play(prefix)
 
-func _check_tile_collision():
-	"""检测玩家碰撞矩形四角是否在碰撞瓦片上，阻止对应方向的移动"""
-	if _world_gen == null or not _world_gen.has_method("is_tile_blocking"):
-		return
-	var pos = global_position
-	# 检测X方向：用前方两个角
-	var x_blocked = false
-	if velocity.x > 0:
-		# 向右移动，检查右侧两角
-		if _world_gen.is_tile_blocking(Vector2(pos.x + COLLISION_HALF_W, pos.y - COLLISION_HALF_H)) or \
-		   _world_gen.is_tile_blocking(Vector2(pos.x + COLLISION_HALF_W, pos.y + COLLISION_HALF_H)):
-			x_blocked = true
-	elif velocity.x < 0:
-		# 向左移动，检查左侧两角
-		if _world_gen.is_tile_blocking(Vector2(pos.x - COLLISION_HALF_W, pos.y - COLLISION_HALF_H)) or \
-		   _world_gen.is_tile_blocking(Vector2(pos.x - COLLISION_HALF_W, pos.y + COLLISION_HALF_H)):
-			x_blocked = true
-	# 检测Y方向：用前方两个角
-	var y_blocked = false
-	if velocity.y > 0:
-		# 向下移动，检查下方两角
-		if _world_gen.is_tile_blocking(Vector2(pos.x - COLLISION_HALF_W, pos.y + COLLISION_HALF_H)) or \
-		   _world_gen.is_tile_blocking(Vector2(pos.x + COLLISION_HALF_W, pos.y + COLLISION_HALF_H)):
-			y_blocked = true
-	elif velocity.y < 0:
-		# 向上移动，检查上方两角
-		if _world_gen.is_tile_blocking(Vector2(pos.x - COLLISION_HALF_W, pos.y - COLLISION_HALF_H)) or \
-		   _world_gen.is_tile_blocking(Vector2(pos.x + COLLISION_HALF_W, pos.y - COLLISION_HALF_H)):
-			y_blocked = true
-	if x_blocked:
-		velocity.x = 0
-	if y_blocked:
-		velocity.y = 0
-
 func _physics_process(delta):
+	# WorldGenerator在Main._ready()中延迟创建，此处懒加载确保获取到引用
+	if _world_gen == null:
+		_world_gen = get_node_or_null("/root/Main/World/WorldGenerator")
 	match state:
 		State.IDLE:
 			_process_idle(delta)
@@ -125,7 +126,32 @@ func _physics_process(delta):
 		State.STAGGER:
 			_process_stagger(delta)
 
+func _is_ui_blocking() -> bool:
+	"""有模态UI打开时，锁定角色移动与战斗输入"""
+	if DialogManager.is_dialog_open():
+		return true
+	var ui = get_node_or_null("/root/Main/World/UI")
+	if ui:
+		var shop = ui.get_node_or_null("ShopHUD")
+		if shop and shop.is_open:
+			return true
+		var qm = ui.get_node_or_null("QuickMenu")
+		if qm and qm.is_panel_open():
+			return true
+	var spawner = get_node_or_null("/root/Main/World/NPCSpawner")
+	if spawner and spawner.has_method("is_interaction_open") and spawner.is_interaction_open():
+		return true
+	return false
+
+func _is_mouse_over_ui() -> bool:
+	"""鼠标悬停在任何Control上时，不触发攻击等游戏内动作"""
+	return get_viewport().gui_get_hovered_control() != null
+
 func _process_idle(_delta):
+	if _is_ui_blocking():
+		velocity = Vector2.ZERO
+		_play_anim("idle")
+		return
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if input_dir != Vector2.ZERO:
 		_update_facing(input_dir)
@@ -135,6 +161,11 @@ func _process_idle(_delta):
 	_check_combat_input()
 
 func _process_move(_delta):
+	if _is_ui_blocking():
+		velocity = Vector2.ZERO
+		state = State.IDLE
+		_play_anim("idle")
+		return
 	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
 	if input_dir == Vector2.ZERO:
 		state = State.IDLE
@@ -145,12 +176,15 @@ func _process_move(_delta):
 	if Input.is_action_pressed("player_dodge"):
 		spd = SPRINT_SPEED
 	velocity = input_dir * spd
-	_check_tile_collision()
+	# 地形碰撞由TileSet物理层+move_and_slide处理（脚本级角点检测已移除：
+	# 贴墙时角点浮点嵌入碰撞瓦片会导致四方向全部锁死，且物理碰撞本身支持沿墙滑动）
 	_play_anim("walk")
 	move_and_slide()
 	_check_combat_input()
 
 func _check_combat_input():
+	if _is_mouse_over_ui():
+		return
 	if Input.is_action_just_pressed("player_attack_light"):
 		_start_attack(true)
 	elif Input.is_action_just_pressed("player_attack_heavy"):
@@ -232,6 +266,7 @@ func _process_attack(_delta):
 			skill_phase = "active"
 			attack_indicator.visible = true
 			attack_indicator.color.a = 0.7
+			_spawn_slash_effect()
 
 	elif skill_phase == "active":
 		match facing:
@@ -279,6 +314,98 @@ func _deal_damage():
 		if counter_mult > 1.0:
 			print("[Combat] 格挡反击! 伤害x" + str(counter_mult))
 	print("[Combat] " + current_skill.skill_name + " dealt " + str(final_damage) + " damage")
+	# 打击反馈：命中特效+震屏+飘字
+	var hit_pos = global_position + _facing_vector() * 40.0
+	_spawn_hit_effect(hit_pos)
+	_spawn_damage_number(hit_pos, final_damage)
+	_camera_shake(4.0, 0.18)
+
+# 面向方向的单位向量
+func _facing_vector() -> Vector2:
+	match facing:
+		Direction.LEFT: return Vector2.LEFT
+		Direction.RIGHT: return Vector2.RIGHT
+		Direction.UP: return Vector2.UP
+		_: return Vector2.DOWN
+
+# 挥击刀光扇形特效
+func _spawn_slash_effect():
+	var fx = Polygon2D.new()
+	var pts = PackedVector2Array()
+	pts.append(Vector2.ZERO)
+	var base_angle: float
+	match facing:
+		Direction.DOWN: base_angle = 90.0
+		Direction.LEFT: base_angle = 180.0
+		Direction.RIGHT: base_angle = 0.0
+		Direction.UP: base_angle = 270.0
+	var arc = 100.0
+	var radius = 46.0
+	for ad in range(int(base_angle - arc / 2), int(base_angle + arc / 2) + 1, 6):
+		var ar = deg_to_rad(ad)
+		pts.append(Vector2(cos(ar), sin(ar)) * radius)
+	fx.polygon = pts
+	fx.color = Color(0.65, 0.88, 1.0, 0.55)
+	fx.z_index = 8
+	get_parent().add_child(fx)
+	fx.global_position = global_position + Vector2(0, -14)
+	fx.scale = Vector2(0.5, 0.5)
+	var tween = fx.create_tween().set_parallel(true)
+	tween.tween_property(fx, "scale", Vector2(1.15, 1.15), 0.12).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(fx, "modulate:a", 0.0, 0.2)
+	tween.chain().tween_callback(fx.queue_free)
+
+# 命中火花粒子
+func _spawn_hit_effect(pos: Vector2):
+	var container = Node2D.new()
+	container.z_index = 9
+	get_parent().add_child(container)
+	container.global_position = pos
+	var hit_color = _damage_color()
+	hit_color.a = 1.0
+	for i in range(6):
+		var p = ColorRect.new()
+		p.size = Vector2(4, 4)
+		p.position = Vector2(-2, -2)
+		p.color = hit_color.lightened(0.3)
+		container.add_child(p)
+		var dir_vec = Vector2.RIGHT.rotated(randf() * TAU)
+		var dist = randf_range(14, 30)
+		var tween = p.create_tween().set_parallel(true)
+		tween.tween_property(p, "position", dir_vec * dist, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(p, "modulate:a", 0.0, 0.28)
+		tween.tween_property(p, "scale", Vector2(0.3, 0.3), 0.28)
+	await get_tree().create_timer(0.35).timeout
+	if is_instance_valid(container):
+		container.queue_free()
+
+# 伤害飘字
+func _spawn_damage_number(pos: Vector2, dmg: float):
+	var lbl = Label.new()
+	lbl.text = str(int(dmg))
+	lbl.z_index = 20
+	lbl.add_theme_font_size_override("font_size", 22)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.85, 0.35))
+	lbl.add_theme_color_override("font_outline_color", Color(0.1, 0.1, 0.1))
+	lbl.add_theme_constant_override("outline_size", 4)
+	get_parent().add_child(lbl)
+	lbl.global_position = pos + Vector2(-8, -20)
+	var tween = lbl.create_tween().set_parallel(true)
+	tween.tween_property(lbl, "global_position:y", lbl.global_position.y - 34, 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(lbl, "modulate:a", 0.0, 0.6).set_delay(0.15)
+	tween.chain().tween_callback(lbl.queue_free)
+
+# 相机震动
+func _camera_shake(strength: float, duration: float):
+	var cam = get_node_or_null("Camera2D")
+	if cam == null:
+		return
+	var tween = cam.create_tween()
+	var steps = 5
+	for i in range(steps):
+		var s = strength * (1.0 - float(i) / steps)
+		tween.tween_property(cam, "offset", Vector2(randf_range(-s, s), randf_range(-s, s)), duration / steps)
+	tween.tween_property(cam, "offset", Vector2.ZERO, duration / steps)
 
 func _end_attack():
 	state = State.IDLE
@@ -324,7 +451,6 @@ func _start_dodge():
 func _process_dodge(delta):
 	dodge_timer -= delta
 	velocity = dodge_dir * DODGE_SPEED
-	_check_tile_collision()
 	move_and_slide()
 	if dodge_timer <= 0:
 		attack_indicator.visible = false
@@ -399,6 +525,15 @@ func _show_build_menu():
 	if build_menu == null:
 		_create_build_menu()
 	build_menu.visible = true
+	# 居中面板淡入动画
+	var panel = build_menu.get_child(0)
+	if panel:
+		panel.modulate.a = 0.0
+		panel.scale = Vector2(0.92, 0.92)
+		panel.pivot_offset = panel.size / 2
+		var tween = create_tween().set_parallel(true)
+		tween.tween_property(panel, "modulate:a", 1.0, 0.15)
+		tween.tween_property(panel, "scale", Vector2.ONE, 0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_refresh_build_labels()
 
 func _hide_build_menu():
@@ -411,21 +546,22 @@ func _create_build_menu():
 	build_menu = Control.new()
 	build_menu.name = "BuildMenu"
 	build_menu.visible = false
+	build_menu.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	build_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var panel = Panel.new()
-	panel.size = Vector2(220, 190)
-	panel.position = Vector2(0, 0)
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.1, 0.12, 1.0)
-	panel.add_theme_stylebox_override("panel", style)
+	panel.size = Vector2(320, 230)
+	panel.add_theme_stylebox_override("panel", UITheme.panel_style(true))
+	UITheme.center_panel(panel, 320, 230)
 	build_menu.add_child(panel)
 
 	var title = Label.new()
-	title.text = "=== 建造菜单 ==="
-	title.position = Vector2(10, 6)
-	title.add_theme_font_size_override("font_size", 14)
-	title.add_theme_color_override("font_color", Color(1, 0.9, 0.3))
-	build_menu.add_child(title)
+	title.text = "建 造"
+	title.position = Vector2(10, 10)
+	title.size = Vector2(300, 24)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.style_title(title, 16)
+	panel.add_child(title)
 
 	var buildings = [
 		{"key": "1", "name": "茅屋", "cost": "15木 5石", "info": "住所(3x2)"},
@@ -437,23 +573,28 @@ func _create_build_menu():
 
 	for i in range(buildings.size()):
 		var d = buildings[i]
-		var y = 26 + i * 28
+		var y = 44 + i * 30
 		var lbl = Label.new()
 		lbl.text = "[" + d["key"] + "] " + d["name"] + "  " + d["cost"] + " " + d["info"]
-		lbl.position = Vector2(10, y)
-		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", Color(1, 1, 1))
-		build_menu.add_child(lbl)
+		lbl.position = Vector2(24, y)
+		UITheme.style_label(lbl, 13)
+		panel.add_child(lbl)
 		build_labels.append(lbl)
 
 	var hint = Label.new()
 	hint.text = "B=退出  数字键=选择  左键=放置"
-	hint.position = Vector2(10, 170)
-	hint.add_theme_font_size_override("font_size", 9)
-	hint.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	build_menu.add_child(hint)
+	hint.position = Vector2(24, 198)
+	hint.size = Vector2(280, 20)
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	UITheme.style_label(hint, 11, UITheme.TEXT_DIM)
+	panel.add_child(hint)
 
-	get_parent().add_child(build_menu)
+	# 挂到UI层（CanvasLayer），屏幕居中显示，不再跟随玩家世界坐标
+	var ui_layer = get_node_or_null("/root/Main/World/UI")
+	if ui_layer:
+		ui_layer.add_child(build_menu)
+	else:
+		get_parent().add_child(build_menu)
 
 func _refresh_build_labels():
 	for i in range(build_labels.size()):
@@ -462,9 +603,8 @@ func _refresh_build_labels():
 		else:
 			build_labels[i].add_theme_color_override("font_color", Color(1, 1, 1))
 
-func _process_build(_delta):
-	if build_menu:
-		build_menu.global_position = global_position + Vector2(-100, -220)
+func _process_build(delta):
+	build_place_cooldown = max(build_place_cooldown - delta, 0.0)
 	if Input.is_action_just_pressed("player_build"):
 		_toggle_build()
 		return
@@ -478,8 +618,10 @@ func _process_build(_delta):
 		_select_building("农田")
 	elif Input.is_action_just_pressed("build_slot_5"):
 		_select_building("围墙")
+	# 按住左键连放由冷却限制，避免一帧内放置多个
 	if Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT) and GameManager.selected_building != null:
-		_place_building()
+		if build_place_cooldown <= 0 and not _is_mouse_over_ui():
+			_place_building()
 
 func _select_building(type_str: String):
 	var idx = -1
@@ -523,12 +665,21 @@ func _select_building(type_str: String):
 
 func _place_building():
 	var tpl = GameManager.selected_building
+	if tpl == null:
+		return
 	if not GameManager.has_materials(tpl.wood_cost, tpl.stone_cost):
 		print("[Build] 材料不足!")
+		build_place_cooldown = 0.5
 		return
 	var pos = global_position
 	pos.x = snapped(pos.x, BUILD_OFFSET)
 	pos.y = snapped(pos.y, BUILD_OFFSET)
+	# 检查占地是否为可通行的地面（不能放在水里/山上）
+	if not _is_area_buildable(pos, tpl.size_x, tpl.size_y):
+		print("[Build] 此处无法建造（水域或山地）!")
+		build_place_cooldown = 0.5
+		return
+	build_place_cooldown = 0.3
 	GameManager.consume_materials(tpl.wood_cost, tpl.stone_cost)
 	var bld = {
 		"name": tpl.building_name,
@@ -540,22 +691,41 @@ func _place_building():
 	GameManager.add_building(bld)
 	_spawn_building_visual(pos, tpl)
 	print("[Build] Placed " + tpl.building_name + " at " + str(pos))
-	GameManager.selected_building = null
+
+func _is_area_buildable(pos: Vector2, sx: int, sy: int) -> bool:
+	if _world_gen == null or not _world_gen.has_method("is_tile_blocking"):
+		return true
+	for x in range(sx):
+		for y in range(sy):
+			var center = pos + Vector2(x * BUILD_OFFSET + BUILD_OFFSET / 2, y * BUILD_OFFSET + BUILD_OFFSET / 2)
+			if _world_gen.is_tile_blocking(center):
+				return false
+	return true
 
 func _spawn_building_visual(pos: Vector2, tpl: BuildingTemplate):
 	var bld_node = Node2D.new()
 	bld_node.name = "Building_" + tpl.building_name
 	bld_node.global_position = pos
 	bld_node.y_sort_enabled = true
-	# 使用瓦片纹理代替ColorRect
 	var tile_tex = _building_tile_texture(tpl.building_type)
+	var fallback_color = _building_color(tpl.building_type)
 	for sx in range(tpl.size_x):
 		for sy in range(tpl.size_y):
-			var sprite = Sprite2D.new()
-			sprite.texture = tile_tex
-			sprite.position = Vector2(sx * BUILD_OFFSET + BUILD_OFFSET / 2, sy * BUILD_OFFSET + BUILD_OFFSET / 2)
-			sprite.z_index = 1
-			bld_node.add_child(sprite)
+			var cell_pos = Vector2(sx * BUILD_OFFSET + BUILD_OFFSET / 2, sy * BUILD_OFFSET + BUILD_OFFSET / 2)
+			if tile_tex:
+				var sprite = Sprite2D.new()
+				sprite.texture = tile_tex
+				sprite.position = cell_pos
+				sprite.z_index = 1
+				bld_node.add_child(sprite)
+			else:
+				# 纹理缺失时使用色块回退，保证建筑可见
+				var rect = ColorRect.new()
+				rect.color = fallback_color
+				rect.size = Vector2(BUILD_OFFSET - 4, BUILD_OFFSET - 4)
+				rect.position = cell_pos - rect.size / 2
+				rect.z_index = 1
+				bld_node.add_child(rect)
 	var lbl = Label.new()
 	lbl.text = tpl.building_name
 	lbl.position = Vector2(0, -18)
@@ -573,10 +743,8 @@ func _building_tile_texture(type_str: String) -> Texture2D:
 		"农田": path = "res://sprites/tiles/farmland.png"
 		"围墙": path = "res://sprites/tiles/fence.png"
 		_: path = "res://sprites/tiles/house_cottage.png"
-	if ResourceLoader.exists(path):
-		return load(path)
-	# 回退到ColorRect方式
-	return null
+	# 运行时直接解码PNG（新纹理无import数据，load()不可靠）
+	return TextureGen.load_png_texture(path)
 
 func _building_color(type_str: String) -> Color:
 	match type_str:

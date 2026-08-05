@@ -1,7 +1,8 @@
 res://scripts/player.gd
+res://scripts/ui_theme.gd
+res://scripts/texture_generator.gd
 res://scripts/tileset_generator.gd
 res://scripts/Main.gd
-res://scripts/combat_hud.gd
-res://scripts/game_manager.gd
-res://scripts/npc_info_hud.gd
 res://scripts/event_hud.gd
+res://scripts/dialog_manager.gd
+res://scripts/world_generator.gd

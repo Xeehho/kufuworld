@@ -1,5 +1,8 @@
 extends Node2D
 
+const TextureGen = preload("res://scripts/texture_generator.gd")
+const TilesetGen = preload("res://scripts/tileset_generator.gd")
+
 const CHUNK_SIZE = 16
 const TILE_SIZE_PX = 32
 const CHUNK_PX = CHUNK_SIZE * TILE_SIZE_PX
@@ -7,7 +10,7 @@ const LOAD_RADIUS = 3
 const WORLD_SEED = 12345
 
 # 世界边界半径（瓦片坐标）
-const WORLD_RADIUS = 80
+const WORLD_RADIUS = 120
 
 enum Terrain {WATER, SAND, GRASS, GRASS_DARK, FOREST, MOUNTAIN, SNOW}
 
@@ -22,8 +25,19 @@ var world_cells: Dictionary = {}
 
 # 河流和城镇的覆盖数据（瓦片坐标 -> tile_id）
 var override_cells: Dictionary = {}
-# 需要碰撞的瓦片集合
-var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15]
+# 需要碰撞的瓦片集合（含多格建筑部件19-32）
+var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+# 多格建筑部件ID集合（供地面铺设/布局判断）
+var building_part_tiles: Array = [19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+# 每种宽度建筑各部件的瓦片ID（与 BUILDING_PARTS 顺序一致：左→右）
+const BUILDING_PART_IDS = {
+	2: [19, 20],
+	3: [21, 22, 23],
+	4: [24, 25, 26, 27],
+	5: [28, 29, 30, 31, 32],
+}
+# 可达性洪泛结果（以玩家出生点为源，玩家可通行的瓦片集合）
+var reachable_cells: Dictionary = {}
 
 var poi_templates = []
 
@@ -37,6 +51,10 @@ func _ready():
 	_setup_tilemap_parent()
 	_setup_poi_templates()
 	_generate_rivers()
+	# 顺序关键：先定位安全出生点，再以出生点为源做可达性洪泛，
+	# 之后城镇/POI选址必须落在可达区内（修复少林寺入口在海上等问题）
+	_relocate_player_to_safe_spawn()
+	_compute_reachable_region()
 	_generate_towns()
 	_scatter_pois()
 	_apply_poi_terrain()
@@ -67,8 +85,8 @@ func _setup_noise():
 	detail_noise.frequency = 0.05
 
 func _load_tileset():
-	if ResourceLoader.exists("res://tilesets/ground_tiles.tres"):
-		tile_set = load("res://tilesets/ground_tiles.tres")
+	# 每次启动在内存中构建TileSet：纹理直接从PNG解码，不依赖import系统与陈旧.tres
+	tile_set = TilesetGen.build_tileset()
 
 func _setup_tilemap_parent():
 	# 使用场景中已有的TileMap作为主地图
@@ -118,7 +136,7 @@ func _generate_rivers():
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 3000
 
-	var river_count = rng.randi_range(2, 3)
+	var river_count = rng.randi_range(3, 4)
 	for i in range(river_count):
 		var amplitude = rng.randf_range(10.0, 25.0)
 		var frequency = rng.randf_range(0.03, 0.08)
@@ -189,14 +207,14 @@ func _generate_towns():
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 4000
 
-	var town_count = rng.randi_range(3, 5)
+	var town_count = rng.randi_range(4, 6)
 	var town_positions: Array = []
 
 	for i in range(town_count):
 		var placed = false
 		for _attempt in range(30):
-			var tx = rng.randi_range(-50, 50)
-			var ty = rng.randi_range(-40, 40)
+			var tx = rng.randi_range(-85, 85)
+			var ty = rng.randi_range(-70, 70)
 			var h = get_height(tx, ty)
 			var w = get_humidity(tx, ty)
 
@@ -219,6 +237,18 @@ func _generate_towns():
 			if sqrt(tx * tx + ty * ty) > WORLD_RADIUS - 10:
 				continue
 
+			# 避让玩家出生点（防止城镇建筑/栅栏把出生点围死）
+			if Vector2(tx, ty).distance_to(_spawn_tile()) < 15:
+				continue
+
+			# 可达性校验：城镇中心必须玩家可达（防止城镇落在河对岸/山坳孤岛）
+			if not _is_reachable_cell(tx, ty):
+				continue
+
+			# 不能压河：城镇范围（含栅栏农田环）内不得有水面
+			if _area_has_water(tx, ty, 7):
+				continue
+
 			town_positions.append(Vector2(tx, ty))
 			_generate_single_town(tx, ty, rng)
 			placed = true
@@ -229,8 +259,195 @@ func _generate_towns():
 
 	print("[WorldGen] Generated " + str(town_positions.size()) + " towns")
 
+func _area_has_water(cx: int, cy: int, r: int) -> bool:
+	"""检查以(cx,cy)为中心半径r的方形区域内是否有水面瓦片（河流）"""
+	for dx in range(-r, r + 1):
+		for dy in range(-r, r + 1):
+			if get_tile_id(cx + dx, cy + dy) == 5:
+				return true
+	return false
+
+func _spawn_tile() -> Vector2:
+	"""获取玩家出生点的瓦片坐标"""
+	var p = get_node_or_null("../Player")
+	var pos = Vector2(576, 500)
+	if p:
+		pos = p.global_position
+	return Vector2(pos.x / TILE_SIZE_PX, pos.y / TILE_SIZE_PX)
+
+func _is_area_walkable(cx: int, cy: int, r: int) -> bool:
+	"""检查以(cx,cy)为中心、半径r的方形区域是否完全可通行（无碰撞瓦片）"""
+	for dx in range(-r, r + 1):
+		for dy in range(-r, r + 1):
+			if get_tile_id(cx + dx, cy + dy) in collision_tiles:
+				return false
+	return true
+
+func _spawn_area_connected(cx: int, cy: int, min_tiles: int = 200) -> bool:
+	"""从(cx,cy)出发BFS洪泛，验证可通行区域足够大（避免出生在河流/山脉围死的孤岛上）"""
+	var start = Vector2i(cx, cy)
+	var visited = {start: true}
+	var queue: Array = [start]
+	var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	while not queue.is_empty() and visited.size() < min_tiles:
+		var c = queue.pop_front()
+		for d in dirs:
+			var n = c + d
+			if visited.has(n):
+				continue
+			if get_tile_id(n.x, n.y) in collision_tiles:
+				continue
+			visited[n] = true
+			queue.append(n)
+	return visited.size() >= min_tiles
+
+# ============ 可达性洪泛系统 ============
+
+func _compute_reachable_region():
+	"""以玩家出生点为源BFS洪泛，标记所有玩家可通行的瓦片。
+	城镇/POI/NPC选址必须落在可达区内，保证玩家能走到任何可交互地点。"""
+	reachable_cells.clear()
+	if player == null:
+		return
+	var start = Vector2i(
+		int(floor(player.global_position.x / TILE_SIZE_PX)),
+		int(floor(player.global_position.y / TILE_SIZE_PX)))
+	if get_tile_id(start.x, start.y) in collision_tiles:
+		push_warning("[WorldGen] spawn tile blocked, reachable region empty")
+		return
+	var queue: Array = [start]
+	reachable_cells[start] = true
+	var head = 0
+	var dirs = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	while head < queue.size():
+		var c: Vector2i = queue[head]
+		head += 1
+		for d in dirs:
+			var n = c + d
+			if reachable_cells.has(n):
+				continue
+			# 边界缓冲带之外不探索（深水区）
+			if Vector2(n.x, n.y).length() > WORLD_RADIUS - 6:
+				continue
+			if get_tile_id(n.x, n.y) in collision_tiles:
+				continue
+			reachable_cells[n] = true
+			queue.append(n)
+	print("[WorldGen] Reachable region: ", reachable_cells.size(), " tiles")
+
+func _is_reachable_cell(wx: int, wy: int) -> bool:
+	"""瓦片坐标是否玩家可达"""
+	return reachable_cells.has(Vector2i(wx, wy))
+
+func is_world_pos_reachable(pos: Vector2) -> bool:
+	"""世界像素坐标是否玩家可达（供NPC生成器等外部查询）"""
+	return _is_reachable_cell(int(floor(pos.x / TILE_SIZE_PX)), int(floor(pos.y / TILE_SIZE_PX)))
+
+func find_nearest_reachable(pos: Vector2, max_r: int = 60) -> Vector2:
+	"""从给定世界坐标对应的瓦片向外做切比雪夫环扫描，找最近的可达瓦片，
+	返回该瓦片中心的世界坐标；找不到则返回原坐标"""
+	var origin = Vector2i(int(floor(pos.x / TILE_SIZE_PX)), int(floor(pos.y / TILE_SIZE_PX)))
+	if reachable_cells.has(origin):
+		return pos
+	for radius in range(1, max_r):
+		var ring: Array[Vector2i] = []
+		for dx in range(-radius, radius + 1):
+			ring.append(Vector2i(dx, -radius))
+			ring.append(Vector2i(dx, radius))
+		for dy in range(-radius + 1, radius):
+			ring.append(Vector2i(-radius, dy))
+			ring.append(Vector2i(radius, dy))
+		for off in ring:
+			var cand = origin + off
+			if reachable_cells.has(cand):
+				return Vector2(cand.x * TILE_SIZE_PX + TILE_SIZE_PX * 0.5, cand.y * TILE_SIZE_PX + TILE_SIZE_PX * 0.5)
+	return pos
+
+func _relocate_player_to_safe_spawn():
+	"""世界生成后以默认出生点为中心做稠密环形扫描，把玩家搬运到安全出生点。
+	避免出生在山区/水边被碰撞瓦片围死。"""
+	if player == null:
+		return
+	var origin := Vector2i(int(_spawn_tile().x), int(_spawn_tile().y))
+	# 分级搜索：严格(7x7净空+200连通) -> 宽松(5x5+80) -> 兜底(5x5无连通校验)
+	# 稠密逐格扫描（切比雪夫环，从近到远不漏格）；原角度采样在环大时会跳过候选点
+	var tiers = [[3, 200], [2, 80], [2, 0]]
+	var best = Vector2i(-1, -1)
+	var max_r = WORLD_RADIUS - 20
+	for tier in tiers:
+		var clear_r: int = tier[0]
+		var min_conn: int = tier[1]
+		for radius in range(0, max_r):
+			var ring: Array[Vector2i] = []
+			if radius == 0:
+				ring.append(Vector2i.ZERO)
+			else:
+				for dx in range(-radius, radius + 1):
+					ring.append(Vector2i(dx, -radius))
+					ring.append(Vector2i(dx, radius))
+				for dy in range(-radius + 1, radius):
+					ring.append(Vector2i(-radius, dy))
+					ring.append(Vector2i(radius, dy))
+			for off in ring:
+				var cand = origin + off
+				# 不选太靠近世界边界（深水带）的点
+				if Vector2(cand.x, cand.y).length() > WORLD_RADIUS - 12:
+					continue
+				if not _is_area_walkable(cand.x, cand.y, clear_r):
+					continue
+				if min_conn > 0 and not _spawn_area_connected(cand.x, cand.y, min_conn):
+					continue
+				best = cand
+				break
+			if best.x >= 0:
+				break
+		if best.x >= 0:
+			break
+	if best.x < 0:
+		# 最终兜底：原地净空11x11，保证至少能站立走动
+		print("[WorldGen] WARN: no safe spawn found, clearing area around default spawn")
+		_dump_spawn_diagnostics(origin)
+		for dx in range(-5, 6):
+			for dy in range(-5, 6):
+				override_cells[origin + Vector2i(dx, dy)] = 0
+		return
+	# 双保险：净空目标区域
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			override_cells[Vector2i(best.x + dx, best.y + dy)] = 0
+	player.global_position = Vector2(best.x * TILE_SIZE_PX + TILE_SIZE_PX * 0.5, best.y * TILE_SIZE_PX + TILE_SIZE_PX * 0.5)
+	var cam = player.get_node_or_null("Camera2D")
+	if cam and cam.has_method("reset_smoothing"):
+		cam.reset_smoothing()
+	print("[WorldGen] Player relocated to safe spawn tile ", best, " -> ", player.global_position)
+
+func _dump_spawn_diagnostics(origin: Vector2i):
+	"""出生点搜索彻底失败时输出诊断：可通行比例 / 5x5净空数量 / 出生点附近ASCII地形图"""
+	var total = 0
+	var walk = 0
+	for dx in range(-100, 101, 5):
+		for dy in range(-100, 101, 5):
+			total += 1
+			if not (get_tile_id(origin.x + dx, origin.y + dy) in collision_tiles):
+				walk += 1
+	var clear5 = 0
+	for dx in range(-60, 61, 2):
+		for dy in range(-60, 61, 2):
+			if _is_area_walkable(origin.x + dx, origin.y + dy, 2):
+				clear5 += 1
+	print("[WorldGen] DEBUG walkable sample: ", walk, "/", total, " 5x5-clear spots: ", clear5)
+	# ASCII 地形图（出生点附近 41x21），#=碰撞 .=可通行
+	var lines = ""
+	for dy in range(-10, 11):
+		var line = ""
+		for dx in range(-20, 21):
+			var tid = get_tile_id(origin.x + dx, origin.y + dy)
+			line += "#" if tid in collision_tiles else "."
+		lines += "\n[WorldGen]   " + line
+	print("[WorldGen] ASCII map around spawn (#=blocked .=walk):" + lines)
+
 func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
-	"""在指定位置生成一个城镇"""
+	"""在指定位置生成一个城镇（含2-5格多格建筑）"""
 	var size = rng.randi_range(3, 5)  # 3x3 到 5x5
 	var half = size / 2
 
@@ -243,31 +460,75 @@ func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
 			var local_dist = max(abs(dx), abs(dy))
 
 			if local_dist == half + 2:
-				# 外围栅栏
-				override_cells[cell] = 15  # 栅栏
+				# 外围栅栏，十字方向留门（铺路）保证玩家可进入
+				if dx == 0 or dy == 0:
+					override_cells[cell] = 1   # 门口铺路
+				else:
+					override_cells[cell] = 15  # 栅栏
 			elif local_dist == half + 1:
 				# 农田环
 				override_cells[cell] = 16  # 农田
 
-	# 城镇内部
+	# 中心十字路
 	for dx in range(-half, half + 1):
 		for dy in range(-half, half + 1):
-			var wx = cx + dx
-			var wy = cy + dy
-			var cell = Vector2i(wx, wy)
-
-			# 中心十字路
 			if dx == 0 or dy == 0:
-				override_cells[cell] = 1  # 路
+				override_cells[Vector2i(cx + dx, cy + dy)] = 1  # 路
+
+	# ---- 多格建筑布局：在四个象限内放置2-5格宽的建筑 ----
+	var occupied: Dictionary = {}  # 局部坐标 Vector2i -> true
+	var bld_target = rng.randi_range(2, 3) + size  # 城镇规模越大建筑越多
+	var bld_placed = 0
+	var attempts = 0
+	while bld_placed < bld_target and attempts < 60:
+		attempts += 1
+		var bw = rng.randi_range(2, 5)  # 建筑宽度
+		# 随机起点（必须落在同一象限，不跨中心十字路）
+		var dx0 = rng.randi_range(-half, half)
+		var dy0 = rng.randi_range(-half, half)
+		if dy0 == 0:
+			continue
+		if dx0 + bw - 1 > half:
+			continue
+		# 不跨中心竖路：整栋建筑必须在 dx=0 的同一侧
+		if dx0 <= 0 and dx0 + bw - 1 >= 0:
+			continue
+		# 检查整排空闲
+		var ok = true
+		for i in range(bw):
+			var p = Vector2i(dx0 + i, dy0)
+			if occupied.has(p):
+				ok = false
+				break
+			if override_cells.has(Vector2i(cx + dx0 + i, cy + dy0)):
+				ok = false
+				break
+		if not ok:
+			continue
+		# 放置建筑部件
+		var part_ids: Array = BUILDING_PART_IDS[bw]
+		for i in range(bw):
+			override_cells[Vector2i(cx + dx0 + i, cy + dy0)] = part_ids[i]
+			occupied[Vector2i(dx0 + i, dy0)] = true
+		bld_placed += 1
+
+	# ---- 剩余内部空格：单格房/茅屋/院子 ----
+	for dx in range(-half, half + 1):
+		for dy in range(-half, half + 1):
+			if dx == 0 or dy == 0:
+				continue  # 已铺路
+			if occupied.has(Vector2i(dx, dy)):
+				continue  # 已放多格建筑
+			var cell = Vector2i(cx + dx, cy + dy)
+			if override_cells.has(cell):
+				continue
+			var r = rng.randf()
+			if r < 0.35:
+				override_cells[cell] = 2   # 城镇房
+			elif r < 0.55:
+				override_cells[cell] = 10  # 茅屋
 			else:
-				# 房屋
-				var r = rng.randf()
-				if r < 0.4:
-					override_cells[cell] = 2   # 城镇房
-				elif r < 0.6:
-					override_cells[cell] = 10  # 茅屋
-				else:
-					override_cells[cell] = 0   # 草地（院子）
+				override_cells[cell] = 0   # 草地（院子）
 
 # ============ 地形生成（含边界和覆盖） ============
 
@@ -388,7 +649,7 @@ func _load_chunk(chunk: Vector2i):
 
 	# 装饰瓦片ID（有透明区域，需要地面底层）
 	# 注意：碰撞瓦片(3=山, 7=雪山, 5=水)不在此列表，始终在layer 0
-	var decor_tiles = [2, 4, 8, 9, 10, 11, 12, 13, 14, 15, 17]
+	var decor_tiles = [2, 4, 8, 9, 10, 11, 12, 13, 14, 15, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
 
 	var start_x = chunk.x * CHUNK_SIZE
 	var start_y = chunk.y * CHUNK_SIZE
@@ -420,6 +681,9 @@ func _get_ground_tile(x: int, y: int) -> int:
 		var ov = override_cells[cell]
 		# 桥下面铺路，使桥可通行（避免水面碰撞阻挡）
 		if ov == 17:
+			return 1  # 路
+		# 多格建筑部件下面铺路，与城镇街道质感统一
+		if ov in building_part_tiles:
 			return 1  # 路
 	var t = get_terrain(x, y)
 	match t:
@@ -499,7 +763,11 @@ func _apply_sect_terrain(cx: int, cy: int):
 				else:
 					override_cells[cell] = 1   # 路
 			elif dist <= 2:
-				override_cells[cell] = 3   # 山
+				# 山环在十字方向留门（铺路），保证玩家可进入门派
+				if dx == 0 or dy == 0:
+					override_cells[cell] = 1   # 门口铺路
+				else:
+					override_cells[cell] = 3   # 山
 			elif dist <= 3:
 				# 外围松树
 				var r = fmod(detail_noise.get_noise_2d(cx + dx, cy + dy) + 1.0, 1.0)
@@ -524,7 +792,11 @@ func _apply_town_poi_terrain(cx: int, cy: int):
 			elif dist == 2:
 				override_cells[cell] = 16  # 农田
 			elif dist == 3:
-				override_cells[cell] = 15  # 栅栏
+				# 栅栏圈在十字方向留门，保证玩家可进入
+				if dx == 0 or dy == 0:
+					override_cells[cell] = 1   # 门口铺路
+				else:
+					override_cells[cell] = 15  # 栅栏
 
 func _apply_cave_terrain(cx: int, cy: int):
 	"""洞穴周围铺石头"""
@@ -532,6 +804,10 @@ func _apply_cave_terrain(cx: int, cy: int):
 		for dy in range(-3, 4):
 			var cell = Vector2i(cx + dx, cy + dy)
 			var dist = max(abs(dx), abs(dy))
+			# 南侧（dx==0, dy>0）留一条草地通道，保证玩家可接近洞口
+			if dx == 0 and dy > 0:
+				override_cells[cell] = 0   # 通道
+				continue
 			if dist == 0:
 				override_cells[cell] = 12  # 洞
 			elif dist <= 1:
@@ -651,8 +927,8 @@ func _scatter_pois():
 
 func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 	for _attempt in range(20):
-		var wx = rng.randi_range(-60, 60)
-		var wy = rng.randi_range(-45, 45)
+		var wx = rng.randi_range(-90, 90)
+		var wy = rng.randi_range(-70, 70)
 		var h = get_height(wx, wy)
 		var w = get_humidity(wx, wy)
 		if h < tpl.min_height or h > tpl.max_height:
@@ -665,19 +941,55 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 		# 检查是否在世界边界内
 		if sqrt(wx * wx + wy * wy) > WORLD_RADIUS - 10:
 			continue
+		# 可达性校验：POI必须玩家可达（防止入口在海上/山坳孤岛）
+		if not _is_reachable_cell(wx, wy):
+			continue
 		_create_poi_marker(tpl, pos)
 		return true
 	return false
 
-func _force_spawn_poi(tpl: POITemplate, _rng: RandomNumberGenerator):
-	if tpl.poi_name == "少林寺":
-		_create_poi_marker(tpl, Vector2(-600, 300))
-	elif tpl.poi_name == "武当派":
-		_create_poi_marker(tpl, Vector2(400, 200))
-	else:
-		for _attempt in range(50):
-			if _try_spawn_poi(tpl, RandomNumberGenerator.new()):
-				break
+func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
+	"""强制POI不再硬编码坐标（曾导致少林寺落在海上），统一走"地形条件+可达性"搜索"""
+	for _attempt in range(300):
+		if _try_spawn_poi(tpl, rng):
+			return
+	# 兜底：系统扫描全图，收集满足地形条件且可达的候选点，随机取一
+	var candidates: Array = []
+	for wx in range(-WORLD_RADIUS + 15, WORLD_RADIUS - 15, 2):
+		for wy in range(-WORLD_RADIUS + 15, WORLD_RADIUS - 15, 2):
+			var h = get_height(wx, wy)
+			var w = get_humidity(wx, wy)
+			if h < tpl.min_height or h > tpl.max_height:
+				continue
+			if w < tpl.min_humidity or w > tpl.max_humidity:
+				continue
+			if not _is_reachable_cell(wx, wy):
+				continue
+			var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
+			if _too_close_to_other_poi(pos, tpl.min_distance):
+				continue
+			candidates.append(pos)
+	if not candidates.is_empty():
+		_create_poi_marker(tpl, candidates[rng.randi() % candidates.size()])
+		return
+	# 最终兜底：放宽可达性（地形会被POI铺地改造），保证POI不消失
+	push_warning("[WorldGen] force spawn " + tpl.poi_name + ": no reachable candidate, fallback to terrain-only")
+	for _attempt in range(200):
+		var wx = rng.randi_range(-80, 80)
+		var wy = rng.randi_range(-60, 60)
+		var h = get_height(wx, wy)
+		var w = get_humidity(wx, wy)
+		if h < tpl.min_height or h > tpl.max_height:
+			continue
+		if w < tpl.min_humidity or w > tpl.max_humidity:
+			continue
+		if get_tile_id(wx, wy) in collision_tiles:
+			continue
+		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
+		if _too_close_to_other_poi(pos, tpl.min_distance):
+			continue
+		_create_poi_marker(tpl, pos)
+		return
 
 func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	var marker = Node2D.new()
@@ -694,7 +1006,7 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 
 	# 中心建筑
 	var center_sprite = Sprite2D.new()
-	center_sprite.texture = load(building_tile) if ResourceLoader.exists(building_tile) else null
+	center_sprite.texture = TextureGen.load_png_texture(building_tile)
 	center_sprite.z_index = 10
 	center_sprite.y_sort_enabled = true
 	marker.add_child(center_sprite)
@@ -705,8 +1017,7 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 		var by = rng.randi_range(-2, 2) * TILE_SIZE_PX
 		var bld_sprite = Sprite2D.new()
 		var bld_tile = _poi_secondary_building_tile(tpl.poi_type, rng)
-		if ResourceLoader.exists(bld_tile):
-			bld_sprite.texture = load(bld_tile)
+		bld_sprite.texture = TextureGen.load_png_texture(bld_tile)
 		bld_sprite.position = Vector2(bx, by)
 		bld_sprite.z_index = 10
 		bld_sprite.y_sort_enabled = true
@@ -719,8 +1030,7 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 		var dy = rng.randi_range(-3, 3) * TILE_SIZE_PX
 		var deco_sprite = Sprite2D.new()
 		var deco_tile = _random_decoration(rng)
-		if ResourceLoader.exists(deco_tile):
-			deco_sprite.texture = load(deco_tile)
+		deco_sprite.texture = TextureGen.load_png_texture(deco_tile)
 		deco_sprite.position = Vector2(dx, dy)
 		deco_sprite.z_index = 10
 		deco_sprite.y_sort_enabled = true

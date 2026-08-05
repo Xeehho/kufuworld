@@ -28,18 +28,7 @@ func _create_ui():
 	# 背景面板 - 圆角半透明条
 	var bg = Panel.new()
 	bg.size = Vector2(bar_w, bar_h)
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.08, 0.88)
-	style.border_color = Color(0.4, 0.35, 0.2, 0.4)
-	style.border_width_bottom = 1
-	style.border_width_top = 1
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.corner_radius_top_left = 6
-	style.corner_radius_top_right = 6
-	style.corner_radius_bottom_left = 6
-	style.corner_radius_bottom_right = 6
-	bg.add_theme_stylebox_override("panel", style)
+	bg.add_theme_stylebox_override("panel", UITheme.inset_style())
 	add_child(bg)
 
 	# 架势标签（左侧）

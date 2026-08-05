@@ -6,7 +6,7 @@ signal world_event(title, body, importance)
 
 var morality: float = 0.0
 var reputation: float = 0.0
-var gold: int = 0
+var gold: int = 100  # 初始盘缠，保证商店系统开局可用
 var qi: float = 100.0
 var max_qi: float = 100.0
 

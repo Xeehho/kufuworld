@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+const TextureGen = preload("res://scripts/texture_generator.gd")
+
 const SPEED = 60.0
 
 enum ScheduleState {IDLE, WALK, WORK, SLEEP}
@@ -64,9 +66,9 @@ func _setup_sprite_frames():
 		sf.set_animation_speed(idle_name, 4.0)
 		sf.set_animation_loop(idle_name, true)
 		for i in range(4):
-			var tex_path = "res://sprites/npc/%s_idle_%s_%d.png" % [npc_type, dir_name, i]
-			if ResourceLoader.exists(tex_path):
-				sf.add_frame(idle_name, load(tex_path))
+			var tex = TextureGen.load_png_texture("res://sprites/npc/%s_idle_%s_%d.png" % [npc_type, dir_name, i])
+			if tex:
+				sf.add_frame(idle_name, tex)
 				has_any_frame = true
 
 		var walk_name = "walk_" + dir_name
@@ -74,9 +76,9 @@ func _setup_sprite_frames():
 		sf.set_animation_speed(walk_name, 8.0)
 		sf.set_animation_loop(walk_name, true)
 		for i in range(6):
-			var tex_path = "res://sprites/npc/%s_walk_%s_%d.png" % [npc_type, dir_name, i]
-			if ResourceLoader.exists(tex_path):
-				sf.add_frame(walk_name, load(tex_path))
+			var tex = TextureGen.load_png_texture("res://sprites/npc/%s_walk_%s_%d.png" % [npc_type, dir_name, i])
+			if tex:
+				sf.add_frame(walk_name, tex)
 				has_any_frame = true
 
 	anim.sprite_frames = sf

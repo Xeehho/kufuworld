@@ -16,7 +16,7 @@ func _ready():
 	grow_horizontal = 0  # GROW_DIRECTION_LEFT
 	offset_left = -270
 	offset_right = -10
-	offset_top = 10
+	offset_top = 52  # 顶部让出快捷菜单位置
 	_create_bg()
 	GameManager.world_event.connect(_on_world_event)
 
@@ -68,13 +68,15 @@ func _create_bg():
 	move_child(bg_panel, 1)
 
 func _on_world_event(title: String, body: String, importance: int):
-	# 事件标签
+	# 事件标签（单行省略，防止长文溢出）
 	var lbl = Label.new()
 	var prefix = _importance_icon(importance)
 	lbl.text = prefix + " " + title
 	lbl.position = Vector2(8, 28 + event_labels.size() * 30 + 4)
 	lbl.size = Vector2(244, 16)
 	lbl.add_theme_font_size_override("font_size", 13)
+	lbl.clip_text = true
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 	# 根据重要度设置颜色
 	var c = Color(0.85, 0.85, 0.85)
@@ -87,14 +89,16 @@ func _on_world_event(title: String, body: String, importance: int):
 	lbl.add_theme_color_override("font_color", c)
 	add_child(lbl)
 
-	# 事件描述（第二行）
+	# 事件描述（第二行，单行省略）
 	var desc = Label.new()
 	desc.text = "   " + body
 	desc.position = Vector2(8, 28 + event_labels.size() * 30 + 20)
 	desc.size = Vector2(244, 14)
 	desc.add_theme_font_size_override("font_size", 10)
 	desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	desc.autowrap_mode = TextServer.AUTOWRAP_WORD
+	desc.clip_text = true
+	desc.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	desc.tooltip_text = title + "\n" + body
 	add_child(desc)
 
 	event_labels.append({"title": lbl, "desc": desc})
@@ -117,8 +121,8 @@ func _on_world_event(title: String, body: String, importance: int):
 		timer.one_shot = true
 		timer.timeout.connect(_fade_oldest)
 		add_child(timer)
-	else:
-		timer.start()
+	# 无论新建还是复用都要重新计时
+	timer.start()
 
 func _relayout():
 	for i in range(event_labels.size()):

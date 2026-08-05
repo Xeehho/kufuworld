@@ -1,5 +1,7 @@
 extends Control
 
+const TextureGen = preload("res://scripts/texture_generator.gd")
+
 # NPC信息面板 - 右上角展示，点击NPC时显示
 
 var current_npc: CharacterBody2D = null
@@ -17,7 +19,13 @@ const AVATAR_X = 68
 const AVATAR_Y = 30
 
 func _ready():
-	position = Vector2(1620, 10)
+	# 锚定右侧，位于江湖风云事件栏下方，避免重叠
+	anchor_left = 1.0
+	anchor_right = 1.0
+	grow_horizontal = 0  # GROW_DIRECTION_LEFT
+	offset_left = -PANEL_W - 60
+	offset_right = -60
+	offset_top = 250
 	visible = false
 	_create_ui()
 
@@ -25,18 +33,7 @@ func _create_ui():
 	# 背景面板
 	bg_panel = Panel.new()
 	bg_panel.size = Vector2(PANEL_W, PANEL_H)
-	var style = StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.08, 0.85)
-	style.border_color = Color(0.4, 0.35, 0.2, 0.6)
-	style.border_width_bottom = 1
-	style.border_width_top = 1
-	style.border_width_left = 1
-	style.border_width_right = 1
-	style.corner_radius_top_left = 8
-	style.corner_radius_top_right = 8
-	style.corner_radius_bottom_left = 8
-	style.corner_radius_bottom_right = 8
-	bg_panel.add_theme_stylebox_override("panel", style)
+	bg_panel.add_theme_stylebox_override("panel", UITheme.panel_style())
 	add_child(bg_panel)
 
 	# NPC名字
@@ -102,11 +99,10 @@ func _create_ui():
 
 	# 关闭按钮
 	close_btn = Button.new()
-	close_btn.text = "X"
+	close_btn.text = "✕"
 	close_btn.position = Vector2(PANEL_W - 28, 4)
 	close_btn.size = Vector2(22, 20)
-	close_btn.add_theme_font_size_override("font_size", 10)
-	close_btn.focus_mode = Control.FOCUS_NONE
+	UITheme.style_button(close_btn, 10)
 	close_btn.pressed.connect(_on_close)
 	add_child(close_btn)
 
@@ -166,11 +162,8 @@ func _refresh_info():
 
 func _load_npc_avatar(npc_type: String):
 	var tex_path = "res://sprites/npc/%s_idle_down_0.png" % npc_type
-	if ResourceLoader.exists(tex_path):
-		avatar_texture = load(tex_path)
-		info_labels["avatar"].texture = avatar_texture
-	else:
-		info_labels["avatar"].texture = null
+	avatar_texture = TextureGen.load_png_texture(tex_path)
+	info_labels["avatar"].texture = avatar_texture
 
 func _process(delta):
 	if not visible:

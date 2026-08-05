@@ -30,7 +30,23 @@ func _ready():
 
 func _ensure_textures():
 	# 检查关键纹理是否存在，如果不存在则运行生成器
-	var need_textures = not ResourceLoader.exists("res://sprites/tiles/grass.png") or not ResourceLoader.exists("res://sprites/player/idle_down_0.png") or not ResourceLoader.exists("res://sprites/npc/warrior_idle_down_0.png")
+	# 注意：必须用 FileAccess 而非 ResourceLoader.exists —— 运行时生成的PNG没有import数据
+	# 校验全部瓦片PNG（曾只查grass等几个代表文件，单独删除mountain/sand后不会触发重生成，瓦片隐形）
+	var tile_files = [
+		"grass", "grass_dark", "path", "water", "sand", "mountain", "mountain_snow",
+		"tree_pine", "tree_oak", "tree_bamboo", "house_town", "house_cottage",
+		"house_temple", "house_cave", "flower", "rock", "fence", "farmland", "bridge",
+		"house2_l", "house2_r", "house3_l", "house3_m", "house3_r",
+		"house4_l", "house4_lm", "house4_rm", "house4_r",
+		"house5_l", "house5_lm", "house5_m", "house5_rm", "house5_r",
+	]
+	var need_textures = false
+	for t in tile_files:
+		if not FileAccess.file_exists("res://sprites/tiles/" + t + ".png"):
+			need_textures = true
+			break
+	if not need_textures:
+		need_textures = not FileAccess.file_exists("res://sprites/player/idle_down_0.png") or not FileAccess.file_exists("res://sprites/npc/warrior_idle_down_0.png")
 	if need_textures:
 		var gen_script = load("res://scripts/texture_generator.gd")
 		if gen_script:
@@ -40,29 +56,8 @@ func _ensure_textures():
 			gen.generate_all()
 			gen.queue_free()
 			print("[Main] Textures generated on first run")
-	# 检查帧资源是否存在，如果不存在则运行帧生成器
-	if not ResourceLoader.exists("res://sprites/player/player_frames.tres"):
-		var frame_gen_script = load("res://scripts/frames_generator.gd")
-		if frame_gen_script:
-			var frame_gen = Node.new()
-			frame_gen.set_script(frame_gen_script)
-			add_child(frame_gen)
-			frame_gen.queue_free()
-			print("[Main] Frame resources generated")
-	# 检查瓦片集是否有效（文件存在、有瓦片源、有物理碰撞层）
-	var need_tileset = true
-	if ResourceLoader.exists("res://tilesets/ground_tiles.tres"):
-		var existing_ts = load("res://tilesets/ground_tiles.tres") as TileSet
-		if existing_ts and existing_ts.get_source_count() > 0 and existing_ts.get_physics_layers_count() > 0:
-			need_tileset = false
-	if need_tileset:
-		var tileset_gen_script = load("res://scripts/tileset_generator.gd")
-		if tileset_gen_script:
-			var tileset_gen = Node.new()
-			tileset_gen.set_script(tileset_gen_script)
-			add_child(tileset_gen)
-			tileset_gen.queue_free()
-			print("[Main] TileSet resources generated")
+	# 玩家/NPC帧动画与TileSet均在运行时从PNG直接构建（player.gd / npc_character.gd / world_generator.gd），
+	# 不再依赖 player_frames.tres / ground_tiles.tres，避免运行时生成资源无import数据导致的加载失败
 
 func _setup_quest_system():
 	var qs = Node.new()
