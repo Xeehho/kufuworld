@@ -2,12 +2,16 @@ extends Control
 
 const TextureGen = preload("res://scripts/texture_generator.gd")
 
-# 圆形人物信息HUD - 中间头像（仅头部），周围环形属性条，下方可展开任务日志
+# 圆形人物信息HUD - 中间头像（仅头部），周围环形属性条
+# Phase H: 固定四槽环（毒槽常驻占位防重排）+ 显示值平滑lerp + 低值脉动预警
+#   + 资源徽章chips + 时辰天气底板——对标《Don't Starve》徽章/BOTW轮盘/Dead Cells流动条
 
 var avatar_texture: Texture2D = null
-var stat_arcs: Dictionary = {}
+var stat_arcs: Dictionary = {}		# 目标比例（每帧直读GameManager）
+var display_arcs: Dictionary = {}	# 显示比例（向目标lerp，产生流动动画）
 var resource_labels: Dictionary = {}
 var name_label: Label = null
+var datetime_panel: Panel = null
 
 # Phase F7: 任务日志已迁出至独立 quest_log_hud.gd（游戏化页签+卡片），此处不再承载
 
@@ -20,6 +24,8 @@ const AVATAR_R = 46.0
 const ARC_GAP_DEG = 8.0
 const ARC_SEGMENTS = 32
 const RING_MASK_SEGS = 48
+# Phase H: 槽位数固定为4——中毒激活与否不再改变几何（旧版3↔4段重排跳变已废）
+const SLOT_COUNT := 4
 
 # 头部裁剪区域（Phase F1着装后：64x64帧中发髻+头部位于 x24..39 y15..31）
 const HEAD_CROP_X = 24
@@ -69,6 +75,7 @@ func _ready():
 		"poison": GameManager.poison / 100.0,
 		"qi": GameManager.qi / GameManager.max_qi if GameManager.max_qi > 0 else 0.0,
 	}
+	display_arcs = stat_arcs.duplicate()
 
 func _load_avatar():
 	var full_tex = TextureGen.load_png_texture("res://sprites/player/idle_down_0.png")
@@ -88,23 +95,27 @@ func _create_name_label():
 	add_child(name_label)
 
 func _create_resource_labels():
-	var res_y = CENTER_Y + RING_OUTER_R + 16
+	# Phase H: 木/石/金改主题徽章chips（inset底板+提亮彩字），替代裸文本漂浮
+	var res_y = 176.0
 	var resources = [
-		["wood",  "木", Color(0.6, 0.4, 0.2)],
-		["stone", "石", Color(0.5, 0.5, 0.5)],
+		["wood",  "木", Color(0.75, 0.55, 0.32)],
+		["stone", "石", Color(0.68, 0.70, 0.74)],
 		["gold",  "金", Color(1, 0.85, 0.2)],
 	]
 	for i in range(resources.size()):
-		var key = resources[i][0]
-		var icon = resources[i][1]
-		var color = resources[i][2]
+		var chip = Panel.new()
+		chip.name = "ResChip_" + resources[i][0]
+		chip.position = Vector2(2 + i * 64, res_y)
+		chip.size = Vector2(58, 22)
+		chip.add_theme_stylebox_override("panel", UITheme.inset_style())
+		add_child(chip)
 		var lbl = Label.new()
-		lbl.text = icon + ":0"
-		lbl.position = Vector2(15 + i * 55, res_y)
-		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", color)
-		add_child(lbl)
-		resource_labels[key] = lbl
+		lbl.text = resources[i][1] + ":0"
+		lbl.position = Vector2(10, 2)
+		lbl.size = Vector2(44, 18)
+		UITheme.style_label(lbl, 11, resources[i][2])
+		chip.add_child(lbl)
+		resource_labels[resources[i][0]] = lbl
 
 func _create_help_section():
 	# 左下角操作指南（可折叠）
@@ -139,11 +150,19 @@ func _toggle_help():
 	help_btn.text = "  操作指南  ▼" if help_expanded else "  操作指南  ▲"
 
 func _create_datetime_label():
+	# Phase H: 时辰天气加inset底板成"时辰牌"，位置不变（避开CombatHUD 185..355区）
+	datetime_panel = Panel.new()
+	datetime_panel.name = "DatetimePill"
+	datetime_panel.position = Vector2(368, 10)
+	datetime_panel.size = Vector2(168, 26)
+	datetime_panel.add_theme_stylebox_override("panel", UITheme.inset_style())
+	add_child(datetime_panel)
 	datetime_label = Label.new()
-	datetime_label.position = Vector2(370, 14)
-	datetime_label.size = Vector2(160, 20)
+	datetime_label.position = Vector2(4, 2)
+	datetime_label.size = Vector2(160, 22)
+	datetime_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UITheme.style_label(datetime_label, 13, UITheme.GOLD_DIM)
-	add_child(datetime_label)
+	datetime_panel.add_child(datetime_label)
 
 func _update_datetime():
 	var hour = int(GameManager.world_hour) % 24
@@ -152,31 +171,26 @@ func _update_datetime():
 	var daynight = "" if GameManager.is_daytime else " · 夜"
 	datetime_label.text = shichen + "时 · " + weather + daynight
 
-# 获取当前活跃的属性列表（中毒>0时包含，否则不包含）
-func _get_active_stats() -> Array:
-	var result = []
-	for key in stat_order:
-		if key == "poison" and GameManager.poison <= 0:
-			continue
-		result.append(key)
-	return result
-
 func _draw():
 	# 1. 外圈背景
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 3, Color(0.2, 0.2, 0.25, 0.4))
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 1, Color(0.05, 0.05, 0.08, 0.9))
 
-	# 2. 动态计算弧段：3个属性均分120度，4个属性均分90度
-	var active_stats = _get_active_stats()
-	var count = active_stats.size()
-	var seg_deg = 360.0 / count  # 3→120, 4→90
+	# 2. 固定四槽弧段（Phase H）：几何永不重排；毒槽未激活画暗色空位
+	var seg_deg = 360.0 / SLOT_COUNT
 
-	for i in range(count):
-		var key = active_stats[i]
+	for i in range(SLOT_COUNT):
+		var key = stat_order[i]
 		var cfg = stat_config[key]
 		var start_deg = i * seg_deg
-		var ratio = stat_arcs.get(key, 0.0)
-		_draw_arc_segment(start_deg, ARC_GAP_DEG, cfg[1], ratio, seg_deg)
+		var ratio = display_arcs.get(key, 0.0)
+		var col: Color = cfg[1]
+		if key == "poison" and GameManager.poison <= 0.001:
+			col = Color(col.r, col.g, col.b, 0.22)	# 空槽毒位轮廓
+			ratio = 0.0
+		else:
+			col = _pulsed_color(key, col, ratio)
+		_draw_arc_segment(start_deg, ARC_GAP_DEG, col, ratio, seg_deg)
 
 	# 3. 内圈背景
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_INNER_R - 1, INNER_BG)
@@ -197,21 +211,22 @@ func _draw():
 	draw_arc(Vector2(CENTER_X, CENTER_Y), RING_INNER_R - 1, 0, TAU, 64, Color(0.4, 0.35, 0.2, 0.5), 1.5)
 	draw_arc(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 1, 0, TAU, 64, Color(0.4, 0.35, 0.2, 0.5), 1.5)
 
-	# 6. 属性标签（在弧段外侧）
-	for i in range(count):
-		var key = active_stats[i]
+	# 6. 属性标签（固定四角度；非活跃毒名暗显无数值——保留槽位认知又不添噪）
+	for i in range(SLOT_COUNT):
+		var key = stat_order[i]
 		var cfg = stat_config[key]
-		var label_text = cfg[0]
-		var start_deg = i * seg_deg
-		var mid_deg = start_deg + (seg_deg - ARC_GAP_DEG) / 2.0
+		var mid_deg = i * seg_deg + (seg_deg - ARC_GAP_DEG) / 2.0
 		var mid_rad = deg_to_rad(mid_deg - 90)
 		var label_r = RING_OUTER_R + 16
 		var lx = CENTER_X + cos(mid_rad) * label_r
 		var ly = CENTER_Y + sin(mid_rad) * label_r
-		var ratio = stat_arcs.get(key, 0.0)
-		var val_text = str(int(ratio * 100)) if key != "qi" else str(int(ratio * GameManager.max_qi))
-		draw_string(_get_default_font(), Vector2(lx - 10, ly + 2), label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, Color(0.9, 0.9, 0.9, 0.9))
-		draw_string(_get_default_font(), Vector2(lx - 8, ly + 13), val_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, cfg[1])
+		var slot_active = not (key == "poison" and GameManager.poison <= 0.001)
+		var name_col = Color(0.9, 0.9, 0.9, 0.92) if slot_active else Color(0.55, 0.55, 0.62, 0.35)
+		draw_string(_get_default_font(), Vector2(lx - 10, ly + 2), cfg[0], HORIZONTAL_ALIGNMENT_CENTER, -1, 9, name_col)
+		if slot_active:
+			var ratio = display_arcs.get(key, 0.0)
+			var val_text = str(int(ratio * 100)) if key != "qi" else str(int(ratio * GameManager.max_qi))
+			draw_string(_get_default_font(), Vector2(lx - 8, ly + 13), val_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, cfg[1])
 
 func _draw_arc_segment(start_deg: float, gap_deg: float, color: Color, ratio: float, total_deg: float):
 	var arc_deg = total_deg - gap_deg
@@ -250,15 +265,35 @@ func _draw_full_ring(inner_r: float, outer_r: float, color: Color):
 func _get_default_font() -> Font:
 	return ThemeDB.fallback_font
 
-func _process(_delta):
+func _process(delta):
+	# 目标值每帧直读，显示值lerp趋近——受伤/回复时弧段流动而非瞬跳（《Dead Cells》手感）
 	stat_arcs["health"] = GameManager.health / 100.0
 	stat_arcs["hunger"] = GameManager.hunger / 100.0
 	stat_arcs["poison"] = GameManager.poison / 100.0
 	stat_arcs["qi"] = GameManager.qi / GameManager.max_qi if GameManager.max_qi > 0 else 0.0
+	var lerp_w = minf(delta * 6.0, 1.0)
+	for k in stat_order:
+		display_arcs[k] = lerpf(display_arcs.get(k, 0.0), stat_arcs[k], lerp_w)
 	resource_labels["wood"].text = "木:" + str(GameManager.wood)
 	resource_labels["stone"].text = "石:" + str(GameManager.stone)
 	resource_labels["gold"].text = "金:" + str(GameManager.gold)
 	queue_redraw()
 	_update_datetime()
+
+# Phase H: 低值脉动预警——血<25%/饥<20%亮白呼吸，毒>60%紫白警示（《Don't Starve》徽章语言）
+func _pulsed_color(key: String, c: Color, ratio: float) -> Color:
+	var warn := false
+	match key:
+		"health":
+			warn = ratio < 0.25
+		"hunger":
+			warn = ratio < 0.20
+		"poison":
+			warn = ratio > 0.60
+	if not warn:
+		return c
+	var t = float(Time.get_ticks_msec()) / 1000.0
+	var pulse = 0.5 + 0.5 * sin(t * TAU * 1.6)
+	return c.lerp(Color(1, 1, 1), 0.20 + 0.38 * pulse)
 
 # Phase F7: 旧任务日志渲染与快捷键处理已整体迁至 quest_log_hud.gd

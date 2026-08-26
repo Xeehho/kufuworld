@@ -87,10 +87,12 @@ Main (Node2D) [Main.gd]
 
 | 位置 | HUD | 说明 |
 |------|-----|------|
-| 左上 | SurvivalHUD | 环形属性盘+资源+任务日志折叠面板，左下角有操作指南，顶部有时辰天气 |
+| 左上 | SurvivalHUD | 固定四槽环形属性盘（毒槽常驻暗显防重排）+平滑lerp+低值脉动+资源chips+时辰底板，左下角操作指南（Phase H） |
+| 左侧(14,y≈210) | QuestTrackerHUD | 任务追踪器：追踪中任务+迷你进度条实时刷新（0.25s轮询），点标题折叠/点卡片开日志；钉选状态源=QuestSystem.pinned_ids（Phase H） |
+| 左缘(y=424) | QuestLogHUD | 任务日志=抽屉式：竖排"任务日志"小标26px贴左缘+进行中(已接未完成)数角标，点击从左侧滑出面板（N/ESC同效）；对话框NextButton已接线，点面板任意处可推进（Phase H2 BugFix） |
 | 顶部(185,10) | CombatHUD | 战斗时显示的架势/破绽/连击条 |
 | 右上(顶部) | QuickMenu | 奇遇/立誓入口按钮 |
-| 右上(y=52) | EventHUD | 江湖风云事件流，8秒自动淡出 |
+| 右上(y=52) | EventHUD | 江湖风云事件流，8秒自动淡出（Phase H起也承接"已接委托"反馈） |
 | 右侧(y=250) | NPCInfoHUD | NPC信息面板，交互或点击时显示 |
 | 居中弹窗 | ShopHUD / DeathHUD / 奇遇面板 / 立誓面板 / 对话框(底部居中) | 模态 |
 
@@ -268,10 +270,12 @@ Main (Node2D) [Main.gd]
   它在 towns/POI 之后、最终 _compute_reachable_region 之前执行，NPC/Mob选址用的是刷新后的可达集
 - 孤岛扫描边界用 Vector2(x,y).length()>WORLD_RADIUS-8 过滤，否则边界沙带会被误判为orphan（探针踩坑）
 
-### UI（Phase F7）
-- QuestLogHUD（页签+任务卡+真进度条+按钮）与 CharacterSheet（V键人物档案弹窗）挂在 $World/UI；
+### UI（Phase F7 / Phase H）
+- QuestLogHUD（页签+任务卡+真进度条+按钮+★追踪）与 CharacterSheet（V键人物档案弹窗）挂在 $World/UI；
   模态面板加入"ui_modal"组即可被 player._is_ui_blocking 识别锁移动
 - 任务快捷键 N/F1/数字键 在 QuestLogHUD._input 内带面板展开前置条件，勿再放回全局
+- Phase H: QuestTrackerHUD 同挂 $World/UI——追踪进度靠 _process 轻轮询（progress_quest不发信号），
+  增删任务靠 GameManager.world_state_changed；卡片Panel必须MOUSE_FILTER_STOP才能被gui_get_hovered_control识别防误攻击
 
 ## 已知问题与待优化
 

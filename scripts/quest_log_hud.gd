@@ -1,9 +1,14 @@
 extends Control
 
 # Phase F7: 游戏化任务日志——页签切换 + 任务卡片 + 真进度条 + 按钮化操作
-# 替代旧SurvivalHUD中的ASCII文本日志；数字键/N/F1快捷键保留
+# Phase H: 页签计数 + 卡片★追踪开关(QuestTrackerHUD联动)
+# Phase H2: 抽屉式入口——左缘竖排小标替代横幅大按钮（默认态零干扰），
+#   面板从左缘滑出；小标带"可接取"数角标；N/ESC/点tracker卡片开关不变
 
-var toggle_btn: Button = null
+var tab_btn: Button = null		# 左缘抽屉小标
+var tab_lbl: Label = null		# 竖排文字+方向指示
+var badge_lbl: Label = null		# 可接取数量角标
+var _slide_tween: Tween = null
 var panel: Panel = null
 var tabs: Array = []
 var scroll: ScrollContainer = null
@@ -15,6 +20,12 @@ var current_tab: int = 0
 const PANEL_W := 330.0
 const PANEL_H := 400.0
 const TAB_NAMES := ["进行中", "可接取", "已完成"]
+# 抽屉几何：贴左缘竖排，位于追踪器(y≈360止)之下、帮助按钮(832)之上
+const DRAWER_W := 26.0
+const DRAWER_H := 148.0
+const DRAWER_Y := 424.0
+const PANEL_OPEN_X := 34.0
+const PANEL_CLOSED_X := -(PANEL_W + 30.0)
 
 func _ready():
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -26,18 +37,38 @@ func _ready():
 	refresh()
 
 func _build_ui():
-	toggle_btn = Button.new()
-	toggle_btn.text = " 任 务 日 志 "
-	toggle_btn.position = Vector2(20, 358)
-	toggle_btn.size = Vector2(150, 26)
-	UITheme.style_button(toggle_btn, 12)
-	toggle_btn.add_theme_color_override("font_color", UITheme.GOLD)
-	toggle_btn.pressed.connect(toggle_panel)
-	add_child(toggle_btn)
+	# Phase H2: 左缘抽屉小标——竖排"任务志"+滑出箭头，默认态只占屏缘26px
+	tab_btn = Button.new()
+	tab_btn.name = "QuestDrawerTab"
+	tab_btn.position = Vector2(0, DRAWER_Y)
+	tab_btn.size = Vector2(DRAWER_W, DRAWER_H)
+	tab_btn.tooltip_text = "任务日志（N）"
+	_style_drawer_tab(tab_btn)
+	tab_btn.pressed.connect(toggle_panel)
+	add_child(tab_btn)
+
+	tab_lbl = Label.new()
+	tab_lbl.text = "任\n务\n日\n志\n▸"
+	tab_lbl.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tab_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tab_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	UITheme.style_label(tab_lbl, 13, UITheme.GOLD)
+	tab_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tab_btn.add_child(tab_lbl)
+
+	badge_lbl = Label.new()
+	badge_lbl.text = ""
+	badge_lbl.position = Vector2(DRAWER_W - 15, 2)
+	badge_lbl.add_theme_font_size_override("font_size", 11)
+	badge_lbl.add_theme_color_override("font_color", Color(1, 0.9, 0.5))
+	badge_lbl.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	badge_lbl.add_theme_constant_override("outline_size", 4)
+	badge_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	tab_btn.add_child(badge_lbl)
 
 	panel = Panel.new()
 	panel.name = "QuestPanel"
-	panel.position = Vector2(20, 390)
+	panel.position = Vector2(PANEL_CLOSED_X, DRAWER_Y - 18)
 	panel.size = Vector2(PANEL_W, PANEL_H)
 	panel.visible = false
 	panel.add_theme_stylebox_override("panel", UITheme.panel_style(true))
@@ -81,7 +112,7 @@ func _build_ui():
 	scroll.add_child(list_box)
 
 	var hint = Label.new()
-	hint.text = "[N]刷新  [1-5]快速接取  [F1]放弃首个"
+	hint.text = "[N]刷新  [1-5]快速接取  [F1]放弃首个  ☆=追踪到左栏"
 	hint.position = Vector2(16, PANEL_H - 24)
 	hint.size = Vector2(PANEL_W - 32, 16)
 	UITheme.style_label(hint, 9, UITheme.TEXT_DIM)
@@ -89,9 +120,50 @@ func _build_ui():
 
 func toggle_panel():
 	expanded = !expanded
-	panel.visible = expanded
+	if _slide_tween and _slide_tween.is_valid():
+		_slide_tween.kill()
 	if expanded:
-		refresh()
+		panel.visible = true
+		panel.modulate.a = 0.0
+		panel.position.x = PANEL_CLOSED_X
+		_slide_tween = create_tween().set_parallel(true)
+		_slide_tween.tween_property(panel, "position:x", PANEL_OPEN_X, 0.18).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		_slide_tween.tween_property(panel, "modulate:a", 1.0, 0.15)
+		tab_lbl.text = "任\n务\n日\n志\n◂"
+	else:
+		tab_lbl.text = "任\n务\n日\n志\n▸"
+		_slide_tween = create_tween()
+		_slide_tween.tween_property(panel, "position:x", PANEL_CLOSED_X, 0.16).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_IN)
+		_slide_tween.parallel().tween_property(panel, "modulate:a", 0.0, 0.14)
+		_slide_tween.tween_callback(func(): panel.visible = false)
+	_sfx("ui")
+	refresh()
+
+# Phase H2: 抽屉小标样式——右缘圆角贴边、悬停描金
+func _style_drawer_tab(btn: Button) -> void:
+	var make_sb := func(hovered: bool) -> StyleBoxFlat:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.19, 0.17, 0.12, 0.96) if hovered else UITheme.INK_LIGHT
+		sb.border_color = UITheme.GOLD if hovered else UITheme.GOLD_DIM
+		sb.border_width_left = 0
+		sb.border_width_top = 1
+		sb.border_width_bottom = 1
+		sb.border_width_right = 2 if hovered else 1
+		sb.corner_radius_top_right = 8
+		sb.corner_radius_bottom_right = 8
+		sb.anti_aliasing = true
+		return sb
+	btn.add_theme_stylebox_override("normal", make_sb.call(false))
+	btn.add_theme_stylebox_override("hover", make_sb.call(true))
+	btn.add_theme_stylebox_override("pressed", make_sb.call(true))
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	btn.focus_mode = Control.FOCUS_NONE
+
+# Phase H2: 角标=已接取但未完成的任务数（进行中），世界信号/N键刷新时更新
+func _update_badge():
+	var qs = _qs()
+	var n: int = qs.get_active_quests().size() if qs != null else 0
+	badge_lbl.text = str(n) if n > 0 else ""
 
 func _switch_tab(idx: int):
 	current_tab = idx
@@ -105,13 +177,22 @@ func _qs() -> Node:
 	return get_node_or_null("/root/QuestSystem")
 
 func refresh():
+	if badge_lbl != null:
+		_update_badge()	# Phase H2: 角标在面板关闭时也保持最新
 	if panel == null or not panel.visible:
 		return
 	var qs = _qs()
 	if qs == null:
 		return
+	# Phase H: 页签带实时计数，不展开详情即可知全局
+	var tab_counts = [
+		"%d/%d" % [qs.get_active_quests().size(), 5],
+		str(qs.get_available_quests().size()),
+		str(qs.completed_quests.size()),
+	]
 	for i in range(tabs.size()):
 		var btn: Button = tabs[i]["btn"]
+		btn.text = "%s %s" % [TAB_NAMES[i], tab_counts[i]]
 		btn.add_theme_color_override("font_color", UITheme.GOLD if i == current_tab else UITheme.TEXT_DIM)
 	for c in list_box.get_children():
 		c.queue_free()
@@ -236,6 +317,17 @@ func _make_card(q: Object, mode: int, index: int) -> Control:
 	reward.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	foot.add_child(reward)
 	if mode == 0:
+		# Phase H: ★追踪开关——钉选到左侧QuestTrackerHUD（单一状态源在QuestSystem）
+		var qs2 = _qs()
+		var pinned: bool = qs2 != null and qs2.is_pinned(q.quest_id)
+		var pb := Button.new()
+		pb.text = "★" if pinned else "☆"
+		pb.tooltip_text = "追踪/取消追踪（左侧任务栏）"
+		pb.custom_minimum_size = Vector2(30, 20)
+		UITheme.style_button(pb, 11)
+		pb.add_theme_color_override("font_color", UITheme.JADE if pinned else UITheme.TEXT_DIM)
+		pb.pressed.connect(_on_toggle_pin.bind(q.quest_id))
+		foot.add_child(pb)
 		var ab := Button.new()
 		ab.text = "放弃"
 		ab.custom_minimum_size = Vector2(52, 20)
@@ -264,6 +356,14 @@ func _on_abandon(qid: String):
 	if qs:
 		qs.abandon_quest(qid)
 		_sfx("craft_fail")
+		refresh()
+
+func _on_toggle_pin(qid: String):
+	# Phase H: 切换追踪并刷新卡片星标；tracker经world_state_changed信号同步
+	var qs = _qs()
+	if qs:
+		qs.toggle_pin(qid)
+		_sfx("ui")
 		refresh()
 
 func _sfx(n: String):

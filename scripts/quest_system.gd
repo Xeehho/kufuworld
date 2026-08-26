@@ -4,6 +4,8 @@ var active_quests: Array = []
 var completed_quests: Array = []
 var available_quests: Array = []
 var quest_id_counter: int = 0
+# Phase H: 追踪状态源——QuestTrackerHUD/QuestLogHUD 共享；空=自动追踪前3个进行中任务
+var pinned_ids: Array = []
 
 var quest_rules = [
 	{
@@ -154,6 +156,8 @@ func accept_quest(index: int) -> bool:
 	active_quests.append(q)
 	available_quests.remove_at(index)
 	print("[Quest] Accepted: " + q.title)
+	# Phase H: 接受委托即时反馈（完成提示原有，接受此前无任何通知）
+	GameManager.emit_event("已接委托", q.title, 2)
 	GameManager.world_state_changed.emit()
 	return true
 
@@ -182,8 +186,22 @@ func abandon_quest(quest_id: String):
 		if active_quests[i].quest_id == quest_id:
 			active_quests[i].is_active = false
 			active_quests.remove_at(i)
+			pinned_ids.erase(quest_id)	# Phase H: 弃任务同步清追踪
 			print("[Quest] Abandoned: " + quest_id)
+			# Phase H2: 弃单也广播（此前唯一不发信号的状态变更）——角标/追踪器即时归零
+			GameManager.world_state_changed.emit()
 			return
+
+func toggle_pin(quest_id: String):
+	"""Phase H: 切换追踪状态；tracker/log共用单一状态源"""
+	if pinned_ids.has(quest_id):
+		pinned_ids.erase(quest_id)
+	else:
+		pinned_ids.append(quest_id)
+	GameManager.world_state_changed.emit()
+
+func is_pinned(quest_id: String) -> bool:
+	return pinned_ids.has(quest_id)
 
 func get_active_quests() -> Array:
 	return active_quests

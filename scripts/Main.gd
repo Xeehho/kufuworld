@@ -29,6 +29,7 @@ func _ready():
 	_setup_npc_spawner()
 	_setup_npc_info_hud()
 	_setup_quest_log_hud()	# Phase F7: 游戏化任务日志
+	_setup_quest_tracker_hud()	# Phase H: 左轨任务追踪器（对标巫师3/原神objective tracker）
 	_setup_character_sheet()	# Phase F7: 人物面板(V键)
 	# Phase C 星露谷交互玩法（依赖WorldGenerator/InventoryManager就绪）
 	_setup_farm_system()
@@ -228,6 +229,13 @@ func _setup_quest_log_hud():
 	ql.name = "QuestLogHUD"
 	ql.set_script(load("res://scripts/quest_log_hud.gd"))
 	$World/UI.add_child(ql)
+
+func _setup_quest_tracker_hud():
+	# Phase H: 常驻任务追踪器——实时显示追踪中任务的进度条，无需打开日志面板
+	var qt = Control.new()
+	qt.name = "QuestTrackerHUD"
+	qt.set_script(load("res://scripts/quest_tracker_hud.gd"))
+	$World/UI.add_child(qt)
 
 func _setup_character_sheet():
 	var cs = Control.new()

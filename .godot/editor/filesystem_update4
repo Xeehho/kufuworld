@@ -11,3 +11,5 @@ res://scripts/farm_system.gd
 res://scripts/mob_spawner.gd
 res://scripts/npc_spawner.gd
 res://scripts/station_system.gd
+res://scripts/quest_log_hud.gd
+res://tools/probe_phase_h.gd

@@ -18,6 +18,15 @@ func _ready():
 	panel.add_theme_stylebox_override("panel", UITheme.panel_style(true))
 	name_plate.add_theme_stylebox_override("panel", UITheme.inset_style())
 	UITheme.style_button(next_button, 14)
+	# BugFix(H2)：NextButton从未接线——tscn里没有[connection]，此处也没connect，
+	# 底部对话框"继续▼/关闭✕"点击无效（只有回车/空格能用），奇遇等所有底部提示均受影响
+	next_button.pressed.connect(_advance)
+	# 点击面板任意处也可推进/关闭（RPG惯例）
+	panel.gui_input.connect(_on_panel_gui_input)
+
+func _on_panel_gui_input(event: InputEvent):
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_advance()
 
 func show_dialog(character: String, texts: Array):
 	if texts.is_empty():

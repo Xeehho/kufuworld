@@ -1,6 +1,6 @@
 # 江湖志 星露谷式重构 - 进度交接文档
 
-> 分支: feat | 里程碑提交: dbc98a1(Phase A) → Phase B(5e7343b) → Phase C(528a685) → Phase D → Phase F → **Phase G已完成(见下，四项体验修复)** | 逻辑探针31(C)+32(D)+G探针22/22绿（headless 0错误）
+> 分支: feat | 里程碑提交: dbc98a1(Phase A) → Phase B(5e7343b) → Phase C(528a685) → Phase D → Phase F → Phase G → **Phase H已完成(见下，左轨UI信息架构)** | 逻辑探针31(C)+32(D)+G探针22/22+H探针28/28绿（headless 0错误）
 
 ## ⚠️ Phase E 状态声明
 **Phase E 暂不需要执行（用户明确指示暂缓）。** Phase E备选池内容（NPC竖向行走帧程序补齐/存档持久化/血条闪烁联动与第二BGM主题）保留在下方原文档中仅作备忘，新任务不要主动实施；除非用户再次明确要求。
@@ -187,6 +187,58 @@
 - 运行时探针: project.godot [autoload]注入 ProbeF="*res://tools/probe_autoload_f.gd" → headless --quit-after 900 →
   读 tools/probe_f_log.txt（完毕后必须移除ProbeF！本次已恢复）。指标: biome_seeds=10 building_props=20 footprint=317 orphan=109 npc=12 robe_px=54
 - 干净启动: --headless --quit-after 600 无任何ERROR
+
+## 已完成（续5）
+### Phase H 左轨UI信息架构重排（本次完成，H探针28/28绿 + headless启动0错误）
+> 用户需求：参考市面同类游戏，优化左上角人物数据与任务日志的展示方式
+
+1. **H1 人物盘固定四槽环**（scripts/survival_hud.gd）：
+   - 废弃旧"中毒激活才加入环形布局"的动态段数（3×120°↔4×90°重排跳变）；SLOT_COUNT=4常驻，
+     毒槽未激活时画22%透明度空槽轮廓+暗显标签——几何永不重排（《Don't Starve》徽章语言）
+   - 标签固定四角度(-49°/41°/131°/221°)，顺带修复旧版4属性时底部标签(y≈178)与资源行重叠的布局bug
+2. **H2 显示值平滑lerp + 低值脉动**：display_arcs向目标比例lerp(delta*6)，受伤/中毒时弧段流动非瞬跳
+   （《Dead Cells》手感）；_pulsed_color()血<25%/饥<20%亮白呼吸、毒>60%紫白警示；探针实测
+   设毒50后0.06s显示0.205(未瞬跳)→1.4s收敛0.499
+3. **H3 资源chips+时辰底板**：木/石/金裸文本改inset底板徽章chip(y=176, 58x22)；时辰天气加同款底板
+   "时辰牌"(368,10,168x26)——位置不变避开CombatHUD区
+4. **H4 任务追踪器QuestTrackerHUD**（新 scripts/quest_tracker_hud.gd，对标巫师3/原神objective tracker）：
+   - 左轨(14,y210)常驻目标栏：追踪任务【类别】标题+52px迷你进度条+计数，0.25s轻轮询实时刷新
+     （progress_quest只改内存不发信号），增删靠world_state_changed信号
+   - 放左侧理由：右上被EventHUD+NPCInfoHUD占据；左轨统一"自身状态+自身目标"信息架构
+   - 空钉选时自动展示前3个进行中任务；点标题折叠；点卡片打开日志面板
+   - 卡片Panel必须MOUSE_FILTER_STOP才能被player._is_mouse_over_ui(gui_get_hovered_control)识别防误攻击
+5. **H5 任务系统反馈闭环**（quest_system.gd）：新增pinned_ids单一追踪状态源(tracker/log共享)+toggle_pin/
+   is_pinned API+弃任务同步清钉选；accept_quest补发emit_event("已接委托",title,2)进EventHUD事件流
+   （此前接受零反馈，仅完成有提示）
+6. **H6 任务日志打磨**（quest_log_hud.gd）：页签带实时计数("进行中 1/5")；进行中卡片新增★追踪开关
+   （联动tracker，青色=已钉）；popup_anim统一0.15s开启动画；按钮358→374/面板390→406避让tracker卡片区
+
+### Phase H2 抽屉式任务日志 + 对话框按钮修复（本次完成，H探针36/36绿）
+
+1. **H7 抽屉式入口**（quest_log_hud.gd）：用户反馈横幅大按钮"任 务 日 志"默认态突兀——
+   - 改为左缘竖排小标(0,424,26x128)：竖排"任务志"+滑出方向▸/◂，右缘圆角贴边悬停描金，
+     默认态只占屏缘26px；tooltip提示N键
+   - 小标顶部**进行中任务数角标**（金字黑描边，用户指定：只展示已接未完成数量），
+     world_state_changed/N刷新时经refresh()前置_update_badge()同步（面板关着也更新）
+   - 面板从左缘滑出：position.x -(PANEL_W+30)→34，TRANS_CUBIC 0.18s滑入/EASE_IN滑出+透明度渐变，
+     替代原popup_anim缩放；关闭走tween回调置invisible
+   - 小标文字为完整四字竖排"任/务/日/志"（148px高）；N键/ESC/tracker卡片点击开关路径不变
+   - **连带修复**：abandon_quest是此前唯一不发world_state_changed的任务状态变更（accept/complete都发），
+     弃单后角标/追踪器不即时归零——补发信号（探针H12 badge-clears-on-abandon覆盖）
+2. **H8 BugFix 底部对话框关闭无效**（dialog_box.gd + 场景无改动）：
+   - 根因：dialog_box.tscn**没有[connection]**条目、dialog_box.gd _ready也**未connect** next_button.pressed
+     →底部对话框"继续▼/关闭✕"渲染正常但点击死区，仅回车/空格可用；奇遇等一切底部提示均受影响
+   - 修复：_ready补next_button.pressed.connect(_advance)；顺带panel.gui_input左键=_advance（RPG惯例
+     点任意处推进）；按钮区域由Button自身消费不会双触发
+   - 探针H13实测：emit pressed三次（补全打字→下一条→补全→关闭）后visible=false
+
+## Phase H 验证记录（复现命令）
+- 语法检查: python tools/check_scripts.py <五文件>（GameManager Identifier not found属--script假错）
+- 运行时探针: python tools/run_probe_h.py （临时注入ProbeAutoload→跑一局→还原project.godot；
+  日志tools/probe_h_log.txt）**39断言全绿**：节点挂载/固定槽/chips/lerp两段采样/接受事件/自动追踪/
+  钉选双向星标/轮询进度bar=2.0/完成清空隐藏/H12抽屉贴边·角标同步·滑入x=34·指示翻转·默认关/
+  H13对话框按钮3击关闭
+- 干净启动: --headless --quit-after 600 无任何ERROR（tools/h_boot.txt）；project.godot无探针残留
 
 ## 未完成（建议新任务按序推进）
 ### Phase E 备选池
