@@ -30,7 +30,7 @@ y_sort_enabled = true
 format = 2
 
 [node name="Player" type="CharacterBody2D" parent="World" unique_id=1921514354 groups=["player"]]
-z_index = 5
+z_index = 2
 position = Vector2(576, 500)
 script = ExtResource("3_jyhfs")
 

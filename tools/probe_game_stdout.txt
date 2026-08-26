@@ -1,25 +1,32 @@
 Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
 Vulkan 1.4.329 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 4060 Laptop GPU
-ERROR: Can't create shader cache folder, no shader caching will happen: user://
-   at: RendererCompositorRD (servers/rendering/renderer_rd/renderer_compositor_rd.cpp:287)
 
 [Probe] autoload alive
 [godot_ai game_helper] registered mcp capture (debugger active=false, logger=true)
 Godot Trae Project initialized!
 MCP Server URL: http://127.0.0.1:8000/mcp
 [WorldGen] Generated 4 rivers
-[WorldGen] Player relocated to safe spawn tile (5, 11) -> (88.0, 184.0)
-[WorldGen] Reachable region: 14287 tiles
+[WorldGen] Player relocated to safe spawn tile (36, 31) -> (584.0, 504.0)
+[WorldGen] Reachable region: 31933 tiles
+[WorldGen] Town[village] @(44,-49) half=8 plaza=false
+[WorldGen] Town[market_town] @(-77,59) half=7 plaza=true
+[WorldGen] Town[village] @(85,-28) half=7 plaza=false
+[WorldGen] Town[temple_town] @(48,-29) half=9 plaza=true
+[WorldGen] Town[temple_town] @(-42,34) half=8 plaza=true
 [WorldGen] Could not place town 5
 [WorldGen] Generated 5 towns
 [WorldGen] Placed POI: 少林寺 at (160.0, 256.0)
-[WorldGen] Placed POI: 武当派 at (-160.0, 528.0)
+[WorldGen] Placed POI: 武当派 at (448.0, 752.0)
 [WorldGen] Placed POI: 江南小镇 at (-32.0, 240.0)
-[WorldGen] Placed POI: 古墓密洞 at (1312.0, -144.0)
-[WorldGen] POIs scattered: 4
+[WorldGen] Placed POI: 古墓密洞 at (1136.0, 1104.0)
+[WorldGen] Placed POI: 灵脉修炼场 at (480.0, 320.0)
+[WorldGen] POIs scattered: 5
+[WorldGen] Connectivity OK after 1 repair pass(es), carved=100
+[WorldGen] Connectivity passes done, carved cells=100
+[WorldGen] Reachable region: 32729 tiles
 [WorldGen] POI chunks loaded
 [WorldGen] Ready - seed=12345
-[Weather] Now: 晴天 for 73s
+[Weather] Now: 晴天 for 60s
 [Weather] Controller ready - start hour 8.0
 [Quest] System ready - 8 rule templates
 [Encounter] Ready - 20 prototype encounters
@@ -39,29 +46,21 @@ MCP Server URL: http://127.0.0.1:8000/mcp
 [Farm] 浆果丛散布 12 处
 [Inventory] +5 菜种
 [Farm] 初始发放菜种x5
-[MobSpawner] 营地[山贼营地]锚点=(-25, -11) 解析到=(-248.0, -8.0)
-[MobSpawner] 生成 orc_warrior @ (-248.0, -8.0) (Mob_orc_warrior_9405)
-[MobSpawner] 生成 orc_rogue @ (-268.0, 2.0) (Mob_orc_rogue_5333)
-[MobSpawner] 生成 orc_warrior @ (-248.0, -8.0) (Mob_orc_warrior_779)
-[MobSpawner] 营地[白骨祭坛]锚点=(33, 43) 解析到=(168.0, 280.0)
-[MobSpawner] 生成 skeleton_warrior @ (168.0, 280.0) (Mob_skeleton_warrior_1845)
-[MobSpawner] 生成 skeleton_mage @ (168.0, 280.0) (Mob_skeleton_mage_2189)
-[MobSpawner] 生成 skeleton_rogue @ (188.0, 268.0) (Mob_skeleton_rogue_9790)
+[MobSpawner] 营地[山贼营地]锚点=(6, 9) 解析到=(104.0, 152.0)
+[MobSpawner] 生成 orc_warrior @ (104.0, 152.0) (Mob_orc_warrior_1566)
+[MobSpawner] 生成 orc_rogue @ (84.0, 162.0) (Mob_orc_rogue_739)
+[MobSpawner] 生成 orc_warrior @ (124.0, 140.0) (Mob_orc_warrior_9280)
+[MobSpawner] 营地[白骨祭坛]锚点=(64, 63) 解析到=(1032.0, 1016.0)
+[MobSpawner] 生成 skeleton_warrior @ (1032.0, 1016.0) (Mob_skeleton_warrior_1902)
+[MobSpawner] 生成 skeleton_mage @ (1012.0, 1026.0) (Mob_skeleton_mage_6102)
+[MobSpawner] 生成 skeleton_rogue @ (1052.0, 1004.0) (Mob_skeleton_rogue_8449)
 [MobSpawner] 2 座营地就绪 共6只
-[NPCSpawner] 谢云鹤 原位置不可达，搬迁 (300.0, 300.0) -> (184.0, 264.0)
-[NPCSpawner] 铁三娘 原位置不可达，搬迁 (500.0, 450.0) -> (216.0, 168.0)
-[NPCSpawner] 柳如烟 原位置不可达，搬迁 (700.0, 350.0) -> (1032.0, -8.0)
-[NPCSpawner] 老樵夫 原位置不可达，搬迁 (350.0, 550.0) -> (72.0, 280.0)
-[NPCSpawner] 武当清虚 原位置不可达，搬迁 (420.0, 220.0) -> (232.0, 24.0)
-[NPCSpawner] 北境猎人 原位置不可达，搬迁 (-900.0, -500.0) -> (-360.0, 56.0)
-[NPCSpawner] 江南沈万 原位置不可达，搬迁 (900.0, 600.0) -> (1176.0, 152.0)
+[NPCSpawner] 少林慧空 原位置不可达，搬迁 (-620.0, 320.0) -> (-648.0, 296.0)
+[NPCSpawner] 北境猎人 原位置不可达，搬迁 (-900.0, -500.0) -> (-936.0, -552.0)
 [NPCSpawner] 南山隐士 原位置不可达，搬迁 (-300.0, 800.0) -> (-312.0, 792.0)
-[NPCSpawner] 西域刀客 原位置不可达，搬迁 (-1200.0, 100.0) -> (-1272.0, 232.0)
 [NPCSpawner] Interaction UI created, NPCs spawned: 12
 [Main] NPCSpawner created after textures ready
 [PASS] systems_ready
-[Zone] Entered 少林寺
-[Mob] 白骨教众法师 命中玩家 10.3
 [PASS] audio_controller_exists
 [PASS] sfx_loaded_all
 [PASS] bgm_stream_set
@@ -99,6 +98,5 @@ MCP Server URL: http://127.0.0.1:8000/mcp
 [PASS] regress_till_ok
 [PASS] till_sfx_wired
 [Probe] DONE passes=32 fails=0
-[Zone] Left 少林寺
 WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
    at: cleanup (core/object/object.cpp:2641)

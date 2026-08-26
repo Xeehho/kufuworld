@@ -24,6 +24,7 @@ var npc_configs = [
 ]
 
 func _ready():
+	y_sort_enabled = true   # Phase G4：NPC并入World递归Y-sort
 	_spawn_npcs()
 	_init_interaction_ui()
 

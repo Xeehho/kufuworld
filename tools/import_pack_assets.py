@@ -283,12 +283,28 @@ CHAR_ANIMS = [
     ("collect","Collect_Base","Collect",8, 12.0, False),
 ]
 DIRS = [("down","Down"), ("right","Side"), ("up","Up")]
+# Phase G1: left=Side表镜像帧（先镜像裁切，再按dirn="left"着装，脸部窗口自动随bbox取左侧）
+# 实测依据：Raw Side表眼睛/肤色质量一致右偏 -> 原生朝向为右，故right=原样、left=镜像
+ALL_DIRS = [("down","Down"), ("right","Side"), ("left","Side"), ("up","Up")]
+import re as _re
+
+def _clean_stale_player_frames(out_dir):
+    """删除全部 *_方向_N.png 旧产物，防止陈旧帧(旧程序画法)混入新导出（G1根因）"""
+    pat = _re.compile(r"^[a-z]+_(down|up|left|right)_\d+\.png$")
+    removed = 0
+    for f in list(os.listdir(out_dir)):
+        if pat.match(f):
+            os.remove(os.path.join(out_dir, f)); removed += 1
+    if removed:
+        print("[player] cleaned %d stale frames" % removed)
 
 def export_player():
     out_dir=os.path.join(SPR,"player"); count=0
+    os.makedirs(out_dir, exist_ok=True)
+    _clean_stale_player_frames(out_dir)
     def emit(prefix, base_dir, sheet_name, frames, suffix_map):
         nonlocal count
-        for ddir, dsuf in DIRS:
+        for ddir, dsuf in ALL_DIRS:
             src = os.path.join(base_dir, "%s_%s-Sheet.png" % (sheet_name, suffix_map.get(ddir, dsuf)))
             if not os.path.exists(src):
                 print("  MISS", os.path.relpath(src, PACK)); continue

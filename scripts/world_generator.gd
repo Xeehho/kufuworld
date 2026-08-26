@@ -55,12 +55,14 @@ var tile_map_parent: Node2D = null
 var main_tile_map: TileMap = null  # 场景中的主TileMap
 @onready var player: CharacterBody2D = $"../Player"
 
-# ============ 素材包大树道具 (Pixel Crawler, 每表2x2变体格) ============
-# 树瓦片ID(4松/8橡/9竹)不再画进TileMap，改为生成y排序Sprite道具，星露谷式大冠幅
+# ============ 素材包大树道具 (Pixel Crawler) ============
+# 树瓦片ID(4松/8橡/9竹)不再画进TileMap，改为生成y排序Sprite道具
+# Phase G2：连通分量实测真实网格——松32x80(4x2)、橡64x64(4x2)、竹48x80(3x2)。
+# 旧声明(64x80/128x64/72x80)跨树取图：一个道具渲染出两棵半树、竹被x=72竖切一半（"树只渲染了一半"根因）
 const TREE_SHEETS := {
-	4: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_03/Size_02.png", "cell": Vector2i(64, 80)},   # 松树(锥形)
-	8: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_01/Size_02.png", "cell": Vector2i(128, 64)},  # 橡树(宽冠)
-	9: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_02/Size_03.png", "cell": Vector2i(72, 80)},   # 竹/细高树
+	4: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_03/Size_02.png", "cell": Vector2i(32, 80)},   # 松树(锥形) 4x2=8变体
+	8: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_01/Size_02.png", "cell": Vector2i(64, 64)},   # 橡树(宽冠) 4x2=8变体
+	9: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_02/Size_03.png", "cell": Vector2i(48, 80)},   # 竹/细高树 3x2=6变体
 }
 var _tree_sheet_cache: Dictionary = {}
 var _tree_shadow_tex: ImageTexture = null
@@ -89,29 +91,59 @@ func _get_tree_shadow_texture() -> ImageTexture:
 	_tree_shadow_tex = ImageTexture.create_from_image(img)
 	return _tree_shadow_tex
 
+func _tree_grid(tid: int) -> Vector2i:
+	"""树表真实网格列×行（Phase G2连通分量实测，供变体索引取模）"""
+	match tid:
+		4: return Vector2i(4, 2)
+		8: return Vector2i(4, 2)
+		9: return Vector2i(3, 2)
+	return Vector2i(2, 2)
+
+func _near_water(wx: int, wy: int, r: int) -> bool:
+	"""方形半径r内是否存在水面瓦片——防止树冠悬到海面/河面上（G2）"""
+	for dx in range(-r, r + 1):
+		for dy in range(-r, r + 1):
+			if get_tile_id(wx + dx, wy + dy) == 5:
+				return true
+	return false
+
+func _should_spawn_tree_prop(wx: int, wy: int, tid: int) -> bool:
+	"""树道具落位闸门：水邻抑制+城镇净空抑制。被拒的格子只铺地面，不再回退画16px小树瓦片"""
+	var cell: Vector2i = TREE_SHEETS[tid]["cell"]
+	var r: int = int(ceil(cell.x / 32.0)) + 1   # 冠幅一半(格)+安全1格：松2 橡3 竹3
+	if _near_water(wx, wy, r):
+		return false
+	if _in_town_clearance(wx, wy):
+		return false
+	return true
+
 func _spawn_tree_prop(wx: int, wy: int, tid: int) -> bool:
 	var info: Dictionary = TREE_SHEETS[tid]
 	var sheet = _get_tree_sheet_texture(tid)
 	if sheet == null:
 		return false
 	var cell: Vector2i = info["cell"]
-	var variant: int = abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % 4
+	var grid := _tree_grid(tid)
+	var variant: int = abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % (grid.x * grid.y)
 	var atlas = AtlasTexture.new()
 	atlas.atlas = sheet
-	atlas.region = Rect2((variant % 2) * cell.x, float(int(variant / 2)) * cell.y, cell.x, cell.y)
+	atlas.region = Rect2(float(variant % grid.x) * cell.x, float(variant / grid.x) * cell.y, cell.x, cell.y)
 	var prop = Sprite2D.new()
 	prop.texture = atlas
-	prop.z_index = 2  # 树整体抬到z=2：给脚底阴影(等效z=1)留出地上树下的层位
-	# 脚底对齐：树干底部贴瓦片底缘(+4px入土)，水平居中带自然抖动
+	prop.z_index = 2  # 与玩家/NPC/Mob统一实体层z=2，交给World递归Y-sort交融（G4）
+	# Phase G4基点锚定：节点原点=树干脚底(瓦片底缘+4px入土)，贴图用offset上移半高。
+	# Y-sort按节点y排序，锚在脚底才能正确表现"人在树前/树后"
 	var jitter_x: float = fposmod(detail_noise.get_noise_2d(wx * 3.1, wy * 5.7), 1.0) * 6.0 - 3.0
-	prop.position = Vector2(wx * 16.0 + 8.0 + jitter_x, wy * 16.0 + 20.0 - cell.y * 0.5)
+	prop.position = Vector2(wx * 16.0 + 8.0 + jitter_x, wy * 16.0 + 20.0)
+	prop.offset = Vector2(0, -cell.y * 0.5)
 	prop.add_to_group("tree_prop")
+	prop.set_meta("base_y", prop.position.y)
 	# 椭圆阴影垫在树脚（z=-1相对树体，画在树干后、地面之上）
 	var shadow = Sprite2D.new()
 	shadow.texture = _get_tree_shadow_texture()
-	var shadow_w: float = clampf(cell.x * 0.42, 24.0, 56.0)
+	var shadow_w: float = clampf(cell.x * 0.75, 24.0, 48.0)
 	shadow.scale = Vector2(shadow_w / 48.0, shadow_w * 0.38 / 20.0)
-	shadow.position = Vector2(jitter_x * -0.5, cell.y * 0.5 - 5.0)
+	shadow.position = Vector2(jitter_x * -0.5, -4.0)
 	shadow.z_index = -1  # 相对-1=等效z1：地面之上、树干之下
 	shadow.modulate = Color(0, 0, 0, 0.30)
 	shadow.set_meta("shadow_base_a", 0.30)   # Phase D：昼夜树影强度基准（WeatherController按日照系数缩放）
@@ -121,6 +153,8 @@ func _spawn_tree_prop(wx: int, wy: int, tid: int) -> bool:
 	return true
 
 func _ready():
+	# Phase G4：本节点开启Y-sort，使POI地标等子节点并入World递归Y排序
+	y_sort_enabled = true
 	_setup_noise()
 	_setup_biomes()	# Phase F6: 饥荒式区域划分（先于一切get_tile_id调用）
 	_load_tileset()
@@ -314,6 +348,27 @@ func _generate_rivers():
 	print("[WorldGen] Generated " + str(river_count) + " rivers")
 
 # ============ 城镇系统 ============
+
+# ---- Phase G3: 城镇模板——三型布局（主建筑/民居组合/农田数量/中心广场）----
+const TOWN_TEMPLATES := [
+	{"id": "village",     "main": "house",  "extras": ["hut", "hut", "house"],   "farms_min": 2, "farms_max": 2, "plaza": false},
+	{"id": "market_town", "main": "manor",  "extras": ["house", "house", "hut"], "farms_min": 2, "farms_max": 3, "plaza": true},
+	{"id": "temple_town", "main": "temple", "extras": ["house", "hut"],          "farms_min": 1, "farms_max": 2, "plaza": true},
+]
+
+# ---- Phase G3: 城镇净空区——城镇周边(half+余量)内不生成树木/岩石，杜绝树冠压街压田 ----
+var _town_clear_rects: Array[Rect2i] = []
+const TOWN_CLEAR_MARGIN := 3   # 净空外扩格数（树冠悬伸+呼吸空间）
+
+func _in_town_clearance(x: int, y: int) -> bool:
+	for r in _town_clear_rects:
+		if r.has_point(Vector2i(x, y)):
+			return true
+	return false
+
+func _register_town_clearance(cx: int, cy: int, half: int):
+	var m: int = half + TOWN_CLEAR_MARGIN
+	_town_clear_rects.append(Rect2i(cx - m, cy - m, 2 * m + 1, 2 * m + 1))
 
 func _generate_towns():
 	"""在合适位置生成3-5个城镇区域"""
@@ -560,7 +615,8 @@ func _dump_spawn_diagnostics(origin: Vector2i):
 	print("[WorldGen] ASCII map around spawn (#=blocked .=walk):" + lines)
 
 func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
-	"""Phase F5: 无围栏星露谷式城镇——十字土路 + 大型建筑道具 + 开阔农田斑块"""
+	"""Phase G3模板化：十字土路+中心广场(可选)+主建筑/环绕民居(按模板)+开阔农田斑块。
+	Phase F5基础上重构为TOWN_TEMPLATES驱动，并登记净空区抑制周边树木。"""
 	var half := rng.randi_range(7, 9)	# 需容纳最大footprint(temple 7x5)+象限余量
 
 	# 十字主路
@@ -570,18 +626,25 @@ func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
 		if not override_cells.has(Vector2i(cx, cy + dy)):
 			override_cells[Vector2i(cx, cy + dy)] = 1
 
-	# 主建筑（大宅或庙宇）+ 民居若干，四象限分布
+	var tpl: Dictionary = TOWN_TEMPLATES[rng.randi() % TOWN_TEMPLATES.size()]
+
+	# 中心广场（市镇/庙宇型）：5x5石板芯，强化聚落感
+	if bool(tpl.get("plaza", false)):
+		for dx in range(-2, 3):
+			for dy in range(-2, 3):
+				override_cells[Vector2i(cx + dx, cy + dy)] = 1
+
+	# 主建筑（按模板）+ 环绕民居，四象限轮转分布
 	var quadrants := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
-	var main_kind := "manor" if rng.randf() < 0.65 else "temple"
 	var qi := rng.randi() % 4
-	_try_place_town_building(cx, cy, half, quadrants[qi], main_kind, rng)
-	var house_kinds := ["hut", "house", "house", "manor"]
-	for i in range(rng.randi_range(2, 4)):
-		var kind: String = house_kinds[rng.randi() % house_kinds.size()]
-		_try_place_town_building(cx, cy, half, quadrants[(qi + 1 + i) % 4], kind, rng)
+	_try_place_town_building(cx, cy, half, quadrants[qi], str(tpl["main"]), rng)
+	var extras: Array = tpl["extras"]
+	for i in range(extras.size()):
+		_try_place_town_building(cx, cy, half, quadrants[(qi + 1 + i) % 4], str(extras[i]), rng)
 
 	# 开阔农田斑块（无栅栏，2x3）
-	for f in range(rng.randi_range(2, 3)):
+	# 开阔农田斑块（无栅栏，2x3，数量按模板）——注释保留原F5语义
+	for f in range(rng.randi_range(int(tpl["farms_min"]), int(tpl["farms_max"]))):
 		var fx := rng.randi_range(-half + 1, half - 2)
 		var fy := rng.randi_range(-half + 1, half - 2)
 		var ok := true
@@ -594,6 +657,10 @@ func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
 			for dx in range(3):
 				for dy in range(2):
 					override_cells[Vector2i(cx + fx + dx, cy + fy + dy)] = 16
+
+	# Phase G3：登记城镇净空区（half+余量），周边格子不再生成树木/岩石
+	_register_town_clearance(cx, cy, half)
+	print("[WorldGen] Town[%s] @(%d,%d) half=%d plaza=%s" % [str(tpl["id"]), cx, cy, half, str(tpl.get("plaza", false))])
 
 func _try_place_town_building(cx: int, cy: int, half: int, quad: Vector2i, kind: String, rng: RandomNumberGenerator) -> bool:
 	"""在象限内随机找合法锚点放置建筑；footprint整体保持在中心十字路>=2格之外"""
@@ -654,19 +721,23 @@ func _place_building_prop(kind: String, a: Vector2i) -> bool:
 	var bw := fp.x * TILE_SIZE_PX
 	var bh := fp.y * TILE_SIZE_PX
 	var tsz := tex.get_size()
-	var root := Node2D.new()
-	root.name = "Building_" + kind
-	root.z_index = 4
-	root.add_to_group("building_prop")
 	var base_cx := (a.x + fp.x * 0.5) * TILE_SIZE_PX
 	var base_y := float((a.y + fp.y) * TILE_SIZE_PX)
+	var root := Node2D.new()
+	root.name = "Building_" + kind
+	# Phase G4：实体层统一z=2，节点原点锚在footprint底缘(墙脚)，交给World递归Y-sort——
+	# 玩家走到建筑下方(南)画在房前，上方(北)被屋顶遮挡，消除"贴图浮在另一图层"感
+	root.z_index = 2
+	root.position = Vector2(base_cx, base_y)
+	root.add_to_group("building_prop")
+	root.set_meta("base_y", base_y)
 	var spr := Sprite2D.new()
 	spr.texture = tex
-	spr.position = Vector2(base_cx, base_y - tsz.y * 0.5 + 6.0)
+	spr.position = Vector2(0, -tsz.y * 0.5 + 6.0)
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	root.add_child(spr)
 	var body := StaticBody2D.new()
-	body.position = Vector2(base_cx, base_y - bh * 0.5 + 2.0)
+	body.position = Vector2(0, -bh * 0.5 + 2.0)
 	var cs := CollisionShape2D.new()
 	var rect := RectangleShape2D.new()
 	rect.size = Vector2(bw - 4, bh - 2)
@@ -841,6 +912,13 @@ func get_tile_id(x: int, y: int) -> int:
 	var kind := _biome_kind(x, y)
 	var d = detail_noise.get_noise_2d(x, y)
 	var r = fposmod(d + 1.0, 1.0)
+	var tid: int = _biome_decor_tile(kind, x, y, d, r)
+	# Phase G3：城镇净空区内不生成树木/岩石（保留花），杜绝树冠压街压田、道具穿墙
+	if (TREE_SHEETS.has(tid) or tid == 14) and _in_town_clearance(x, y):
+		return 18 if kind == "bamboo" else 0
+	return tid
+
+func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 	match kind:
 		"forest":
 			if r > 0.86: return 4
@@ -945,11 +1023,11 @@ func _load_chunk(chunk: Vector2i):
 				var tid = get_tile_id(wx, wy)
 				if tid >= 0:
 					# 大树改用素材包道具（星露谷式冠幅），只铺地面层
+					# Phase G2：水邻/城镇净空被拒的格子只铺地面——不再回退画16px小树瓦片
 					if TREE_SHEETS.has(tid):
-						var ground_under = _get_ground_tile(wx, wy)
-						tm.set_cell(0, cell, ground_under, Vector2i(0, 0))
-						if not _spawn_tree_prop(wx, wy, tid):
-							tm.set_cell(1, cell, tid, Vector2i(0, 0))
+						tm.set_cell(0, cell, _get_ground_tile(wx, wy), Vector2i(0, 0))
+						if _should_spawn_tree_prop(wx, wy, tid):
+							_spawn_tree_prop(wx, wy, tid)
 					elif tid == TILE_BUILDING_RESERVE:
 						# Phase F5 大建筑footprint：只铺地面（视觉与碰撞由道具节点承担）
 						tm.set_cell(0, cell, _get_ground_tile(wx, wy), Vector2i(0, 0))
@@ -1083,6 +1161,8 @@ func _apply_town_poi_terrain(cx: int, cy: int):
 				override_cells[cell] = 16  # 农田
 	_place_building_prop("manor" if rng.randf() < 0.7 else "house", Vector2i(cx - 3, cy - 2))
 	_place_building_prop("hut", Vector2i(cx + 2, cy - 2))
+	# Phase G3：城镇POI同样登记净空区
+	_register_town_clearance(cx, cy, 4)
 
 func _apply_cave_terrain(cx: int, cy: int):
 	"""洞穴周围铺石头"""
@@ -1280,9 +1360,14 @@ func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
 func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	var marker = Node2D.new()
 	marker.name = "POI_" + tpl.poi_name.replace(" ", "_")
-	marker.global_position = pos
 	marker.y_sort_enabled = true
-	marker.z_index = 10
+	# Phase G4：POI地标并入实体层Y-sort——z=2，锚点=中心建筑墙脚基线。
+	# 世界坐标整体平移anchor_dy保持视觉不变，但Y排序按墙脚算，玩家可绕行建筑前后
+	var building_tile0 := _poi_building_tile(tpl.poi_type)
+	var center_tex0 := TextureGen.load_png_texture(building_tile0)
+	var anchor_dy: float = (center_tex0.get_size().y - 10.0) if center_tex0 else 0.0
+	marker.global_position = pos + Vector2(0, anchor_dy)
+	marker.z_index = 2
 
 	# 建筑群 - 根据POI类型放置不同建筑
 	var building_tile = _poi_building_tile(tpl.poi_type)
@@ -1290,16 +1375,16 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	var rng = RandomNumberGenerator.new()
 	rng.seed = hash(tpl.poi_name)
 
-	# 中心建筑（Phase F5: 大建筑贴图，墙脚落在POI原点上）
+	# 中心建筑（大建筑贴图：底缘对齐marker原点，即原点=墙脚基线）
 	var center_sprite = Sprite2D.new()
 	var center_tex := TextureGen.load_png_texture(building_tile)
 	center_sprite.texture = center_tex
 	if center_tex:
-		center_sprite.position = Vector2(0, center_tex.get_size().y * 0.5 - 10.0)
-	center_sprite.z_index = 4
+		center_sprite.position = Vector2(0, -center_tex.get_size().y * 0.5)
+	center_sprite.z_index = 0
 	marker.add_child(center_sprite)
 
-	# 周围建筑
+	# 周围建筑（相对新锚点定位；z归0并入实体层）
 	for i in range(building_count - 1):
 		var bx = rng.randi_range(-4, 4) * TILE_SIZE_PX
 		var by = rng.randi_range(-2, 3) * TILE_SIZE_PX
@@ -1309,13 +1394,13 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 		var bld_tex := TextureGen.load_png_texture(_poi_secondary_building_tile(tpl.poi_type, rng))
 		bld_sprite.texture = bld_tex
 		if bld_tex:
-			bld_sprite.position = Vector2(bx, by + bld_tex.get_size().y * 0.5 - 10.0)
+			bld_sprite.position = Vector2(bx, by + bld_tex.get_size().y * 0.5 - anchor_dy)
 		else:
-			bld_sprite.position = Vector2(bx, by)
-		bld_sprite.z_index = 4
+			bld_sprite.position = Vector2(bx, by - anchor_dy)
+		bld_sprite.z_index = 0
 		marker.add_child(bld_sprite)
 
-	# 装饰物
+	# 装饰物（并入实体层Y-sort，可被玩家/树冠遮挡）
 	var deco_count = rng.randi_range(2, 5)
 	for i in range(deco_count):
 		var dx = rng.randi_range(-4, 4) * TILE_SIZE_PX
@@ -1323,15 +1408,15 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 		var deco_sprite = Sprite2D.new()
 		var deco_tile = _random_decoration(rng)
 		deco_sprite.texture = TextureGen.load_png_texture(deco_tile)
-		deco_sprite.position = Vector2(dx, dy)
-		deco_sprite.z_index = 10
-		deco_sprite.y_sort_enabled = true
+		deco_sprite.position = Vector2(dx, dy - anchor_dy)
+		deco_sprite.z_index = 0
 		marker.add_child(deco_sprite)
 
 	# 地点名称标签（Phase F2: 字号与画面比例协调——zoom3下5px≈15px屏显，加描边保可读）
+	# G4：标签保持在实体层之上(z相对20)，位置随锚点平移补偿
 	var label = Label.new()
 	label.text = tpl.poi_name
-	label.position = Vector2(-30, -52)
+	label.position = Vector2(-30, -52 - anchor_dy)
 	label.z_index = 20
 	label.add_theme_color_override("font_color", tpl.icon_color)
 	label.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.04, 1))
@@ -1340,10 +1425,10 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	marker.add_child(label)
 
-	# 环境区域
+	# 环境区域（随锚点平移，保持世界空间触发范围不变）
 	var env_zone = Area2D.new()
 	env_zone.name = "EnvironmentZone"
-	env_zone.position = Vector2.ZERO
+	env_zone.position = Vector2(0, -anchor_dy)
 	env_zone.z_index = 0
 	var col_shape = CollisionShape2D.new()
 	col_shape.shape = RectangleShape2D.new()

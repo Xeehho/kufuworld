@@ -7,3 +7,7 @@ res://scripts/Main.gd
 res://tools/probe_autoload.gd
 res://scenes/npc.tscn
 res://scripts/npc_character.gd
+res://scripts/farm_system.gd
+res://scripts/mob_spawner.gd
+res://scripts/npc_spawner.gd
+res://scripts/station_system.gd

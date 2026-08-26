@@ -1,6 +1,6 @@
 # 江湖志 星露谷式重构 - 进度交接文档
 
-> 分支: feat | 里程碑提交: dbc98a1(Phase A) → Phase B(5e7343b) → Phase C(528a685) → Phase D → **Phase F已完成(见下，七项修复+UI重构)** | 逻辑探针31(C)+32(D)+Phase F运行时探针全绿（headless 0错误）
+> 分支: feat | 里程碑提交: dbc98a1(Phase A) → Phase B(5e7343b) → Phase C(528a685) → Phase D → Phase F → **Phase G已完成(见下，四项体验修复)** | 逻辑探针31(C)+32(D)+G探针22/22绿（headless 0错误）
 
 ## ⚠️ Phase E 状态声明
 **Phase E 暂不需要执行（用户明确指示暂缓）。** Phase E备选池内容（NPC竖向行走帧程序补齐/存档持久化/血条闪烁联动与第二BGM主题）保留在下方原文档中仅作备忘，新任务不要主动实施；除非用户再次明确要求。
@@ -91,6 +91,54 @@
 5. **树影随昼夜强度变化**（可选项一并完成）：world_generator阴影精灵set_meta("shadow_base_a",0.30)；
    weather_controller._tick_tree_shadows每0.5s按_daylight_factor()(正午1→夜0.15分段曲线×云雨削弱
    0.55+0.45*mult)缩放group tree_shadow的modulate.a(clamp 0.22~1.0)
+
+## 已完成（续4）
+### Phase G 四项体验修复（本次完成，G探针22/22绿 + D回归32/32绿 + headless 0错误）
+> 用户原始需求逐条对应：1树木渲染半截/悬海 2人物侧向无衣物 3城镇模板+周边净空 4树林穿行两层皮无交融
+
+1. **G1 玩家左向帧修复**（tools/import_pack_assets.py）：
+   - 根因：DIRS只含down/right/up——Phase F导出根本没写left帧；磁盘上*_left_*全是10:26旧程序画法残留
+     （robe=0/hair=0、bbox缩在左上角(5,2)-(18,31)、run_left/hurt_left等整组缺失）。向左移动显示旧错位帧
+   - 实测Side表原生朝向为右（Walk/Idle Side各帧头区肤色质量一致右偏+0.11~0.22；Down基准对称=方法校准通过）
+   - 修复：ALL_DIRS加left=Side表镜像（先镜像裁切再按dirn="left"着装，脸部窗口随bbox自动取左侧）；
+     导出前_clean_stale_player_frames清掉208张旧帧；全量重导256帧（8动画×4向，含此前缺失的hurt/run_left等）
+   - 像素探针：walk_left_0 robe=93/hair=68/bbox(25,18)-(38,47)与right完全镜像对称（attack bbox 22..54 vs 9..41）
+   - player.gd rebuild_sprite_frames防空动画保护：某方向帧全缺时不再注册空动画（防角色隐身），push_warning报缺
+2. **G2 树道具网格+水邻抑制**（scripts/world_generator.gd）：
+   - 根因（"树只渲染一半"）：TREE_SHEETS声明cell跨树取图！连通分量实测真实网格：
+     松Model_03/Size_02=32x80(4x2=8变体)、橡Model_01/Size_02=64x64(4x2=8)、竹Model_02/Size_03=48x80(3x2=6)；
+     旧声明(64x80/128x64/72x80)使一个道具画出两棵半树、竹被region右缘x=72竖切成两半
+   - _tree_grid()按tid返回真实列×行，variant取模grid.x*grid.y；atlas region全部落在表内（探针bad_region=0）
+   - 水邻抑制（"树画到海上"）：_should_spawn_tree_prop()=_near_water(r=冠幅格/2+1:松2橡3竹3)+净空复核；
+     被拒格子只铺地面，删除原"spawn失败回退画16px小树瓦片"分支。1954棵道具抽检水邻violations=0
+   - 阴影宽随新cell改clamp(cell.x*0.75,24,48)
+3. **G3 城镇模板+净空区**（scripts/world_generator.gd）：
+   - TOWN_TEMPLATES三模板：village(house主+2hut+1house,农田2)/market_town(manor主+民居+5x5中心广场,农田2-3)/
+     temple_town(temple主+广场,农田1-2)；_generate_single_town重构为模板驱动，打印布局日志
+   - 城镇净空区：_town_clear_rects[]登记Rect2i(cx-m,cy-m,2m+1,2m+1)，m=half+TOWN_CLEAR_MARGIN(3)；
+     get_tile_id尾部统一抑制：净空区内树(4/8/9)与岩石(14)→草地/深草（花保留）；城镇POI同登记(half=4)
+   - 探针实测6个净空区763采样点 viol=0
+4. **G4 Y-sort深度融合（"穿林两层皮"根因修复）**：
+   - 根因：World虽y_sort_enabled，但实体z_index各自为政(玩家5/建筑4/树2/NPC·Mob5)——Y-sort只在同z内生效，
+     玩家永远画在树上方，穿林如浮在独立图层
+   - 统一实体层z=2：main.tscn Player、npc.tscn NPCBase、mob_spawner生成、建筑root、POI marker(10→2)、站台(补z=2)；
+     效果层保持更高(fx8/container9/指示器30/雨雪1000/mob飘字20不受影响)
+   - 基点锚定改造（Y-sort按节点y排序，必须锚在脚底/墙脚）：树prop.position=脚底+offset(0,-cell.y*0.5)、
+     建筑root.position=footprint底缘(spr/body改相对坐标)、POI marker锚点=中心建筑墙脚(anchor_dy整体平移补偿，
+     内部sprite z归0交给递归sort、label相对z20仍置顶、env_zone同步平移保持世界触发范围不变)
+   - 递归Y-sort链路打通：WorldGenerator/FarmSystem/StationSystem/NPCSpawner/MobSpawner各自y_sort_enabled=true
+     ——子节点并入World全局排序；注意坑：NPC/Mob挂在位于(0,0)的容器下，若容器不开y_sort只降z会让它们全员沉底
+   - 定量验证：同一橡树南北机位长袍可见像素 828→75（91%被树冠遮挡）——人在树前/树后正确互相遮挡
+
+## Phase G 验证记录（复现命令）
+- 玩家帧重生成: python tools/import_pack_assets.py player （自动清陈旧帧，输出256帧含80张left）
+- 帧着装审计: python tools/probe_fix_g.py （四向robe/hair/bbox镜像对称性）
+- 树表审计: python tools/probe_tree_sheets.py / probe_tree_components.py / probe_facemass.py(原生朝向判定)
+- G运行时探针: python tools/run_probe_g.py （临时注入ProbeG→窗口跑一局→自动还原project.godot；
+  日志tools/probe_g_log.txt，截图probe_g_shot_0..3.png=树南/树北/海岸/城镇机位）22断言全绿
+- 截图定量审计: python tools/analyze_g_shots.py （Y-sort遮挡差分828→75px WORKING）
+- 回归: python tools/run_probe_d.py → 32/32绿（首跑2失败系窗口期方向键误触input干扰，复跑确认）
+- 干净启动: --headless --quit-after 600 无任何ERROR
 
 ## 已完成（续3）
 ### Phase F 七项体验修复 + UI游戏化（本次完成，运行时探针全绿/headless 0错误）
@@ -201,3 +249,11 @@
   runner的Popen stdout必须落文件句柄而非PIPE，否则timeout路径丢弃全部游戏日志无从排障
 - 【Phase D新】本机环境user://落在项目根Godot/app_userdata（已加.gitignore）；project.godot注入/还原探针
   autoload后要检查[autoload]节残留空行（CRLF文件replace("\n")匹配不上\r\n）
+- 【Phase G新】素材包树表不是均匀2x2大格！松/橡/竹真实网格为32x80(4x2)/64x64(4x2)/48x80(3x2)，
+  新增树种前务必用连通分量分析实测（tools/probe_tree_components.py），声明cell跨树会画出半棵树
+- 【Phase G新】Pixel Crawler Body_A的Side表原生朝右（肤色质量探针probe_facemass.py判定）；left帧必须
+  显式镜像导出并按dirn="left"着装；export前先清陈旧帧，否则旧程序画法残留会混入运行时
+- 【Phase G新】实体层统一z=2+递归Y-sort架构：任何新实体挂World树时，根节点z_index必须=2且position锚在
+  脚底/墙脚（贴图用offset上移）；中间容器节点必须开y_sort_enabled否则子项按容器y=(0,0)排序全员沉底
+- 【Phase G新】像素反推瓦片坐标时先减中心偏移再除格宽（round((px-8)/16)），直接round(px/16)会在+8px
+  半格边界系统性偏移一格（G探针水邻审计曾因此连错两轮）

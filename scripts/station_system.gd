@@ -22,6 +22,7 @@ const STATION_DEFS := {
 
 func _ready():
 	add_to_group("station_system")
+	y_sort_enabled = true   # Phase G4：站台并入World递归Y-sort
 
 # 建造模式放置入口（player._place_building 调用）
 func place_station(type_str: String, pos: Vector2) -> Node2D:
@@ -31,6 +32,7 @@ func place_station(type_str: String, pos: Vector2) -> Node2D:
 	var node := Node2D.new()
 	node.name = "Station_" + type_str + "_" + str(randi() % 10000)
 	node.position = pos
+	node.z_index = 2   # Phase G4：实体层统一z
 	node.add_to_group("station")
 	node.set_meta("station_type", type_str)
 	if int(def["frames"]) > 1:

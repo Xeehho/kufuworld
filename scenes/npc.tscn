@@ -6,7 +6,7 @@
 size = Vector2(12, 8)
 
 [node name="NPCBase" type="CharacterBody2D" unique_id=1766615235]
-z_index = 5
+z_index = 2
 script = ExtResource("1_nh2m4")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]

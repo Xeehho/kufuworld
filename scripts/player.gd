@@ -122,15 +122,22 @@ func rebuild_sprite_frames():
 		var prefix = spec[0]
 		for dir_name in dir_names:
 			var anim_name = prefix + "_" + dir_name
+			# Phase G1：先收集帧，至少1帧才注册动画——防止磁盘帧缺失时产生空动画(角色隐身)
+			var frames: Array = []
+			for i in range(spec[1]):
+				var tex = TextureGen.load_png_texture("res://sprites/player/%s_%s_%d.png" % [prefix, dir_name, i])
+				if tex:
+					frames.append(tex)
+			if frames.is_empty():
+				push_warning("[Player] 缺失动画帧: " + anim_name)
+				continue
 			if not sf.has_animation(anim_name):
 				sf.add_animation(anim_name)
 			sf.set_animation_speed(anim_name, spec[2])
 			sf.set_animation_loop(anim_name, spec[3])
-			for i in range(spec[1]):
-				var tex = TextureGen.load_png_texture("res://sprites/player/%s_%s_%d.png" % [prefix, dir_name, i])
-				if tex:
-					sf.add_frame(anim_name, tex)
-					loaded_any = true
+			for tex in frames:
+				sf.add_frame(anim_name, tex)
+			loaded_any = true
 	if loaded_any:
 		anim.sprite_frames = sf
 		# Body_A 64x64帧人物脚线在y≈48，帧中心y=32 → 上移16px使脚底=节点原点

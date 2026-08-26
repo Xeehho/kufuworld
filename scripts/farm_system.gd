@@ -28,6 +28,7 @@ var _seeds_granted := false
 
 func _ready():
 	add_to_group("farm_system")
+	y_sort_enabled = true   # Phase G4：作物/浆果丛并入World递归Y-sort
 	for i in range(MAX_STAGE + 1):
 		_crop_tex_cache.append(TextureGen.load_png_texture("res://sprites/farm/crop_%d.png" % i))
 	print("[Farm] FarmSystem ready")

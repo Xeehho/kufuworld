@@ -23,6 +23,7 @@ var _world_gen: Node2D = null
 
 func _ready():
 	add_to_group("mob_spawner")
+	y_sort_enabled = true   # Phase G4：子节点Mob并入World递归Y-sort
 
 func _process(_delta):
 	if _world_gen == null:
@@ -61,7 +62,7 @@ func _spawn_mob(kind_id: String, pos: Vector2, camp: Dictionary):
 	mob.set_script(MobScript)
 	mob.name = "Mob_" + kind_id + "_" + str(randi() % 10000)
 	mob.position = pos
-	mob.z_index = 5
+	mob.z_index = 2   # Phase G4：实体层统一z，Y-sort按脚线交融
 	mob.setup(kind_id)
 	get_parent().add_child(mob)
 	mob.mob_died.connect(_on_mob_died.bind(camp))
