@@ -7,7 +7,7 @@
 [ext_resource type="Script" uid="uid://cwbmp63uln88x" path="res://scripts/environment_zone.gd" id="6_tefeu"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tbgi4"]
-size = Vector2(24, 36)
+size = Vector2(16, 24)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_o6xl0"]
 size = Vector2(160, 160)
@@ -38,27 +38,27 @@ script = ExtResource("3_jyhfs")
 shape = SubResource("RectangleShape2D_tbgi4")
 
 [node name="Camera2D" type="Camera2D" parent="World/Player" unique_id=2048637114]
-zoom = Vector2(1.5, 1.5)
+zoom = Vector2(3.0, 3.0)
 position_smoothing_enabled = true
 position_smoothing_speed = 8.0
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="World/Player" unique_id=1096569457]
-scale = Vector2(1.5, 1.5)
+scale = Vector2(1, 1)
 sprite_frames = ExtResource("5_tefeu")
 animation = &"idle_down"
 
 [node name="AttackIndicator" type="ColorRect" parent="World/Player" unique_id=813598522]
-offset_left = -16.0
-offset_top = -16.0
-offset_right = 48.0
-offset_bottom = 48.0
+offset_left = -8.0
+offset_top = -8.0
+offset_right = 24.0
+offset_bottom = 24.0
 color = Color(1, 0.3, 0.2, 0)
 
 [node name="UI" type="CanvasLayer" parent="World" unique_id=4063318]
 
 [node name="CanvasModulate" type="CanvasModulate" parent="World" unique_id=343799069]
 z_index = 100
-color = Color(0.92, 0.90, 0.94, 1)
+color = Color(1.0, 0.98, 0.93, 1)
 
 [node name="EnvironmentZones" type="Node2D" parent="World" unique_id=703637521]
 

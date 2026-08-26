@@ -2,11 +2,11 @@
 extends Node
 
 # 星露谷/饥荒风格纹理生成器
-# 使用32x32瓦片尺寸，更精细的像素风表现
+# 使用16x16瓦片尺寸（适配Anokolisa等16x16像素资源包）
 
-const TILE_SIZE = 32
-const CHAR_W = 32
-const CHAR_H = 48
+const TILE_SIZE = 16
+const CHAR_W = 16
+const CHAR_H = 24
 
 # ============================================================
 # 精致武侠风调色板（参考江湖风云传：月白长袍+黛青镶边+朱红点缀）
@@ -437,143 +437,146 @@ func _tile_tree_bamboo():
 	img.save_png("res://sprites/tiles/tree_bamboo.png")
 
 func _tile_house_town():
-	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	# 中式民居：白墙黛瓦+木门花窗
-	var wall = Color(0.90, 0.87, 0.78, 1.0)
-	var wall_d = Color(0.76, 0.72, 0.62, 1.0)
-	var roof = Color(0.22, 0.24, 0.28, 1.0)
-	var roof_hi = Color(0.35, 0.38, 0.42, 1.0)
-	var beam = Color(0.45, 0.28, 0.16, 1.0)
-	var door = Color(0.38, 0.24, 0.13, 1.0)
-	var window_c = Color(0.55, 0.42, 0.28, 1.0)
-	# 墙体
-	_rect_t(img, 3, 15, 28, 29, wall)
-	# 墙基
-	_rect_t(img, 3, 27, 28, 29, wall_d)
-	# 瓦屋顶（人字坡+瓦垄）
-	for x in range(0, 32):
-		for y in range(5, 16):
-			var peak = abs(x - 15.5)
-			if y > 5 + peak * 0.62:
-				# 瓦垄纹理
-				var c = roof if x % 3 != 0 else roof_hi
-				img.set_pixel(x, y, c)
-	# 屋脊
-	for x in range(13, 19):
-		img.set_pixel(x, 6, roof_hi)
-		img.set_pixel(x, 5, roof)
-	# 飞檐翘角
-	img.set_pixel(1, 14, roof_hi); img.set_pixel(0, 13, roof_hi)
-	img.set_pixel(30, 14, roof_hi); img.set_pixel(31, 13, roof_hi)
-	# 檐下木梁
-	_rect_t(img, 3, 15, 28, 15, beam)
-	# 木门（带门环）
-	_rect_t(img, 13, 20, 18, 29, door)
-	_rect_t(img, 13, 20, 18, 20, beam)
-	img.set_pixel(14, 24, Color(0.75, 0.62, 0.30)); img.set_pixel(17, 24, Color(0.75, 0.62, 0.30))
-	# 花窗（冰裂纹示意）
-	_rect_t(img, 6, 18, 9, 22, window_c)
-	img.set_pixel(7, 19, wall); img.set_pixel(8, 21, wall)
-	_rect_t(img, 22, 18, 25, 22, window_c)
-	img.set_pixel(23, 19, wall); img.set_pixel(24, 21, wall)
-	img.save_png("res://sprites/tiles/house_town.png")
-
-# 瓦片用矩形（不依赖角色常量边界）
-func _rect_t(img: Image, x0: int, y0: int, x1: int, y1: int, c: Color):
-	for x in range(x0, x1 + 1):
-		for y in range(y0, y1 + 1):
-			if x >= 0 and x < TILE_SIZE and y >= 0 and y < TILE_SIZE:
-				img.set_pixel(x, y, c)
+	_img_save_house("res://sprites/tiles/house_town.png", "brick", false)
 
 func _tile_house_cottage():
-	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var wall = Color(0.55, 0.48, 0.35, 1.0)
-	var wall_dark = Color(0.45, 0.38, 0.28, 1.0)
-	var roof = Color(0.30, 0.35, 0.22, 1.0)
-	var door = Color(0.30, 0.18, 0.10, 1.0)
-	# 茅屋 - 木墙草顶
-	# 墙壁
-	for x in range(4, 28):
-		for y in range(16, 30):
-			img.set_pixel(x, y, wall if y % 4 != 0 else wall_dark)
-	# 草顶
-	for x in range(2, 30):
-		for y in range(8, 17):
-			var peak = abs(x - 16)
-			if y > 8 + peak * 0.5:
-				var n = _noise_pixel(x, y, 9) * 0.06
-				img.set_pixel(x, y, Color(roof.r + n, roof.g + n, roof.b + n, 1))
-	# 门
-	for x in range(13, 19):
-		for y in range(22, 30):
-			img.set_pixel(x, y, door)
-	img.save_png("res://sprites/tiles/house_cottage.png")
+	_img_save_house("res://sprites/tiles/house_cottage.png", "wood", false)
 
 func _tile_house_temple():
-	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	# 寺庙：金顶飞檐+朱柱白墙+匾额
-	var wall = Color(0.88, 0.82, 0.66, 1.0)
-	var wall_d = Color(0.70, 0.64, 0.50, 1.0)
-	var roof = Color(0.72, 0.55, 0.20, 1.0)
-	var roof_d = Color(0.55, 0.40, 0.14, 1.0)
-	var pillar = Color(0.62, 0.20, 0.14, 1.0)
-	var dark = Color(0.18, 0.15, 0.13, 1.0)
-	# 墙体
-	_rect_t(img, 3, 17, 28, 29, wall)
-	_rect_t(img, 3, 27, 28, 29, wall_d)
-	# 双层飞檐屋顶
-	for x in range(0, 32):
-		for y in range(8, 18):
-			var peak = abs(x - 15.5)
-			var curve = sin(x * 0.25) * 1.5
-			if y > 8 + peak * 0.55 - curve:
-				img.set_pixel(x, y, roof if x % 3 != 0 else roof_d)
-	# 正脊与鸱吻
-	_rect_t(img, 12, 8, 19, 9, roof_d)
-	img.set_pixel(11, 8, roof); img.set_pixel(20, 8, roof)
-	# 大翘角
-	img.set_pixel(0, 15, roof); img.set_pixel(1, 14, roof_d); img.set_pixel(2, 15, roof)
-	img.set_pixel(31, 15, roof); img.set_pixel(30, 14, roof_d); img.set_pixel(29, 15, roof)
-	# 檐口描金
-	_rect_t(img, 3, 17, 28, 17, Color(0.85, 0.70, 0.35))
-	# 朱柱
-	for x in [6, 12, 19, 25]:
-		_rect_t(img, x, 18, x + 1, 27, pillar)
-	# 正门（黑洞+门钉）
-	_rect_t(img, 14, 21, 17, 29, dark)
-	img.set_pixel(15, 23, Color(0.75, 0.62, 0.30)); img.set_pixel(16, 25, Color(0.75, 0.62, 0.30))
-	# 匾额
-	_rect_t(img, 13, 18, 18, 20, dark)
-	_rect_t(img, 14, 19, 17, 19, Color(0.85, 0.70, 0.35))
-	img.save_png("res://sprites/tiles/house_temple.png")
+	_img_save_house("res://sprites/tiles/house_temple.png", "brick", true)
 
 func _tile_house_cave():
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var rock = Color(0.30, 0.28, 0.26, 1.0)
-	var rock_dark = Color(0.18, 0.16, 0.15, 1.0)
-	var opening = Color(0.05, 0.05, 0.08, 1.0)
-	# 洞穴入口
+	var rock = Color(0.42, 0.40, 0.36, 1.0)
+	var rock_d = Color(0.30, 0.28, 0.25, 1.0)
+	var dark = Color(0.06, 0.06, 0.08, 1.0)
 	for x in range(TILE_SIZE):
 		for y in range(TILE_SIZE):
-			var dx = (x - 16) / 16.0
-			var dy = (y - 16) / 14.0
+			var dx = (x - 7.5) / 6.5
+			var dy = (y - 6.0) / 5.5
 			var d = dx * dx + dy * dy
 			if d < 0.35:
-				img.set_pixel(x, y, opening)
-			elif d < 0.7:
-				var n = _noise_pixel(x, y, 11) * 0.05
-				img.set_pixel(x, y, Color(rock.r + n, rock.g + n, rock.b + n, 1))
-			elif d < 1.0:
-				var n = _noise_pixel(x, y, 13) * 0.04
-				img.set_pixel(x, y, Color(rock_dark.r + n, rock_dark.g + n, rock_dark.b + n, 1))
-	# 洞口边缘高光
-	for x in range(10, 22):
-		img.set_pixel(x, 8, Color(0.38, 0.36, 0.34))
+				img.set_pixel(x, y, dark)
+			elif d < 0.85:
+				var c = rock
+				if (x + y) % 4 == 0:
+					c = rock_d
+				img.set_pixel(x, y, c)
+	for x in range(4, 12):
+		img.set_pixel(x, 2, rock)
 	img.save_png("res://sprites/tiles/house_cave.png")
+
+# ============ 16x16 绿顶房屋绘制（匹配参考图：青绿屋顶+米色墙+棕门+蓝窗） ============
+const _ROOF = Color(0.24, 0.58, 0.36, 1.0)
+const _ROOF_HI = Color(0.36, 0.74, 0.46, 1.0)
+const _ROOF_DARK = Color(0.15, 0.42, 0.26, 1.0)
+const _WALL = Color(0.94, 0.88, 0.72, 1.0)
+const _WALL_D = Color(0.76, 0.68, 0.52, 1.0)
+const _BRICK = Color(0.84, 0.76, 0.58, 1.0)
+const _BEAM = Color(0.45, 0.30, 0.17, 1.0)
+const _DOOR = Color(0.42, 0.26, 0.14, 1.0)
+const _DOOR_FRAME = Color(0.58, 0.40, 0.24, 1.0)
+const _WIN = Color(0.40, 0.62, 0.86, 1.0)
+const _WIN_FRAME = Color(0.93, 0.92, 0.85, 1.0)
+const _GOLD = Color(0.85, 0.70, 0.35, 1.0)
+const _PILLAR = Color(0.62, 0.20, 0.14, 1.0)
+
+func _img_house_roof(img: Image):
+	# 人字坡绿顶（y=0..6），正脊跨格连续
+	for x in range(TILE_SIZE):
+		for y in range(7):
+			var peak = abs(x - 7.5)
+			var top_y = int(peak * 0.95)
+			if y >= top_y:
+				var c = _ROOF
+				if x % 3 == 1:
+					c = _ROOF_HI
+				if y == 6:
+					c = _ROOF_DARK
+				img.set_pixel(x, y, c)
+	for x in range(6, 10):
+		img.set_pixel(x, 0, _ROOF_HI)
+	for x in range(TILE_SIZE):
+		img.set_pixel(x, 7, _BEAM)
+
+func _img_house_wall(img: Image, wall_type: String):
+	for x in range(TILE_SIZE):
+		for y in range(8, 15):
+			img.set_pixel(x, y, _WALL)
+	if wall_type == "brick":
+		for x in range(TILE_SIZE):
+			for y in range(9, 15):
+				if (x + y) % 5 == 0:
+					img.set_pixel(x, y, _BRICK)
+	else:
+		for x in range(TILE_SIZE):
+			for y in range(9, 15):
+				if x % 4 == 0:
+					img.set_pixel(x, y, Color(0.82, 0.74, 0.56, 1.0))
+	for x in range(TILE_SIZE):
+		img.set_pixel(x, 14, _WALL_D)
+
+func _img_house_door(img: Image, x0: int, y0: int, w: int, h: int):
+	var x1 = x0 + w - 1
+	var y1 = y0 + h - 1
+	for x in range(x0, x1 + 1):
+		for y in range(y0, y1 + 1):
+			img.set_pixel(x, y, _DOOR)
+	for x in range(x0 - 1, x1 + 2):
+		if x >= 0 and x < TILE_SIZE:
+			img.set_pixel(x, y0 - 1, _DOOR_FRAME)
+			img.set_pixel(x, y1, _DOOR_FRAME)
+	if x0 - 1 >= 0:
+		for y in range(y0 - 1, y1 + 1):
+			img.set_pixel(x0 - 1, y, _DOOR_FRAME)
+	if x1 + 1 < TILE_SIZE:
+		for y in range(y0 - 1, y1 + 1):
+			img.set_pixel(x1 + 1, y, _DOOR_FRAME)
+	if x0 + 1 < TILE_SIZE and y0 + 2 < TILE_SIZE:
+		img.set_pixel(x0 + 1, y0 + 2, _GOLD)
+	if x1 - 1 >= 0 and y0 + 2 < TILE_SIZE:
+		img.set_pixel(x1 - 1, y0 + 2, _GOLD)
+
+func _img_house_window(img: Image, x0: int, y0: int):
+	if x0 < 0 or y0 < 0 or x0 + 4 > TILE_SIZE or y0 + 4 > TILE_SIZE:
+		return
+	for x in range(x0, x0 + 3):
+		for y in range(y0, y0 + 3):
+			img.set_pixel(x, y, _WIN)
+	for x in range(x0, x0 + 3):
+		img.set_pixel(x, y0 + 1, _WIN_FRAME)
+	for y in range(y0, y0 + 3):
+		img.set_pixel(x0 + 1, y, _WIN_FRAME)
+	for x in range(x0 - 1, x0 + 4):
+		if x >= 0 and x < TILE_SIZE:
+			img.set_pixel(x, y0 - 1, _WIN_FRAME)
+			img.set_pixel(x, y0 + 3, _WIN_FRAME)
+	for y in range(y0 - 1, y0 + 4):
+		if y >= 0 and y < TILE_SIZE:
+			if x0 - 1 >= 0:
+				img.set_pixel(x0 - 1, y, _WIN_FRAME)
+			if x0 + 3 < TILE_SIZE:
+				img.set_pixel(x0 + 3, y, _WIN_FRAME)
+
+func _img_save_house(path: String, wall_type: String, temple: bool):
+	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	_img_house_roof(img)
+	if temple:
+		for x in [1, 14]:
+			for y in range(7, 15):
+				img.set_pixel(x, y, _PILLAR)
+		for x in range(TILE_SIZE):
+			if img.get_pixel(x, 0).a > 0.5:
+				img.set_pixel(x, 0, _GOLD)
+	_img_house_wall(img, wall_type)
+	var door_y = 9 if temple else 10
+	var door_h = 7 if temple else 6
+	_img_house_door(img, 5, door_y, 6, door_h)
+	_img_house_window(img, 3, door_y)
+	_img_house_window(img, 9, door_y)
+	img.save_png(path)
 
 func _tile_flower():
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
@@ -766,139 +769,67 @@ func generate_buildings():
 
 func _draw_building_part(total: int, index: int, path: String):
 	"""绘制多格建筑的一个部件。total=建筑总格数，index=当前部件序号(0=最左)
-	设计要点（让多格拼起来是"一座完整大建筑"而非一排小屋）：
-	- 正脊贯通：每格屋顶内容相同（正脊在顶+前坡瓦面到檐口），拼接后是一整片贯通屋顶
-	- 仅最左/最右格画山墙垂脊收口，中间格无竖向分割
-	- 大门楼只在中心格，两侧格为槛窗长廊"""
+	16x16 绿顶房（匹配参考图）：正脊跨格连续、绿顶+米墙、中心格放门、其余格放窗"""
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var grand = total >= 4  # 4/5格为大宅：重檐+朱柱+金饰
+	var is_left = index == 0
+	var is_right = index == total - 1
+	var door_idx = int((total - 1) / 2)  # 门所在格（居中）
 
-	# 中式配色：白墙黛瓦，大宅加朱红点缀
-	var wall = Color(0.91, 0.88, 0.79, 1.0)
-	var wall_d = Color(0.74, 0.70, 0.60, 1.0)
-	var roof = Color(0.20, 0.22, 0.26, 1.0)
-	var roof_hi = Color(0.38, 0.41, 0.45, 1.0)
-	var roof_dark = Color(0.14, 0.16, 0.19, 1.0)
-	var ridge = Color(0.32, 0.35, 0.39, 1.0)
-	var beam = Color(0.45, 0.28, 0.16, 1.0)
-	var door_c = Color(0.36, 0.22, 0.12, 1.0)
-	var door_d = Color(0.28, 0.16, 0.09, 1.0)
-	var window_c = Color(0.50, 0.38, 0.24, 1.0)
-	var red = Color(0.62, 0.18, 0.14, 1.0)
-	var gold = Color(0.82, 0.64, 0.28, 1.0)
-
-	var is_left_edge = (index == 0)
-	var is_right_edge = (index == total - 1)
-	# 门所在格：奇数宽=正中，偶数宽=中左
-	var door_index = (total - 1) / 2
-	var ridge_y = 2 if grand else 3       # 正脊高度
-	var eave_y = 14 if grand else 13      # 檐口高度（大宅屋顶更高）
-
-	# ---- 贯通式屋顶：正脊 + 前坡瓦面（每格内容一致，拼接后为一整片）----
-	# 正脊（贯通全宽）
+	# 人字坡绿顶 y=0..6（每格独立但正脊跨格连续）
 	for x in range(TILE_SIZE):
-		img.set_pixel(x, ridge_y, ridge)
-		img.set_pixel(x, ridge_y + 1, roof_dark)
-	# 大宅：正脊两端金鸱吻（只画在建筑全局两端）
-	if grand:
-		if is_left_edge:
-			img.set_pixel(0, ridge_y - 1, gold); img.set_pixel(1, ridge_y - 1, gold)
-			img.set_pixel(0, ridge_y, gold)
-		if is_right_edge:
-			img.set_pixel(TILE_SIZE - 1, ridge_y - 1, gold); img.set_pixel(TILE_SIZE - 2, ridge_y - 1, gold)
-			img.set_pixel(TILE_SIZE - 1, ridge_y, gold)
-	# 前坡瓦面：竖向瓦垄（全局坐标取模保证跨格连续）
-	var gx0 = index * TILE_SIZE
+		for y in range(7):
+			var peak = abs(x - 7.5)
+			var top_y = int(peak * 0.95)
+			if y >= top_y:
+				var c = _ROOF
+				if x % 3 == 1:
+					c = _ROOF_HI
+				if y == 6:
+					c = _ROOF_DARK
+				img.set_pixel(x, y, c)
+	# 正脊高光
+	for x in range(6, 10):
+		img.set_pixel(x, 0, _ROOF_HI)
+	# 边缘格山墙垂脊收边
+	if is_left:
+		for y in range(1, 7):
+			img.set_pixel(0, y, _ROOF_DARK)
+			img.set_pixel(1, y, _ROOF_HI if y % 2 == 0 else _ROOF_DARK)
+		img.set_pixel(0, 0, _ROOF_HI)
+	if is_right:
+		for y in range(1, 7):
+			img.set_pixel(TILE_SIZE - 1, y, _ROOF_DARK)
+			img.set_pixel(TILE_SIZE - 2, y, _ROOF_HI if y % 2 == 0 else _ROOF_DARK)
+		img.set_pixel(TILE_SIZE - 1, 0, _ROOF_HI)
+	# 檐下木梁
 	for x in range(TILE_SIZE):
-		var gx = gx0 + x
-		for y in range(ridge_y + 2, eave_y + 1):
-			var c = roof
-			if gx % 4 == 0:
-				c = roof_hi          # 主瓦垄
-			elif y == eave_y:
-				c = roof_dark        # 檐口阴影线
-			img.set_pixel(x, y, c)
-	# 大宅重檐：屋顶中部一条上层檐口线
-	if grand:
-		var mid_eave = (ridge_y + eave_y) / 2
-		for x in range(TILE_SIZE):
-			img.set_pixel(x, mid_eave, roof_dark)
-			img.set_pixel(x, mid_eave + 1, roof_hi)
-	# 两端山墙垂脊（仅最左/最右格，作为屋顶收边）
-	if is_left_edge:
-		for y in range(ridge_y, eave_y + 2):
-			img.set_pixel(0, y, roof_dark)
-			img.set_pixel(1, y, ridge)
-		# 翘角
-		img.set_pixel(0, eave_y - 1, roof_hi)
-	if is_right_edge:
-		for y in range(ridge_y, eave_y + 2):
-			img.set_pixel(TILE_SIZE - 1, y, roof_dark)
-			img.set_pixel(TILE_SIZE - 2, y, ridge)
-		img.set_pixel(TILE_SIZE - 1, eave_y - 1, roof_hi)
-	# 檐下梁枋（大宅青绿彩绘带）
-	var beam_band = Color(0.30, 0.45, 0.42, 1.0) if grand else beam
-	_rect_t(img, 0, eave_y + 1, TILE_SIZE - 1, eave_y + 1, beam_band)
-	if grand:
-		for x in range(2, TILE_SIZE, 6):
-			img.set_pixel(x, eave_y + 1, gold)  # 梁枋金饰点
-
-	# ---- 墙体 ----
-	var wall_top = eave_y + 2
-	_rect_t(img, 0, wall_top, TILE_SIZE - 1, 29, wall)
-	# 墙面微妙噪点
+		img.set_pixel(x, 7, _BEAM)
+	# 墙体 y=8..14
 	for x in range(TILE_SIZE):
-		for y in range(wall_top, 30):
-			if _noise_pixel(gx0 + x, y, 13) > 0.88:
-				var c = img.get_pixel(x, y)
-				img.set_pixel(x, y, Color(c.r * 0.94, c.g * 0.94, c.b * 0.94, 1))
-	# 墙基（青石）
-	_rect_t(img, 0, 28, TILE_SIZE - 1, 29, wall_d)
-	# 立柱：仅建筑两端立柱显眼，拼接缝不画柱（保持长廊一体感）
-	var pillar_c = red if grand else beam
-	if is_left_edge:
-		_rect_t(img, 1, wall_top, 2, 27, pillar_c)
-	if is_right_edge:
-		_rect_t(img, TILE_SIZE - 3, wall_top, TILE_SIZE - 2, 27, pillar_c)
-
-	# ---- 门窗 ----
-	if index == door_index:
-		# 大门楼：双开大门 + 门楣牌匾 + 台阶 + 灯笼
-		var dw = 12  # 门宽
-		var dx0 = (TILE_SIZE - dw) / 2
-		# 门洞阴影
-		_rect_t(img, dx0 - 1, 19, dx0 + dw, 29, door_d)
-		# 双扇门
-		_rect_t(img, dx0, 20, dx0 + dw - 1, 29, door_c)
-		for x in range(dx0, dx0 + dw):
-			img.set_pixel(x, 20, beam)  # 门楣下缘
-		# 门缝+门环
-		var mid = dx0 + dw / 2
-		_rect_t(img, mid, 20, mid, 29, door_d)
-		img.set_pixel(mid - 2, 24, gold); img.set_pixel(mid + 1, 24, gold)
-		# 门楣牌匾（金字）
-		_rect_t(img, dx0 + 1, wall_top, dx0 + dw - 2, wall_top + 1, Color(0.16, 0.2, 0.28, 1.0))
-		img.set_pixel(dx0 + 3, wall_top, gold)
-		img.set_pixel(dx0 + dw - 4, wall_top, gold)
-		# 台阶
-		_rect_t(img, dx0 - 2, 29, dx0 + dw + 1, 29, Color(0.6, 0.58, 0.52, 1.0))
-		# 红灯笼一对
-		img.set_pixel(dx0 - 4, 20, red); img.set_pixel(dx0 - 4, 21, red)
-		img.set_pixel(dx0 - 4, 19, gold)
-		img.set_pixel(dx0 + dw + 3, 20, red); img.set_pixel(dx0 + dw + 3, 21, red)
-		img.set_pixel(dx0 + dw + 3, 19, gold)
+		for y in range(8, 15):
+			img.set_pixel(x, y, _WALL)
+	# 砖纹
+	for x in range(TILE_SIZE):
+		for y in range(9, 15):
+			if (x + y) % 5 == 0:
+				img.set_pixel(x, y, _BRICK)
+	# 墙基
+	for x in range(TILE_SIZE):
+		img.set_pixel(x, 14, _WALL_D)
+	# 边缘立柱（建筑两端收口）
+	if is_left:
+		for y in range(7, 15):
+			img.set_pixel(0, y, _PILLAR)
+	if is_right:
+		for y in range(7, 15):
+			img.set_pixel(TILE_SIZE - 1, y, _PILLAR)
+	# 门窗：中心格放门，其它格放窗
+	if index == door_idx:
+		_img_house_door(img, 5, 10, 6, 5)
 	else:
-		# 槛窗长廊：下槛墙 + 大窗格（连续感）
-		_rect_t(img, 3, 25, TILE_SIZE - 4, 27, wall_d)          # 槛墙
-		_rect_t(img, 4, 19, TILE_SIZE - 5, 24, window_c)        # 窗框
-		# 窗棂（竖条）
-		for x in range(6, TILE_SIZE - 5, 4):
-			_rect_t(img, x, 19, x, 24, wall)
-		_rect_t(img, 4, 21, TILE_SIZE - 5, 21, wall)            # 横棂
-		if grand:
-			# 大宅窗上挂画枋
-			_rect_t(img, 6, wall_top, TILE_SIZE - 7, wall_top, beam)
+		_img_house_window(img, 3, 10)
+		_img_house_window(img, 9, 10)
 
 	img.save_png(path)
 

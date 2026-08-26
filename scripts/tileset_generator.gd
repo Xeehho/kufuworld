@@ -15,7 +15,7 @@ func _generate_tileset():
 # 运行时内存构建TileSet（纹理直接解码PNG，不依赖import系统）
 static func build_tileset() -> TileSet:
 	var ts = TileSet.new()
-	ts.tile_size = Vector2i(32, 32)
+	ts.tile_size = Vector2i(16, 16)
 
 	var textures = {
 		0: "res://sprites/tiles/grass.png",
@@ -64,7 +64,7 @@ static func build_tileset() -> TileSet:
 		if tex:
 			var source = TileSetAtlasSource.new()
 			source.texture = tex
-			source.texture_region_size = Vector2i(32, 32)
+			source.texture_region_size = Vector2i(16, 16)
 			source.create_tile(Vector2i(0, 0))
 			# 必须先add_source，TileData才关联TileSet的物理层，否则碰撞设置会报越界错误
 			ts.add_source(source, id)
@@ -72,16 +72,16 @@ static func build_tileset() -> TileSet:
 			if tile_data:
 				# 树木和建筑使用Y排序（含多格建筑部件19-32）
 				if id in [4, 8, 9, 2, 10, 11, 12, 14, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]:
-					tile_data.y_sort_origin = 16
+					tile_data.y_sort_origin = 8
 					tile_data.z_index = 1
 				# 为水域和山脉瓦片添加物理碰撞
 				if id in collision_tile_ids:
 					# 碰撞多边形以瓦片中心为原点
 					var poly = PackedVector2Array([
-						Vector2(-16, -16),
-						Vector2(16, -16),
-						Vector2(16, 16),
-						Vector2(-16, 16)
+						Vector2(-8, -8),
+						Vector2(8, -8),
+						Vector2(8, 8),
+						Vector2(-8, 8)
 					])
 					tile_data.set_collision_polygons_count(0, 1)
 					tile_data.set_collision_polygon_points(0, 0, poly)

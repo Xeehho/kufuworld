@@ -2,13 +2,13 @@ extends CharacterBody2D
 
 const TextureGen = preload("res://scripts/texture_generator.gd")
 
-const SPEED = 200.0
-const SPRINT_SPEED = 350.0
-const DODGE_SPEED = 500.0
+const SPEED = 100.0
+const SPRINT_SPEED = 175.0
+const DODGE_SPEED = 250.0
 const DODGE_DURATION = 0.2
 const COMBO_WINDOW = 0.5
 const BLOCK_QI_COST = 3.0
-const BUILD_OFFSET = 48.0
+const BUILD_OFFSET = 24.0
 const STAGGER_DURATION = 1.2
 
 enum State {IDLE, MOVE, ATTACK, BLOCK, DODGE, MEDITATE, BUILD, STAGGER}
@@ -36,9 +36,9 @@ var interact_cooldown: float = 0.0
 var build_menu: Control = null
 var build_labels: Array = []
 var build_selected_index: int = -1
-# 玩家碰撞形状半尺寸（与CollisionShape2D一致：24x36，供建造区域校验使用）
-const COLLISION_HALF_W = 12.0
-const COLLISION_HALF_H = 18.0
+# 玩家碰撞形状半尺寸（与CollisionShape2D一致：16x24，适配24x32新角色）
+const COLLISION_HALF_W = 8.0
+const COLLISION_HALF_H = 12.0
 var _world_gen: Node2D = null
 
 func _ready():
@@ -75,6 +75,8 @@ func rebuild_sprite_frames():
 					loaded_any = true
 	if loaded_any:
 		anim.sprite_frames = sf
+		# 角色帧脚底对齐地面：帧24x32居中脚在+16，上移4px使脚对齐碰撞底(+12)
+		anim.offset = Vector2(0, -4)
 		_play_anim("idle")
 
 func _update_facing(dir: Vector2):

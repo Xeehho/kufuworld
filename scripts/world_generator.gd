@@ -4,7 +4,7 @@ const TextureGen = preload("res://scripts/texture_generator.gd")
 const TilesetGen = preload("res://scripts/tileset_generator.gd")
 
 const CHUNK_SIZE = 16
-const TILE_SIZE_PX = 32
+const TILE_SIZE_PX = 16
 const CHUNK_PX = CHUNK_SIZE * TILE_SIZE_PX
 const LOAD_RADIUS = 3
 const WORLD_SEED = 12345

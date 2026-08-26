@@ -2,7 +2,7 @@ extends CharacterBody2D
 
 const TextureGen = preload("res://scripts/texture_generator.gd")
 
-const SPEED = 60.0
+const SPEED = 30.0
 
 enum ScheduleState {IDLE, WALK, WORK, SLEEP}
 enum Direction {DOWN, LEFT, RIGHT, UP}
@@ -67,6 +67,9 @@ func _setup_sprite_frames():
 		sf.set_animation_loop(idle_name, true)
 		for i in range(4):
 			var tex = TextureGen.load_png_texture("res://sprites/npc/%s_idle_%s_%d.png" % [npc_type, dir_name, i])
+			# 资源包NPC只有单方向动画，缺失方向回退到 down 帧
+			if tex == null and dir_name != "down":
+				tex = TextureGen.load_png_texture("res://sprites/npc/%s_idle_down_%d.png" % [npc_type, i])
 			if tex:
 				sf.add_frame(idle_name, tex)
 				has_any_frame = true
@@ -77,11 +80,15 @@ func _setup_sprite_frames():
 		sf.set_animation_loop(walk_name, true)
 		for i in range(6):
 			var tex = TextureGen.load_png_texture("res://sprites/npc/%s_walk_%s_%d.png" % [npc_type, dir_name, i])
+			if tex == null and dir_name != "down":
+				tex = TextureGen.load_png_texture("res://sprites/npc/%s_walk_down_%d.png" % [npc_type, i])
 			if tex:
 				sf.add_frame(walk_name, tex)
 				has_any_frame = true
 
 	anim.sprite_frames = sf
+	# 角色帧脚底对齐地面（帧24x32居中脚在+16，上移4px对齐碰撞底）
+	anim.offset = Vector2(0, -4)
 	# 如果没有任何帧，创建一个占位可见色块
 	if not has_any_frame:
 		_create_fallback_visual()
@@ -92,8 +99,8 @@ func _create_fallback_visual():
 	# 如果纹理未生成，用彩色矩形作为占位
 	var fallback = ColorRect.new()
 	fallback.name = "FallbackVisual"
-	fallback.size = Vector2(24, 36)
-	fallback.position = Vector2(-12, -36)
+	fallback.size = Vector2(24, 32)
+	fallback.position = Vector2(-12, -32)
 	var colors = {
 		"warrior": Color(0.5, 0.18, 0.12),
 		"scholar": Color(0.75, 0.72, 0.60),
