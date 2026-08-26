@@ -9,12 +9,7 @@ var stat_arcs: Dictionary = {}
 var resource_labels: Dictionary = {}
 var name_label: Label = null
 
-# 任务日志相关
-var quest_toggle_btn: Button = null
-var quest_panel: Panel = null
-var quest_active_label: Label = null
-var quest_avail_label: Label = null
-var quest_expanded: bool = false
+# Phase F7: 任务日志已迁出至独立 quest_log_hud.gd（游戏化页签+卡片），此处不再承载
 
 # 布局常量
 const CENTER_X = 90.0
@@ -26,11 +21,11 @@ const ARC_GAP_DEG = 8.0
 const ARC_SEGMENTS = 32
 const RING_MASK_SEGS = 48
 
-# 头部裁剪区域（基于32x48角色精灵帧）
-const HEAD_CROP_X = 5
-const HEAD_CROP_Y = 5
-const HEAD_CROP_W = 22
-const HEAD_CROP_H = 19
+# 头部裁剪区域（Phase F1着装后：64x64帧中发髻+头部位于 x24..39 y15..31）
+const HEAD_CROP_X = 24
+const HEAD_CROP_Y = 15
+const HEAD_CROP_W = 16
+const HEAD_CROP_H = 17
 
 # 属性配置: key -> [标签, 颜色, 最大值]
 # 起始角度和弧度在_draw中动态计算
@@ -66,7 +61,6 @@ func _ready():
 	_load_avatar()
 	_create_name_label()
 	_create_resource_labels()
-	_create_quest_section()
 	_create_help_section()
 	_create_datetime_label()
 	stat_arcs = {
@@ -112,55 +106,6 @@ func _create_resource_labels():
 		add_child(lbl)
 		resource_labels[key] = lbl
 
-func _create_quest_section():
-	var btn_y = CENTER_Y + RING_OUTER_R + 38
-	quest_toggle_btn = Button.new()
-	quest_toggle_btn.text = "  任务日志  ▼"
-	quest_toggle_btn.position = Vector2(20, btn_y)
-	quest_toggle_btn.size = Vector2(QUEST_W, 22)
-	UITheme.style_button(quest_toggle_btn, 11)
-	quest_toggle_btn.add_theme_color_override("font_color", UITheme.GOLD)
-	quest_toggle_btn.pressed.connect(_toggle_quest)
-	add_child(quest_toggle_btn)
-
-	# 任务面板（默认隐藏），宽度与按钮一致
-	var panel_y = btn_y + 26
-	quest_panel = Panel.new()
-	quest_panel.position = Vector2(20, panel_y)
-	quest_panel.size = Vector2(QUEST_W, 200)
-	quest_panel.visible = false
-	quest_panel.add_theme_stylebox_override("panel", UITheme.inset_style())
-	add_child(quest_panel)
-
-	quest_active_label = Label.new()
-	quest_active_label.position = Vector2(4, 4)
-	quest_active_label.size = Vector2(QUEST_W - 8, 90)
-	quest_active_label.add_theme_font_size_override("font_size", 9)
-	quest_active_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	quest_panel.add_child(quest_active_label)
-
-	quest_avail_label = Label.new()
-	quest_avail_label.position = Vector2(4, 96)
-	quest_avail_label.size = Vector2(QUEST_W - 8, 90)
-	quest_avail_label.add_theme_font_size_override("font_size", 9)
-	quest_avail_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1))
-	quest_panel.add_child(quest_avail_label)
-
-	var hint = Label.new()
-	hint.text = "[N]刷新 [1-5]接 [F1]弃"
-	hint.position = Vector2(4, 184)
-	hint.add_theme_font_size_override("font_size", 8)
-	hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	quest_panel.add_child(hint)
-
-func _toggle_quest():
-	quest_expanded = !quest_expanded
-	quest_panel.visible = quest_expanded
-	if quest_expanded:
-		quest_toggle_btn.text = "  任务日志  ▲"
-	else:
-		quest_toggle_btn.text = "  任务日志  ▼"
-
 func _create_help_section():
 	# 左下角操作指南（可折叠）
 	help_btn = Button.new()
@@ -185,7 +130,7 @@ func _create_help_section():
 	help_text.position = Vector2(10, 8)
 	help_text.size = Vector2(230, 194)
 	UITheme.style_label(help_text, 11, UITheme.TEXT_MAIN)
-	help_text.text = "WASD / 方向键  移动\n左键  轻击    右键  重击\nQ  格挡    空格  闪避/疾跑\nE  打坐修炼    F  与人交谈\nB  建造    K  商店\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  门派信息\n\n奇遇触发时会自动弹出面板\n点击选项或按数字键抉择"
+	help_text.text = "WASD / 方向键  移动\n左键  轻击/使用工具    右键  重击\nQ  格挡    空格  闪避/疾跑\nE  打坐修炼    F  与人交谈\nB  建造    K  商店    V  人物面板\n左键点击路人  查看其姓名属性\n数字键1-4  锄头/水壶/菜种/采集\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  门派信息\n奇遇触发时会自动弹出面板"
 	help_panel.add_child(help_text)
 
 func _toggle_help():
@@ -314,80 +259,6 @@ func _process(_delta):
 	resource_labels["stone"].text = "石:" + str(GameManager.stone)
 	resource_labels["gold"].text = "金:" + str(GameManager.gold)
 	queue_redraw()
-	_update_quest_display()
 	_update_datetime()
 
-func _update_quest_display():
-	if not quest_expanded:
-		return
-	var qs = get_node_or_null("/root/Main/QuestSystem")
-	if qs == null:
-		return
-
-	var t = "— 进行中 —\n"
-	var tasks = qs.get_active_quests()
-	if tasks.size() == 0:
-		t += "  (暂无)\n"
-	else:
-		for i in range(tasks.size()):
-			var q = tasks[i]
-			var bar = _progress_bar(q.completion_ratio())
-			t += str(i + 1) + "." + q.title + "\n"
-			t += "  " + bar + " " + str(q.current_count) + "/" + str(q.target_count) + "\n"
-	quest_active_label.text = t
-
-	var t2 = "— 可接任务 —\n"
-	var avail = qs.get_available_quests()
-	if avail.size() == 0:
-		t2 += "  (暂无)\n"
-	else:
-		for i in range(min(avail.size(), 4)):
-			var q = avail[i]
-			var stars = ""
-			for _s in range(q.difficulty):
-				stars += "*"
-			t2 += str(i + 1) + "." + q.title + " " + stars + " " + str(q.reward_gold) + "金\n"
-	quest_avail_label.text = t2
-
-func _input(event):
-	if event is InputEventKey and event.pressed:
-		if GameManager.is_build_mode:
-			return
-		# 面板未展开时不拦截数字键，避免与奇遇/商店/建造冲突
-		if not quest_expanded:
-			return
-		if DialogManager.is_dialog_open():
-			return
-		var quick_menu = get_node_or_null("/root/Main/World/UI/QuickMenu")
-		if quick_menu and quick_menu.is_panel_open():
-			return
-		var shop_hud = get_node_or_null("/root/Main/World/UI/ShopHUD")
-		if shop_hud and shop_hud.is_open:
-			return
-		var qs = get_node_or_null("/root/Main/QuestSystem")
-		if qs == null:
-			return
-		if event.keycode == KEY_N:
-			qs.refresh_available_quests()
-			return
-		if event.keycode == KEY_F1:
-			var tasks = qs.get_active_quests()
-			if tasks.size() > 0:
-				qs.abandon_quest(tasks[0].quest_id)
-			return
-		if event.keycode >= KEY_1 and event.keycode <= KEY_9:
-			var idx = event.keycode - KEY_1
-			qs.accept_quest(idx)
-			return
-
-func _progress_bar(ratio: float) -> String:
-	var w = 8
-	var filled = int(ratio * w)
-	var s = "["
-	for i in range(w):
-		if i < filled:
-			s += "="
-		else:
-			s += "-"
-	s += "]"
-	return s
+# Phase F7: 旧任务日志渲染与快捷键处理已整体迁至 quest_log_hud.gd

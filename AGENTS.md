@@ -24,6 +24,9 @@ Main (Node2D) [Main.gd]
     │   ├── AnimatedSprite2D
     │   └── AttackIndicator (ColorRect)
     ├── WorldGenerator (Node2D) [world_generator.gd] — 运行时动态创建
+    ├── FarmSystem (Node2D) [farm_system.gd] — 运行时动态创建（Phase C 农田/作物/浆果丛）
+    ├── StationSystem (Node2D) [station_system.gd] — 运行时动态创建（Phase C 制作站台）
+    ├── MobSpawner (Node2D) [mob_spawner.gd] — 运行时动态创建（Phase C 敌人营地）
     ├── WeatherController (Node) [weather_controller.gd] — 运行时动态创建
     ├── NPCSpawner (Node2D) [npc_spawner.gd] — 运行时动态创建
     ├── CanvasModulate
@@ -56,6 +59,7 @@ Main (Node2D) [Main.gd]
 16. `_setup_death_system()` / `_setup_death_hud()` — 死亡系统
 17. `_setup_npc_spawner()` — NPC生成（必须在纹理和世界之后）
 18. `_setup_npc_info_hud()` — NPC信息面板
+19. `_setup_farm_system()` / `_setup_station_system()` / `_setup_mob_spawner()` — Phase C 农场/站台/敌人营地（依赖WorldGenerator与InventoryManager就绪）
 
 ### 自动加载（Autoload）
 
@@ -107,12 +111,14 @@ Main (Node2D) [Main.gd]
 
 | 按键 | 功能 | 按键 | 功能 |
 |------|------|------|------|
-| WASD/方向键 | 移动 | 左键/右键 | 轻击/重击 |
+| WASD/方向键 | 移动 | 左键/右键 | 轻击/重击（装备工具时左键=使用工具） |
 | Q | 格挡 | 空格 | 闪避（移动中按住=疾跑） |
 | E | 打坐修炼 | F | NPC交互 |
 | B | 建造模式 | K | 商店 |
 | Z/X/C | 攻击/防御/中立架势 | J/P/T | 加入/查看/背叛门派 |
 | 数字键 | 上下文选择（商店/奇遇/任务/建造） | ESC | 关闭当前面板 |
+| 数字键1-4(建造模式外) | 切换工具：锄头/水壶/菜种/采集，再按收回徒手（Phase C） | F(近站台) | 站台合成（Phase C） |
+| 数字键6-9(建造模式内) | 摆放站台：工作台/熔炉/炼丹台/篝火（Phase C） | | |
 | 回车/空格 | 推进对话 | Tab | 商店买/卖切换 |
 
 ---
@@ -155,6 +161,8 @@ Main (Node2D) [Main.gd]
 | 16 | 农田 | 否 | 0 |
 | 17 | 桥 | 否 | 1 |
 | 18 | 深色草地 | 否 | 0 |
+| 33 | 湿润农田（浇水态，farm_system在16↔33间切换） | 否 | 0 |
+| 39 | 大建筑footprint占位（虚拟id，不进TileMap，视觉/碰撞由building_prop组节点承担） | 是 | - |
 
 ### 玩家系统 (`player.gd`)
 
@@ -237,6 +245,34 @@ Main (Node2D) [Main.gd]
 
 ---
 
+## Phase F 要点（2024新增，必读）
+
+### 玩家/NPC素材管线
+- 玩家帧由 import_pack_assets.py 导出后**逐帧着装**（_dress_frame：皮肤色域分类→头部连通分量→乌发+黛蓝长衫重绘），改管线后必须 `python tools/import_pack_assets.py player` 重导
+- NPC导出按**内容bbox归一化到29px高、脚底y=31**（修复merchant/elder过小）；必须逐帧处理——整条union-strip重采样会因帧间透明间隔错位产出损坏PNG（已踩坑，全量PNG校验脚本见REFACTOR_STATUS Phase F节）
+- SurvivalHUD头像裁剪框(24,15,16,17)对应着装后头部位置，改发型/头饰需同步
+
+### 交互规则（Phase F4）
+- **左/右键点击NPC=查看信息面板**（player._npc_at_mouse圆形查询npc组），不触发攻击；点空地才攻击
+- NPC名牌(NameTag font5)默认隐藏，悬停常驻/点击闪现2.2s；世界空间文字一律font_size≤5（zoom3放大3倍）
+
+### 建筑道具系统（Phase F5）
+- BUILDING_PROPS(hut/house/manor/temple)贴图由texture_generator.generate_big_buildings()生成到 sprites/buildings/（缺失时Main._ensure_textures自动补生成）
+- footprint占格=override_cells[39]∈collision_tiles；TileMap只铺地面，Sprite2D(z4)+StaticBody2D挂World的building_prop组
+- 调试统计建筑数量用 get_nodes_in_group("building_prop")——Godot对重名子节点自动改名"@Node2D@N"，按名字前缀统计会漏
+- 城镇无栅栏；新城镇建筑放置依赖 _try_place_town_building 的象限bounds，half最小7才能容纳temple(7x5)
+
+### 地形与连通性（Phase F6）
+- 地形由 _setup_biomes 群系首府Voronoi驱动（10种子含中央plains出生区），get_tile_id默认分支按群系写装饰密度
+- 新增围合地形后必须跑 _ensure_connectivity()（BFS可达集→≥6格pocket最近点对L形开路：水→桥17/阻挡→沙6）；
+  它在 towns/POI 之后、最终 _compute_reachable_region 之前执行，NPC/Mob选址用的是刷新后的可达集
+- 孤岛扫描边界用 Vector2(x,y).length()>WORLD_RADIUS-8 过滤，否则边界沙带会被误判为orphan（探针踩坑）
+
+### UI（Phase F7）
+- QuestLogHUD（页签+任务卡+真进度条+按钮）与 CharacterSheet（V键人物档案弹窗）挂在 $World/UI；
+  模态面板加入"ui_modal"组即可被 player._is_ui_blocking 识别锁移动
+- 任务快捷键 N/F1/数字键 在 QuestLogHUD._input 内带面板展开前置条件，勿再放回全局
+
 ## 已知问题与待优化
 
 ### 当前已知问题
@@ -268,6 +304,7 @@ Main (Node2D) [Main.gd]
 - `[TileSetGen]` — 瓦片集生成
 - `[TextureGen]` — 纹理生成
 - `[Combat]` — 战斗系统
+- `[Farm]` / `[Mob]` / `[MobSpawner]` / `[Station]` — Phase C农场/敌人/营地/站台
 - `[Clan]` — 门派系统
 - `[Build]` — 建造系统
 

@@ -3,15 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cdo5iikrv1lcm"
-path="res://.godot/imported/merchant_idle_down_3.png-0db1e7e0a4271e6297dea807ee4cd055.ctex"
-metadata={
-"vram_texture": false
-}
+valid=false
 
 [deps]
 
 source_file="res://sprites/npc/merchant_idle_down_3.png"
-dest_files=["res://.godot/imported/merchant_idle_down_3.png-0db1e7e0a4271e6297dea807ee4cd055.ctex"]
 
 [params]
 

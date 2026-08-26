@@ -22,20 +22,52 @@ func _ready():
 	_setup_inventory()
 	_setup_shop()
 	_setup_shop_hud()
+	_setup_audio()   # Phase D：音效/BGM占位（早于玩法系统装配，便于各处接线）
 	_setup_death_system()
 	_setup_death_hud()
 	# NPC生成延迟到纹理和世界都就绪后
 	_setup_npc_spawner()
 	_setup_npc_info_hud()
+	_setup_quest_log_hud()	# Phase F7: 游戏化任务日志
+	_setup_character_sheet()	# Phase F7: 人物面板(V键)
+	# Phase C 星露谷交互玩法（依赖WorldGenerator/InventoryManager就绪）
+	_setup_farm_system()
+	_setup_station_system()
+	_setup_mob_spawner()
+
+func _setup_audio():
+	var ac = Node.new()
+	ac.name = "AudioController"
+	ac.set_script(load("res://scripts/audio_controller.gd"))
+	world.add_child(ac)
+
+func _setup_farm_system():
+	var fs = Node2D.new()
+	fs.name = "FarmSystem"
+	fs.set_script(load("res://scripts/farm_system.gd"))
+	world.add_child(fs)
+
+func _setup_station_system():
+	var ss = Node2D.new()
+	ss.name = "StationSystem"
+	ss.set_script(load("res://scripts/station_system.gd"))
+	world.add_child(ss)
+
+func _setup_mob_spawner():
+	var ms = Node2D.new()
+	ms.name = "MobSpawner"
+	ms.set_script(load("res://scripts/mob_spawner.gd"))
+	world.add_child(ms)
 
 func _ensure_textures():
 	# 检查关键纹理是否存在，如果不存在则运行生成器
 	# 注意：必须用 FileAccess 而非 ResourceLoader.exists —— 运行时生成的PNG没有import数据
-	# 校验全部瓦片PNG（曾只查grass等几个代表文件，单独删除mountain/sand后不会触发重生成，瓦片隐形）
+	# 只校验"生成器管辖"的瓦片（Phase B：grass/grass_dark/path/farmland/water 已归
+	# tools/import_pack_assets.py 管，缺了要重跑python管线，程序生成不再接管）
 	var tile_files = [
-		"grass", "grass_dark", "path", "water", "sand", "mountain", "mountain_snow",
+		"sand", "mountain", "mountain_snow",
 		"tree_pine", "tree_oak", "tree_bamboo", "house_town", "house_cottage",
-		"house_temple", "house_cave", "flower", "rock", "fence", "farmland", "bridge",
+		"house_temple", "house_cave", "flower", "rock", "fence", "bridge",
 		"house2_l", "house2_r", "house3_l", "house3_m", "house3_r",
 		"house4_l", "house4_lm", "house4_rm", "house4_r",
 		"house5_l", "house5_lm", "house5_m", "house5_rm", "house5_r",
@@ -45,17 +77,28 @@ func _ensure_textures():
 		if not FileAccess.file_exists("res://sprites/tiles/" + t + ".png"):
 			need_textures = true
 			break
-	if not need_textures:
-		need_textures = not FileAccess.file_exists("res://sprites/player/idle_down_0.png") or not FileAccess.file_exists("res://sprites/npc/warrior_idle_down_0.png")
+	for t in ["grass", "grass_dark", "path", "farmland", "water"]:
+		if not FileAccess.file_exists("res://sprites/tiles/" + t + ".png"):
+			push_warning("[Main] 素材包地形瓦片缺失: " + t + ".png —— 请重跑 python tools/import_pack_assets.py terrain")
 	if need_textures:
 		var gen_script = load("res://scripts/texture_generator.gd")
 		if gen_script:
 			var gen = Node.new()
 			gen.set_script(gen_script)
 			add_child(gen)
-			gen.generate_all()
+			gen.generate_tiles()  # Phase B陷阱修复：严禁generate_all——那会用程序画法覆盖素材包玩家/NPC帧
 			gen.queue_free()
-			print("[Main] Textures generated on first run")
+			print("[Main] Generator tiles regenerated")
+	# Phase F5: 大型建筑贴图（sprites/buildings/*.png 缺失时生成）
+	if not FileAccess.file_exists("res://sprites/buildings/house.png"):
+		var gen_script2 = load("res://scripts/texture_generator.gd")
+		if gen_script2:
+			var gen2 = Node.new()
+			gen2.set_script(gen_script2)
+			add_child(gen2)
+			gen2.generate_big_buildings()
+			gen2.queue_free()
+			print("[Main] Big buildings regenerated")
 	# 玩家/NPC帧动画与TileSet均在运行时从PNG直接构建（player.gd / npc_character.gd / world_generator.gd），
 	# 不再依赖 player_frames.tres / ground_tiles.tres，避免运行时生成资源无import数据导致的加载失败
 
@@ -179,3 +222,15 @@ func _setup_npc_info_hud():
 	nih.name = "NPCInfoHUD"
 	nih.set_script(load("res://scripts/npc_info_hud.gd"))
 	$World/UI.add_child(nih)
+
+func _setup_quest_log_hud():
+	var ql = Control.new()
+	ql.name = "QuestLogHUD"
+	ql.set_script(load("res://scripts/quest_log_hud.gd"))
+	$World/UI.add_child(ql)
+
+func _setup_character_sheet():
+	var cs = Control.new()
+	cs.name = "CharacterSheet"
+	cs.set_script(load("res://scripts/character_sheet.gd"))
+	$World/UI.add_child(cs)

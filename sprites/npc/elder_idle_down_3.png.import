@@ -3,15 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cvgujnbktcvnt"
-path="res://.godot/imported/elder_idle_down_3.png-f9afd231419f6b00c8ae16750392ae29.ctex"
-metadata={
-"vram_texture": false
-}
+valid=false
 
 [deps]
 
 source_file="res://sprites/npc/elder_idle_down_3.png"
-dest_files=["res://.godot/imported/elder_idle_down_3.png-f9afd231419f6b00c8ae16750392ae29.ctex"]
 
 [params]
 

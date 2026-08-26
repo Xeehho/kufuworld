@@ -3,15 +3,11 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://x7lqidjm20d7"
-path="res://.godot/imported/warrior_idle_down_1.png-42099fefb4e5e3d7ff7618e590f66e75.ctex"
-metadata={
-"vram_texture": false
-}
+valid=false
 
 [deps]
 
 source_file="res://sprites/npc/warrior_idle_down_1.png"
-dest_files=["res://.godot/imported/warrior_idle_down_1.png-42099fefb4e5e3d7ff7618e590f66e75.ctex"]
 
 [params]
 

@@ -3,7 +3,7 @@
 [ext_resource type="Script" uid="uid://cb8jvd2t7t2q4" path="res://scripts/npc_character.gd" id="1_nh2m4"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_abqhh"]
-size = Vector2(16, 24)
+size = Vector2(12, 8)
 
 [node name="NPCBase" type="CharacterBody2D" unique_id=1766615235]
 z_index = 5
@@ -12,23 +12,18 @@ script = ExtResource("1_nh2m4")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 scale = Vector2(1, 1)
 
-[node name="NameLabel" type="Label" parent="."]
-offset_left = -15.0
-offset_top = -21.0
-offset_right = 15.0
-offset_bottom = -10.0
-theme_override_colors/font_color = Color(1, 0.9, 0.3, 1)
-theme_override_font_sizes/font_size = 11
-horizontal_alignment = 1
-
-[node name="StateLabel" type="Label" parent="."]
-offset_left = -10.0
-offset_top = -27.0
-offset_right = 10.0
-offset_bottom = -21.0
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 9
+[node name="NameTag" type="Label" parent="."]
+visible = false
+offset_left = -20.0
+offset_top = -34.0
+offset_right = 20.0
+offset_bottom = -24.0
+theme_override_colors/font_color = Color(1, 0.92, 0.55, 1)
+theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.04, 1)
+theme_override_constants/outline_size = 2
+theme_override_font_sizes/font_size = 5
 horizontal_alignment = 1
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -4)
 shape = SubResource("RectangleShape2D_abqhh")

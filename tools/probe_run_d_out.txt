@@ -1,0 +1,38 @@
+[Probe] autoload alive
+[PASS] systems_ready
+[PASS] audio_controller_exists
+[PASS] sfx_loaded_all
+[PASS] bgm_stream_set
+[PASS] bgm_playing
+[PASS] play_sfx_known
+[PASS] play_sfx_unknown_rejected
+[PASS] noon_luminance_high
+[PASS] is_daytime_noon
+[PASS] night_darker_than_noon
+[PASS] is_night_flag
+[PASS] rain_dimmer_than_clear
+[PASS] shadow_noon_full
+[PASS] shadow_night_faint
+[PASS] real_shadow_meta_present
+[PASS] hurt_timer_set
+[PASS] hurt_red_flash
+[PASS] hurt_anim_playing
+[PASS] flash_decays_to_white
+[PASS] death_system_engaged
+[PASS] player_is_dead_flag
+[PASS] player_state_dead
+[PASS] death_anim_playing
+[PASS] mob_reads_is_dead_flag
+[PASS] respawn_completed
+[PASS] player_alive_again
+[PASS] health_restored_rescued
+[PASS] state_back_idle
+[PASS] idle_anim_back
+[PASS] regress_tillable_found
+[PASS] regress_till_ok
+[PASS] till_sfx_wired
+[Probe] DONE passes=32 fails=0timed_out: False
+project.godot restored: True
+=== game error lines: 1
+ERROR: Can't create shader cache folder, no shader caching will happen: user://
+=== probe log tail ===

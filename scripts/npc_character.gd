@@ -20,8 +20,11 @@ var facing: Direction = Direction.DOWN
 var npc_type: String = "warrior"
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
-@onready var name_label: Label = $NameLabel
-@onready var state_label: Label = $StateLabel
+@onready var name_tag: Label = $NameTag
+
+# Phase F4: 名牌默认隐藏（悬停/点击临时显示），F2: 字号5px*相机zoom3≈15px屏显，与32px模型比例协调
+var _tag_tween: Tween = null
+var _hovering: bool = false
 
 func _ready():
 	add_to_group("npc")
@@ -29,7 +32,8 @@ func _ready():
 	input_pickable = true
 	if npc_data == null:
 		_setup_default_npc()
-	name_label.text = npc_data.npc_name
+	name_tag.text = npc_data.npc_name
+	name_tag.visible = false
 	_setup_sprite_frames()
 	_generate_waypoints()
 	_update_schedule()
@@ -87,8 +91,8 @@ func _setup_sprite_frames():
 				has_any_frame = true
 
 	anim.sprite_frames = sf
-	# 角色帧脚底对齐地面（帧24x32居中脚在+16，上移4px对齐碰撞底）
-	anim.offset = Vector2(0, -4)
+	# 素材包NPC 32x32帧人物脚线在y≈31，帧中心16 → 上移15使脚底=节点原点
+	anim.offset = Vector2(0, -15)
 	# 如果没有任何帧，创建一个占位可见色块
 	if not has_any_frame:
 		_create_fallback_visual()
@@ -175,7 +179,7 @@ func _physics_process(delta):
 		velocity *= 0.6
 
 	move_and_slide()
-	state_label.text = _state_name()
+	_update_hover_effect()
 
 func _state_name() -> String:
 	match schedule_state:
@@ -237,8 +241,46 @@ func set_interacting(value: bool):
 	if value:
 		velocity = Vector2.ZERO
 
+# ---- Phase F2/F4: 悬停高亮 + 名牌临时显示 ----
+func _update_hover_effect():
+	var vp := get_viewport()
+	var ui_block: bool = vp != null and vp.gui_get_hovered_control() != null
+	var mouse_pos := get_global_mouse_position()
+	var near := mouse_pos.distance_to(global_position + Vector2(0, -14)) < 14.0
+	_hovering = near and not ui_block and not is_interacting
+	if _hovering:
+		modulate = Color(1.22, 1.18, 1.05, 1.0)
+		if not name_tag.visible:
+			_show_name_tag(0.0)	# 悬停期间常驻，移开时隐藏
+		name_tag.visible = true
+	else:
+		modulate = Color.WHITE
+		if not is_interacting and name_tag.visible and _tag_tween == null:
+			name_tag.visible = false
+
+func show_name_tag_flash(duration: float = 2.2):
+	"""远距离点击NPC时闪现名牌"""
+	_show_name_tag(duration)
+
+func _show_name_tag(duration: float):
+	if _tag_tween != null:
+		_tag_tween.kill()
+		_tag_tween = null
+	name_tag.modulate.a = 1.0
+	name_tag.visible = true
+	if duration > 0.0:
+		_tag_tween = create_tween()
+		_tag_tween.tween_interval(duration)
+		_tag_tween.tween_property(name_tag, "modulate:a", 0.0, 0.5)
+		_tag_tween.tween_callback(_on_tag_hidden)
+
+func _on_tag_hidden():
+	name_tag.visible = false
+	_tag_tween = null
+
 func _input_event(_viewport, event, _shape_idx):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		show_name_tag_flash()
 		var npc_info = get_node_or_null("/root/Main/World/UI/NPCInfoHUD")
 		if npc_info and npc_info.has_method("show_npc_info"):
 			npc_info.show_npc_info(self)
@@ -251,7 +293,6 @@ func set_homestead(value: bool):
 		for _i in range(4):
 			homestead_waypoints.append(player_pos + Vector2(randi_range(-80, 80), randi_range(-60, 60)))
 		waypoints = homestead_waypoints
-		state_label.text = "劳作"
 
 func _get_player_position() -> Vector2:
 	var players = get_tree().get_nodes_in_group("player")

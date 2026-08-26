@@ -13,10 +13,20 @@ var weather_transition: float = 0.0
 var weather_duration: float = 0.0
 
 var day_colors: Dictionary = {}
-var night_color: Color = Color(0.45, 0.48, 0.75, 1.0)  # 夜晚调亮：保证可读性（原0.25,0.28,0.65过暗）
-var dawn_color: Color = Color(0.75, 0.55, 0.6, 1.0)
-var noon_color: Color = Color(1.0, 0.95, 0.88, 1.0)
-var dusk_color: Color = Color(0.7, 0.45, 0.55, 1.0)
+var night_color: Color = Color(0.40, 0.46, 0.72, 1.0)   # Phase D：更沉的蓝夜仍保可读性
+var dawn_color: Color = Color(0.84, 0.64, 0.56, 1.0)    # 晨雾暖粉
+var noon_color: Color = Color(1.0, 0.97, 0.90, 1.0)
+var dusk_color: Color = Color(0.86, 0.55, 0.42, 1.0)    # 落日暖橙
+# Phase D 天气对光照的调制（亮度乘数+色偏），经current_light平滑承接
+const WEATHER_LIGHT := {
+	Weather.CLEAR: {"mult": 1.00, "tint": Color(1.00, 1.00, 1.00)},
+	Weather.CLOUDY: {"mult": 0.90, "tint": Color(0.95, 0.96, 1.00)},
+	Weather.RAIN: {"mult": 0.78, "tint": Color(0.85, 0.90, 1.00)},
+	Weather.SNOW: {"mult": 0.94, "tint": Color(0.97, 0.99, 1.02)},
+	Weather.FOG: {"mult": 0.88, "tint": Color(0.90, 0.87, 0.82)},
+}
+var current_light: Color = Color(1, 1, 1, 1)   # 平滑后的实际CanvasModulate颜色
+var _shadow_tick: float = 0.0                  # 树影强度刷新节流
 
 var rain_particles: GPUParticles2D = null
 var snow_particles: GPUParticles2D = null
@@ -28,6 +38,7 @@ func _ready():
 	world_time = start_hour * 60.0 * time_scale
 	_create_weather_particles()
 	_setup_day_colors()
+	current_light = _target_light_color()   # 开局直接落在目标光，避免从纯白渐变
 	pick_new_weather()
 	print("[Weather] Controller ready - start hour " + str(start_hour))
 
@@ -91,13 +102,56 @@ func _process(delta):
 	_update_weather(delta)
 	_update_particles()
 
-func _update_lighting(_delta):
+func _update_lighting(delta):
 	if not canvas_modulate:
 		return
-	var c = _get_hour_color(current_hour)
-	canvas_modulate.color = c
+	# Phase D：平滑趋近目标光，小时段切换/天气切换都不跳变
+	current_light = current_light.lerp(_target_light_color(), minf(delta * 2.0, 1.0))
+	canvas_modulate.color = current_light
 	GameManager.world_hour = current_hour
 	GameManager.is_daytime = is_daytime()
+	_tick_tree_shadows(delta)
+
+func _target_light_color() -> Color:
+	var c = _get_hour_color(current_hour)
+	var wl: Dictionary = WEATHER_LIGHT.get(current_weather, {"mult": 1.0, "tint": Color.WHITE})
+	return c * float(wl["mult"]) * wl["tint"]
+
+# 日照强度0..1（驱动树影浓度）：正午最强，晨昏过渡，夜里保留微弱月光影
+func _daylight_factor() -> float:
+	var h = current_hour
+	var f: float
+	if h < 5.0:
+		f = 0.15
+	elif h < 6.5:
+		f = lerpf(0.15, 0.55, (h - 5.0) / 1.5)
+	elif h < 8.0:
+		f = lerpf(0.55, 0.95, (h - 6.5) / 1.5)
+	elif h < 10.0:
+		f = lerpf(0.95, 1.0, (h - 8.0) / 2.0)
+	elif h < 16.0:
+		f = 1.0
+	elif h < 18.0:
+		f = lerpf(1.0, 0.75, (h - 16.0) / 2.0)
+	elif h < 19.5:
+		f = lerpf(0.75, 0.3, (h - 18.0) / 1.5)
+	else:
+		f = 0.15
+	var wl_mult: float = float(WEATHER_LIGHT.get(current_weather, {"mult": 1.0})["mult"])
+	return f * (0.55 + 0.45 * wl_mult)   # 云雨削弱影子
+
+func _tick_tree_shadows(delta):
+	_shadow_tick += delta
+	if _shadow_tick < 0.5:
+		return
+	_shadow_tick = 0.0
+	var a_factor := clampf(_daylight_factor() * 1.2, 0.22, 1.0)
+	for s in get_tree().get_nodes_in_group("tree_shadow"):
+		if s is Sprite2D and is_instance_valid(s):
+			var base_a: float = 0.30
+			if s.has_meta("shadow_base_a"):
+				base_a = float(s.get_meta("shadow_base_a"))
+			s.modulate.a = base_a * a_factor
 
 func _get_hour_color(hour: float) -> Color:
 	if hour < 5:

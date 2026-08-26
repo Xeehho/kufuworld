@@ -46,6 +46,10 @@ func trigger_death():
 	
 	var outcome_names = ["被救", "囚禁", "传承"]
 	print("[Death] 玩家死亡! 结局: " + outcome_names[death_outcome])
+	# Phase D：直接驱动玩家死亡表现（信号可能尚无监听者，不能依赖连接时序）
+	var p = get_tree().get_first_node_in_group("player")
+	if p and p.has_method("play_death_visual"):
+		p.play_death_visual(death_outcome)
 	player_died.emit(death_outcome)
 
 func _determine_outcome() -> int:
@@ -104,6 +108,10 @@ func _apply_outcome():
 		_apply_imprisonment()
 	elif death_outcome == DeathOutcome.INHERITANCE:
 		_apply_inheritance()
+	# Phase D：复活后复位玩家状态
+	var rp = get_tree().get_first_node_in_group("player")
+	if rp and rp.has_method("on_respawn_reset"):
+		rp.on_respawn_reset()
 	player_respawned.emit()
 
 func _apply_rescue():

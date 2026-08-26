@@ -35,6 +35,7 @@ static func build_tileset() -> TileSet:
 		14: "res://sprites/tiles/rock.png",
 		15: "res://sprites/tiles/fence.png",
 		16: "res://sprites/tiles/farmland.png",
+		33: "res://sprites/tiles/farmland_wet.png",   # Phase C 浇水湿润农田（无碰撞，地面层切换用）
 		17: "res://sprites/tiles/bridge.png",
 		18: "res://sprites/tiles/grass_dark.png",
 		# 多格建筑部件（19-32）：2/3/4/5格宽中式建筑的水平拼接瓦片

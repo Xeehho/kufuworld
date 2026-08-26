@@ -74,10 +74,9 @@ func generate_all():
 
 func generate_tiles():
 	DirAccess.make_dir_recursive_absolute("res://sprites/tiles")
-	_tile_grass()
-	_tile_grass_dark()
-	_tile_path()
-	_tile_water()
+	# Phase B 备忘：grass/grass_dark/path/farmland/water 已由素材包管线接管
+	# （tools/import_pack_assets.py export_terrain 选片），此处不再覆盖，
+	# 避免运行时重生成把包瓦片冲回程序贴图；若缺这些文件请重跑python管线
 	_tile_sand()
 	_tile_mountain()
 	_tile_mountain_snow()
@@ -280,11 +279,11 @@ func _tile_sand():
 
 func _tile_mountain():
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
-	# 层叠岩壁：不规则明暗岩块+纵向裂隙+零星苔点（避免规律性网点感）
-	var rock = Color(0.46, 0.48, 0.50, 1.0)
-	var highlight = Color(0.60, 0.62, 0.63, 1.0)
-	var shadow = Color(0.32, 0.34, 0.36, 1.0)
-	var deep = Color(0.24, 0.26, 0.28, 1.0)
+	# 层叠岩壁：不规则明暗岩块+纵向裂隙+零星苔点（Phase B-2 压饱和转冷灰蓝，呼应黛青瓦）
+	var rock = Color(0.45, 0.48, 0.52, 1.0)
+	var highlight = Color(0.59, 0.63, 0.67, 1.0)
+	var shadow = Color(0.32, 0.35, 0.39, 1.0)
+	var deep = Color(0.23, 0.26, 0.30, 1.0)
 	var moss = Color(0.35, 0.48, 0.28, 1.0)
 	# 基础岩体（低频起伏，弱化正弦条纹感）
 	for x in range(TILE_SIZE):
@@ -332,7 +331,7 @@ func _tile_mountain_snow():
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	var snow = Color(0.90, 0.92, 0.95, 1.0)
 	var ice = Color(0.80, 0.88, 0.95, 1.0)
-	var rock = Color(0.40, 0.38, 0.36, 1.0)
+	var rock = Color(0.37, 0.39, 0.43, 1.0)  # 冷灰岩，与黛青系协调
 	# 雪山 - 上半雪，下半岩石
 	for x in range(TILE_SIZE):
 		for y in range(TILE_SIZE):
@@ -354,30 +353,30 @@ func _tile_tree_pine():
 	var leaf_dark = Color(0.12, 0.34, 0.14, 1.0)
 	var leaf_mid = Color(0.18, 0.46, 0.18, 1.0)
 	var leaf_light = Color(0.28, 0.58, 0.24, 1.0)
-	# 松树 - 三角形层叠
+	# 松树 - 三角形层叠（Phase B-2：旧版按32px绘制越界，重排为16x16）
 	# 树干
-	for y in range(22, 32):
-		for x in range(14, 18):
+	for y in range(11, TILE_SIZE):
+		for x in range(7, 9):
 			img.set_pixel(x, y, trunk)
-	# 第一层（最下，最宽）
-	for y in range(6, 16):
-		var half_w = int((16 - y) * 0.9)
-		for x in range(16 - half_w, 16 + half_w + 1):
+	# 下层（最宽）
+	for y in range(4, 12):
+		var half_w = int((12 - y) * 0.62)
+		for x in range(8 - half_w, 8 + half_w + 1):
 			if x >= 0 and x < TILE_SIZE:
 				var shade = leaf_mid if (x + y) % 3 != 0 else leaf_dark
 				img.set_pixel(x, y, shade)
-	# 第二层
-	for y in range(2, 10):
-		var half_w = int((10 - y) * 0.7)
-		for x in range(16 - half_w, 16 + half_w + 1):
+	# 上层
+	for y in range(1, 6):
+		var half_w = int((6 - y) * 0.55)
+		for x in range(8 - half_w, 8 + half_w + 1):
 			if x >= 0 and x < TILE_SIZE:
 				var shade = leaf_light if (x + y) % 4 != 0 else leaf_mid
 				img.set_pixel(x, y, shade)
 	# 顶部
-	img.set_pixel(16, 1, leaf_light)
-	img.set_pixel(15, 2, leaf_mid)
-	img.set_pixel(16, 2, leaf_light)
-	img.set_pixel(17, 2, leaf_mid)
+	img.set_pixel(8, 0, leaf_light)
+	img.set_pixel(7, 1, leaf_mid)
+	img.set_pixel(8, 1, leaf_light)
+	img.set_pixel(9, 1, leaf_mid)
 	img.save_png("res://sprites/tiles/tree_pine.png")
 
 func _tile_tree_oak():
@@ -387,16 +386,16 @@ func _tile_tree_oak():
 	var leaf_dark = Color(0.15, 0.38, 0.14, 1.0)
 	var leaf_mid = Color(0.22, 0.50, 0.18, 1.0)
 	var leaf_light = Color(0.33, 0.62, 0.26, 1.0)
-	# 橡树 - 圆形树冠
+	# 橡树 - 圆形树冠（Phase B-2：旧版按32px绘制越界，重排为16x16）
 	# 树干
-	for y in range(20, 32):
-		for x in range(14, 18):
+	for y in range(10, TILE_SIZE):
+		for x in range(7, 9):
 			img.set_pixel(x, y, trunk)
-	# 圆形树冠
-	for x in range(4, 28):
-		for y in range(2, 22):
-			var dx = (x - 16) / 12.0
-			var dy = (y - 11) / 10.0
+	# 圆形树冠：中心(8,6)，半径6.2x5.2
+	for x in range(1, 16):
+		for y in range(0, 12):
+			var dx = (x - 8.0) / 6.4
+			var dy = (y - 5.5) / 5.4
 			var d = dx * dx + dy * dy
 			if d < 1.0:
 				var shade = leaf_mid
@@ -416,20 +415,18 @@ func _tile_tree_bamboo():
 	var stalk_dark = Color(0.28, 0.42, 0.20, 1.0)
 	var leaf = Color(0.20, 0.45, 0.18, 1.0)
 	var leaf_light = Color(0.28, 0.55, 0.24, 1.0)
-	# 竹子 - 竖直竹竿+竹叶
-	# 竹竿
-	for x in [10, 16, 22]:
-		for y in range(4, 32):
+	# 竹子 - 竖直竹竿+竹叶（Phase B-2：旧版三竿x=10/16/22越界，重排为格内双竿）
+	for x in [5, 11]:
+		for y in range(2, TILE_SIZE):
 			img.set_pixel(x, y, stalk)
 			if y % 6 < 2:
 				img.set_pixel(x, y, stalk_dark)
 	# 竹叶
 	var leaf_positions = [
-		[6, 4], [7, 5], [8, 3], [12, 6], [13, 5], [14, 7],
-		[18, 4], [19, 6], [20, 3], [24, 5], [25, 4], [26, 6],
-		[5, 10], [6, 11], [12, 12], [13, 10], [19, 11], [20, 10],
-		[25, 12], [7, 16], [8, 18], [13, 17], [14, 16], [20, 18],
-		[21, 16], [26, 17]
+		[2, 3], [3, 4], [7, 2], [8, 4], [9, 3],
+		[1, 8], [2, 9], [7, 8], [8, 10], [12, 8], [13, 9],
+		[3, 13], [8, 13], [9, 12], [13, 13], [12, 3], [13, 5],
+		[6, 6], [10, 6], [4, 10], [11, 11], [6, 15]
 	]
 	for lp in leaf_positions:
 		if lp[0] < TILE_SIZE and lp[1] < TILE_SIZE:
@@ -440,7 +437,7 @@ func _tile_house_town():
 	_img_save_house("res://sprites/tiles/house_town.png", "brick", false)
 
 func _tile_house_cottage():
-	_img_save_house("res://sprites/tiles/house_cottage.png", "wood", false)
+	_img_save_house("res://sprites/tiles/house_cottage.png", "wood", false, "thatch")
 
 func _tile_house_temple():
 	_img_save_house("res://sprites/tiles/house_temple.png", "brick", true)
@@ -467,10 +464,13 @@ func _tile_house_cave():
 		img.set_pixel(x, 2, rock)
 	img.save_png("res://sprites/tiles/house_cave.png")
 
-# ============ 16x16 绿顶房屋绘制（匹配参考图：青绿屋顶+米色墙+棕门+蓝窗） ============
-const _ROOF = Color(0.24, 0.58, 0.36, 1.0)
-const _ROOF_HI = Color(0.36, 0.74, 0.46, 1.0)
-const _ROOF_DARK = Color(0.15, 0.42, 0.26, 1.0)
+# ============ 16x16 中式房屋绘制（黛青瓦顶/赭石茅草顶 + 米色墙 + 棕门 + 蓝窗） ============
+# Phase B-1：原亮橙/高饱和绿顶与素材包色调冲突，改为低饱和黛青瓦为主，
+# 茅屋(cottage)用赭石茅草顶做区分，均压低饱和度融入 Pixel Crawler 调色板
+const _ROOF = Color(0.27, 0.36, 0.42, 1.0)        # 黛青瓦主色 #455C6B
+const _ROOF_HI = Color(0.38, 0.49, 0.55, 1.0)     # 瓦面受光 #617D8C
+const _ROOF_DARK = Color(0.17, 0.23, 0.28, 1.0)   # 檐口阴影 #2B3B47
+const _ROOF_THATCH = [Color(0.58, 0.44, 0.28, 1.0), Color(0.70, 0.56, 0.37, 1.0), Color(0.42, 0.31, 0.19, 1.0)]  # 赭石茅草 #947047系
 const _WALL = Color(0.94, 0.88, 0.72, 1.0)
 const _WALL_D = Color(0.76, 0.68, 0.52, 1.0)
 const _BRICK = Color(0.84, 0.76, 0.58, 1.0)
@@ -482,21 +482,24 @@ const _WIN_FRAME = Color(0.93, 0.92, 0.85, 1.0)
 const _GOLD = Color(0.85, 0.70, 0.35, 1.0)
 const _PILLAR = Color(0.62, 0.20, 0.14, 1.0)
 
-func _img_house_roof(img: Image):
-	# 人字坡绿顶（y=0..6），正脊跨格连续
+func _img_house_roof(img: Image, roof_pal: Array = []):
+	# 人字坡屋顶（y=0..6），正脊跨格连续；roof_pal=[主色,受光,檐影]，空则用黛青瓦
+	var c_main: Color = roof_pal[0] if roof_pal.size() == 3 else _ROOF
+	var c_hi: Color = roof_pal[1] if roof_pal.size() == 3 else _ROOF_HI
+	var c_dark: Color = roof_pal[2] if roof_pal.size() == 3 else _ROOF_DARK
 	for x in range(TILE_SIZE):
 		for y in range(7):
 			var peak = abs(x - 7.5)
 			var top_y = int(peak * 0.95)
 			if y >= top_y:
-				var c = _ROOF
+				var c = c_main
 				if x % 3 == 1:
-					c = _ROOF_HI
+					c = c_hi
 				if y == 6:
-					c = _ROOF_DARK
+					c = c_dark
 				img.set_pixel(x, y, c)
 	for x in range(6, 10):
-		img.set_pixel(x, 0, _ROOF_HI)
+		img.set_pixel(x, 0, c_hi)
 	for x in range(TILE_SIZE):
 		img.set_pixel(x, 7, _BEAM)
 
@@ -559,10 +562,10 @@ func _img_house_window(img: Image, x0: int, y0: int):
 			if x0 + 3 < TILE_SIZE:
 				img.set_pixel(x0 + 3, y, _WIN_FRAME)
 
-func _img_save_house(path: String, wall_type: String, temple: bool):
+func _img_save_house(path: String, wall_type: String, temple: bool, roof_kind: String = "tile"):
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	_img_house_roof(img)
+	_img_house_roof(img, _ROOF_THATCH if roof_kind == "thatch" else [])
 	if temple:
 		for x in [1, 14]:
 			for y in range(7, 15):
@@ -579,100 +582,96 @@ func _img_save_house(path: String, wall_type: String, temple: bool):
 	img.save_png(path)
 
 func _tile_flower():
+	# Phase B-2：按16x16重排（旧版fx=6+i*8越界只画得出两朵），花色整体降饱和
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var stem = Color(0.20, 0.40, 0.15, 1.0)
-	var colors = [Color(0.95, 0.30, 0.30), Color(0.95, 0.80, 0.20), Color(0.70, 0.30, 0.85), Color(1.0, 0.55, 0.70)]
-	# 花朵装饰
+	var stem = Color(0.24, 0.42, 0.18, 1.0)
+	var colors = [Color(0.88, 0.45, 0.42), Color(0.92, 0.78, 0.35), Color(0.66, 0.50, 0.82), Color(0.94, 0.62, 0.70)]
+	var center = Color(0.95, 0.85, 0.40, 1.0)
 	for i in range(3):
-		var fx = 6 + i * 8 + _rng.randi_range(-1, 1)
-		var fy = 10 + _rng.randi_range(-2, 2)
-		# 茎
-		for y in range(fy, fy + 8):
-			if y < TILE_SIZE:
-				img.set_pixel(fx, y, stem)
-		# 花瓣
+		var fx = 3 + i * 5
+		if fx >= TILE_SIZE - 1:
+			fx = TILE_SIZE - 4
+		var fy = 9 + (i % 2) * 2
+		# 茎（向下4px，全部落在格内）
+		for y in range(fy, min(fy + 5, TILE_SIZE)):
+			img.set_pixel(fx, y, stem)
+		# 花瓣十字+芯
 		var col = colors[_rng.randi() % colors.size()]
-		img.set_pixel(fx - 1, fy, col)
-		img.set_pixel(fx + 1, fy, col)
-		img.set_pixel(fx, fy - 1, col)
-		img.set_pixel(fx, fy + 1, col)
-		img.set_pixel(fx, fy, Color(1, 0.9, 0.3))
+		if fx - 1 >= 0: img.set_pixel(fx - 1, fy, col)
+		if fx + 1 < TILE_SIZE: img.set_pixel(fx + 1, fy, col)
+		if fy - 1 >= 0: img.set_pixel(fx, fy - 1, col)
+		if fy + 1 < TILE_SIZE: img.set_pixel(fx, fy + 1, col)
+		img.set_pixel(fx, fy, center)
 	img.save_png("res://sprites/tiles/flower.png")
 
 func _tile_rock():
+	# Phase B-2：旧版按32px坐标绘制，16x16下大部分越界导致石头近乎隐形；重绘为格内大石+小石
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var rock = Color(0.52, 0.50, 0.46, 1.0)
-	var highlight = Color(0.68, 0.66, 0.60, 1.0)
-	var shadow = Color(0.34, 0.32, 0.29, 1.0)
-	var outline = Color(0.24, 0.23, 0.21, 1.0)
-	var moss = Color(0.36, 0.50, 0.26, 1.0)
-	# 大石+小石组合（星露谷式乱石堆）
-	# 主石轮廓
-	for x in range(7, 23):
-		for y in range(11, 27):
-			var dx = (x - 15) / 8.0
-			var dy = (y - 19) / 8.0
+	var rock = Color(0.53, 0.56, 0.60, 1.0)      # 冷灰与山岩同系
+	var highlight = Color(0.72, 0.75, 0.79, 1.0)
+	var shadow = Color(0.36, 0.39, 0.43, 1.0)
+	var outline = Color(0.21, 0.23, 0.26, 1.0)
+	var moss = Color(0.35, 0.48, 0.27, 1.0)
+	# 主石：椭圆中心(6.5,10)，半径4.5x3.6，左上受光右下背光
+	for x in range(1, 13):
+		for y in range(5, 16):
+			var dx = (x - 6.5) / 4.8
+			var dy = (y - 10.0) / 3.9
 			var d = dx * dx + dy * dy
 			if d < 1.0:
-				if d > 0.80:
+				if d > 0.78:
 					img.set_pixel(x, y, outline)
-				elif d < 0.25:
+				elif x <= 5 and y <= 9 and d < 0.45:
 					img.set_pixel(x, y, highlight)
-				elif d < 0.62:
-					img.set_pixel(x, y, rock)
-				else:
+				elif d > 0.55 or y >= 12:
 					img.set_pixel(x, y, shadow)
-	# 顶面高光笔触
-	img.set_pixel(12, 14, highlight)
-	img.set_pixel(13, 13, highlight)
-	img.set_pixel(14, 14, highlight)
-	# 小石
-	for x in range(21, 28):
-		for y in range(20, 27):
-			var dx2 = (x - 24) / 3.5
-			var dy2 = (y - 23) / 3.0
+				else:
+					img.set_pixel(x, y, rock)
+	# 小石：中心(12,12.5) 半径2.4x2.0
+	for x in range(9, 16):
+		for y in range(10, 16):
+			var dx2 = (x - 12.0) / 2.6
+			var dy2 = (y - 12.5) / 2.2
 			var d2 = dx2 * dx2 + dy2 * dy2
 			if d2 < 1.0:
-				if d2 > 0.75:
+				if d2 > 0.72:
 					img.set_pixel(x, y, outline)
-				elif d2 < 0.4:
+				elif x <= 11 and y <= 12:
 					img.set_pixel(x, y, rock)
 				else:
 					img.set_pixel(x, y, shadow)
-	# 石缝苔点
-	img.set_pixel(10, 24, moss)
-	img.set_pixel(11, 25, moss)
-	img.set_pixel(18, 25, moss)
+	# 石缝苔点（底部）
+	img.set_pixel(4, 13, moss)
+	img.set_pixel(5, 14, moss)
+	img.set_pixel(10, 14, moss)
 	img.save_png("res://sprites/tiles/rock.png")
 
 func _tile_fence():
+	# Phase B-2：旧版按32px坐标绘制越界（右桩/下半全被裁掉）；重排为16x16双杆双桩
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var wood = Color(0.62, 0.46, 0.28, 1.0)
-	var wood_hi = Color(0.74, 0.57, 0.36, 1.0)
-	var wood_dark = Color(0.44, 0.32, 0.18, 1.0)
-	var wood_line = Color(0.34, 0.24, 0.13, 1.0)
-	# 双横杆（带上缘高光，显得更厚实）
-	for x in range(2, TILE_SIZE - 1):
-		img.set_pixel(x, 11, wood_hi)
-		img.set_pixel(x, 12, wood)
-		img.set_pixel(x, 13, wood_dark)
-		img.set_pixel(x, 19, wood_hi)
-		img.set_pixel(x, 20, wood)
-		img.set_pixel(x, 21, wood_dark)
-	# 竖桩（圆头+木纹）
-	for px in [6, 24]:
-		for y in range(7, 28):
+	var wood = Color(0.60, 0.45, 0.29, 1.0)      # 低饱和暖木色
+	var wood_hi = Color(0.72, 0.57, 0.38, 1.0)
+	var wood_dark = Color(0.41, 0.30, 0.19, 1.0)
+	# 双横杆（贯穿整格，上缘高光下缘压暗出厚度）
+	for x in range(TILE_SIZE):
+		img.set_pixel(x, 5, wood_hi)
+		img.set_pixel(x, 6, wood)
+		img.set_pixel(x, 7, wood_dark)
+		img.set_pixel(x, 10, wood_hi)
+		img.set_pixel(x, 11, wood)
+		img.set_pixel(x, 12, wood_dark)
+	# 竖桩两根（左2-3，右12-13），方头带顶帽，入土端收深
+	for px in [2, 12]:
+		for y in range(3, 15):
 			img.set_pixel(px, y, wood)
 			img.set_pixel(px + 1, y, wood_dark)
-		# 桩顶圆头
-		img.set_pixel(px, 6, wood_hi)
-		img.set_pixel(px + 1, 6, wood_hi)
-		# 桩身木节
-		img.set_pixel(px, 15, wood_line)
-		img.set_pixel(px, 23, wood_line)
+		img.set_pixel(px, 3, wood_hi)
+		img.set_pixel(px + 1, 3, wood_hi)
+		img.set_pixel(px, 14, wood_dark)
+		img.set_pixel(px + 1, 14, wood_dark)
 	img.save_png("res://sprites/tiles/fence.png")
 
 func _tile_farmland():
@@ -711,37 +710,37 @@ func _tile_farmland():
 	img.save_png("res://sprites/tiles/farmland.png")
 
 func _tile_bridge():
+	# Phase B-2：旧版按32px绘制（x=8..24）右半越界；重排为16x16竖向木桥面+双栏杆
 	var img = Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var plank = Color(0.64, 0.48, 0.30, 1.0)
-	var plank_hi = Color(0.74, 0.58, 0.38, 1.0)
-	var plank_dark = Color(0.48, 0.35, 0.21, 1.0)
-	var rail = Color(0.42, 0.30, 0.17, 1.0)
-	var rail_hi = Color(0.55, 0.40, 0.24, 1.0)
-	# 木板桥面（板缝横线+板面高光，竖向通铺与水流方向一致）
-	for x in range(8, 24):
+	var plank = Color(0.63, 0.47, 0.30, 1.0)
+	var plank_hi = Color(0.74, 0.59, 0.39, 1.0)
+	var plank_dark = Color(0.46, 0.34, 0.21, 1.0)
+	var rail = Color(0.40, 0.29, 0.18, 1.0)
+	var rail_hi = Color(0.54, 0.40, 0.25, 1.0)
+	# 桥面板 x=3..12 竖向通铺（板缝横线每4px + 板面条纹高光）
+	for x in range(3, 13):
 		for y in range(TILE_SIZE):
-			if y % 5 == 4:
-				img.set_pixel(x, y, plank_dark)  # 板缝
-			elif x % 3 == 0:
-				img.set_pixel(x, y, plank_hi)    # 板面纵向高光
+			if y % 4 == 3:
+				img.set_pixel(x, y, plank_dark)      # 板缝
+			elif (x + y / 4 * 2) % 4 == 1:
+				img.set_pixel(x, y, plank_hi)        # 错缝板面高光
 			else:
 				img.set_pixel(x, y, plank)
-	# 两侧栏杆（外缘描深+上缘高光）
+	# 两侧栏杆（外深内亮双柱）
 	for y in range(TILE_SIZE):
-		img.set_pixel(7, y, rail)
-		img.set_pixel(8, y, rail_hi)
-		img.set_pixel(23, y, rail_hi)
-		img.set_pixel(24, y, rail)
-	# 栏杆立柱（带柱头）
-	for y in range(1, TILE_SIZE, 8):
-		for py in range(y, min(y + 3, TILE_SIZE)):
-			img.set_pixel(6, py, rail)
-			img.set_pixel(7, py, rail)
-			img.set_pixel(24, py, rail)
-			img.set_pixel(25, py, rail)
-		img.set_pixel(6, y, rail_hi)
-		img.set_pixel(25, y, rail_hi)
+		img.set_pixel(1, y, rail)
+		img.set_pixel(2, y, rail_hi)
+		img.set_pixel(13, y, rail_hi)
+		img.set_pixel(14, y, rail)
+	# 栏柱柱头（上下各一处外扩1px）
+	for py in [0, 7]:
+		img.set_pixel(1, py, rail_hi)
+		img.set_pixel(14, py, rail_hi)
+		for px in range(2, 5):
+			img.set_pixel(px, py, rail_hi)
+		for px in range(12, 15):
+			img.set_pixel(px, py, rail_hi)
 	img.save_png("res://sprites/tiles/bridge.png")
 
 # ============================================================
@@ -766,6 +765,131 @@ func generate_buildings():
 		for i in range(parts.size()):
 			_draw_building_part(w, i, "res://sprites/tiles/%s.png" % parts[i])
 	print("[TextureGen] Multi-tile buildings generated")
+
+# ============================================================
+# Phase F5: 大型中式建筑（星露谷比例：人物约30px高，房屋远高于人）
+# hut茅屋 54x48 / house民居 74x64 / manor大宅 100x84 / temple庙宇 122x100
+# 墙脚线=图片底缘；footprint见 world_generator.BUILDING_PROPS
+# ============================================================
+const BIG_BUILDING_DEFS := {
+	"hut":    {"size": Vector2i(54, 48),  "thatch": true,  "temple": false},
+	"house":  {"size": Vector2i(74, 64),  "thatch": false, "temple": false},
+	"manor":  {"size": Vector2i(100, 84), "thatch": false, "temple": false},
+	"temple": {"size": Vector2i(122, 100),"thatch": false, "temple": true},
+}
+
+func generate_big_buildings():
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://sprites/buildings"))
+	for kind in BIG_BUILDING_DEFS:
+		var def: Dictionary = BIG_BUILDING_DEFS[kind]
+		var sz: Vector2i = def["size"]
+		var path := "res://sprites/buildings/%s.png" % kind
+		if FileAccess.file_exists(path):
+			continue
+		var img = Image.create(sz.x, sz.y, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		_draw_big_building(img, sz.x, sz.y, def["thatch"], def["temple"])
+		img.save_png(ProjectSettings.globalize_path(path))
+		print("[TextureGen] big building: ", kind, " ", sz)
+
+func _draw_big_building(img: Image, W: int, H: int, thatch: bool, temple: bool):
+	var c_roof: Color = _ROOF_THATCH[0] if thatch else _ROOF
+	var c_hi: Color = _ROOF_THATCH[1] if thatch else _ROOF_HI
+	var c_dark: Color = _ROOF_THATCH[2] if thatch else _ROOF_DARK
+	var c_wall: Color = Color(0.90, 0.84, 0.68) if not temple else Color(0.94, 0.88, 0.72)
+	var c_wall_d: Color = _WALL_D
+	# ---- 屋顶区段 ----
+	var ry1 := int(H * 0.40)			# 主檐口线
+	var ry0 := 2
+	if temple:
+		_draw_roof_band(img, int(W*0.20), 1, int(W*0.80), int(H*0.16), c_roof, c_hi, c_dark)
+		ry0 = int(H * 0.18)
+		# 宝顶
+		for dx in range(-2, 3):
+			for dy in range(0, 3):
+				img.set_pixel(int(W/2)+dx, dy, _GOLD)
+	_draw_roof_band(img, int(W*0.04), ry0, W-1-int(W*0.04), ry1, c_roof, c_hi, c_dark)
+	# ---- 墙体 ----
+	var wx0 := int(W * 0.10)
+	var wx1 := W - 1 - int(W * 0.10)
+	var wy1 := H - 1
+	for x in range(wx0, wx1 + 1):
+		for y in range(ry1, wy1 + 1):
+			var c = c_wall
+			if (x - wx0) % 6 == 0:
+				c = c_wall_d
+			if y == wy1 or x == wx0 or x == wx1:
+				c = c_wall_d
+			img.set_pixel(x, y, c)
+	# 檐下木梁
+	for x in range(wx0, wx1 + 1):
+		img.set_pixel(x, ry1, _BEAM)
+		img.set_pixel(x, ry1 + 1, _BEAM if temple else c_wall)
+	# 立柱（庙宇朱红柱 / 民居木柱）
+	var pillar_c: Color = _PILLAR if temple else _BEAM
+	var pw := 3 if W >= 74 else 2
+	for k in range(pw):
+		for y in range(ry1 + 1, wy1 + 1):
+			img.set_pixel(wx0 + 1 + k, y, pillar_c)
+			img.set_pixel(wx1 - 1 - k, y, pillar_c)
+	# ---- 门 ----
+	var dw: int = clampi(int(W / 6.0), 8, 16)
+	var dh: int = clampi(wy1 - ry1 - 8, 14, 26)
+	var dx0 := int((W - dw) / 2)
+	var dy0 := wy1 - dh
+	for x in range(dx0, dx0 + dw):
+		for y in range(dy0, wy1 + 1):
+			var edge = (x == dx0 or x == dx0+dw-1 or y == dy0)
+			img.set_pixel(x, y, _DOOR_FRAME if edge else _DOOR)
+	# 门钉/门环
+	img.set_pixel(dx0+2, dy0+int(dh*0.4), _GOLD)
+	img.set_pixel(dx0+dw-3, dy0+int(dh*0.4), _GOLD)
+	# 匾额（庙宇金框）
+	if W >= 74:
+		for x in range(dx0-1, dx0+dw+1):
+			img.set_pixel(x, dy0-5, _BEAM)
+			img.set_pixel(x, dy0-1, _BEAM)
+		for y in range(dy0-5, dy0):
+			img.set_pixel(dx0-1, y, _BEAM)
+			img.set_pixel(dx0+dw, y, _BEAM)
+		if temple:
+			for x in range(dx0, dx0+dw):
+				img.set_pixel(x, dy0-3, _GOLD)
+	# ---- 窗 ----
+	var win_w := 9
+	var win_h := 7
+	var win_y := ry1 + 5
+	var slots := [int(W*0.24), int(W*0.66)] if W >= 74 else [int(W*0.30)]
+	for sx in slots:
+		if abs(sx + win_w/2 - W/2) < dw/2 + win_w:
+			continue	# 与门重叠跳过
+		for x in range(sx, sx + win_w):
+			for y in range(win_y, win_y + win_h):
+				var edge = (x == sx or x == sx+win_w-1 or y == win_y or y == win_y+win_h-1)
+				img.set_pixel(x, y, _WIN_FRAME if edge else _WIN)
+			img.set_pixel(x, win_y + int(win_h/2), _WIN_FRAME)	# 棂条
+		for y in range(win_y, win_y + win_h):
+			img.set_pixel(sx + int(win_w/2), y, _WIN_FRAME)
+
+func _draw_roof_band(img: Image, x0: int, y0: int, x1: int, y1: int, c_main: Color, c_hi: Color, c_dark: Color):
+	"""黛青瓦顶带：脊线暗、瓦沟每3行、受光斜面、檐口双行阴影、翘边"""
+	if y1 <= y0:
+		return
+	var wspan = x1 - x0 + 1
+	for x in range(x0, x1 + 1):
+		var t = float(x - x0) / maxf(1.0, float(wspan - 1))	# 0左1右
+		for y in range(y0, y1 + 1):
+			var v = float(y - y0) / maxf(1.0, float(y1 - y0))
+			var c = c_main
+			if y == y0:
+				c = c_dark					# 正脊
+			elif (y - y0) % 3 == 2:
+				c = c_dark					# 瓦沟
+			elif (t < 0.18 and v > 0.25) or (t > 0.82 and v > 0.25):
+				c = c_hi					# 两端受光（翘檐感）
+			if y >= y1 - 1:
+				c = c_dark					# 檐口阴影
+			img.set_pixel(x, y, c)
 
 func _draw_building_part(total: int, index: int, path: String):
 	"""绘制多格建筑的一个部件。total=建筑总格数，index=当前部件序号(0=最左)

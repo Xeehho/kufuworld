@@ -25,8 +25,8 @@ var world_cells: Dictionary = {}
 
 # 河流和城镇的覆盖数据（瓦片坐标 -> tile_id）
 var override_cells: Dictionary = {}
-# 需要碰撞的瓦片集合（含多格建筑部件19-32）
-var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+# 需要碰撞的瓦片集合（含多格建筑部件19-32、39=大建筑footprint占位）
+var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 39]
 # 多格建筑部件ID集合（供地面铺设/布局判断）
 var building_part_tiles: Array = [19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
 # 每种宽度建筑各部件的瓦片ID（与 BUILDING_PARTS 顺序一致：左→右）
@@ -36,6 +36,16 @@ const BUILDING_PART_IDS = {
 	4: [24, 25, 26, 27],
 	5: [28, 29, 30, 31, 32],
 }
+# ---- Phase F5: 大型建筑道具（星露谷比例，Sprite+StaticBody，替代16px瓦片房）----
+# fp=footprint占格(瓦片)；纹理由 texture_generator.generate_big_buildings() 生成到 sprites/buildings/
+const BUILDING_PROPS := {
+	"hut":    {"png": "res://sprites/buildings/hut.png",    "fp": Vector2i(3, 2)},
+	"house":  {"png": "res://sprites/buildings/house.png",  "fp": Vector2i(4, 3)},
+	"manor":  {"png": "res://sprites/buildings/manor.png",  "fp": Vector2i(6, 4)},
+	"temple": {"png": "res://sprites/buildings/temple.png", "fp": Vector2i(7, 5)},
+}
+# 虚拟占位tile id：footprint格子写入override_cells，参与碰撞/可达性但不在TileMap绘制
+const TILE_BUILDING_RESERVE := 39
 # 可达性洪泛结果（以玩家出生点为源，玩家可通行的瓦片集合）
 var reachable_cells: Dictionary = {}
 
@@ -45,8 +55,74 @@ var tile_map_parent: Node2D = null
 var main_tile_map: TileMap = null  # 场景中的主TileMap
 @onready var player: CharacterBody2D = $"../Player"
 
+# ============ 素材包大树道具 (Pixel Crawler, 每表2x2变体格) ============
+# 树瓦片ID(4松/8橡/9竹)不再画进TileMap，改为生成y排序Sprite道具，星露谷式大冠幅
+const TREE_SHEETS := {
+	4: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_03/Size_02.png", "cell": Vector2i(64, 80)},   # 松树(锥形)
+	8: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_01/Size_02.png", "cell": Vector2i(128, 64)},  # 橡树(宽冠)
+	9: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_02/Size_03.png", "cell": Vector2i(72, 80)},   # 竹/细高树
+}
+var _tree_sheet_cache: Dictionary = {}
+var _tree_shadow_tex: ImageTexture = null
+
+func _get_tree_sheet_texture(tid: int) -> Texture2D:
+	if _tree_sheet_cache.has(tid):
+		return _tree_sheet_cache[tid]
+	var tex = TextureGen.load_png_texture(TREE_SHEETS[tid]["path"])
+	_tree_sheet_cache[tid] = tex
+	return tex
+
+# Phase B-3：树底椭圆软阴影（径向衰减白椭圆，modulate压黑半透明），提升落地感
+func _get_tree_shadow_texture() -> ImageTexture:
+	if _tree_shadow_tex != null:
+		return _tree_shadow_tex
+	var img = Image.create(48, 20, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	for x in range(48):
+		for y in range(20):
+			var dx = (x - 23.5) / 23.5
+			var dy = (y - 9.5) / 9.5
+			var d = sqrt(dx * dx + dy * dy)
+			if d < 1.0:
+				var a := clampf(1.0 - d, 0.0, 1.0)
+				img.set_pixel(x, y, Color(1, 1, 1, pow(a, 1.35)))
+	_tree_shadow_tex = ImageTexture.create_from_image(img)
+	return _tree_shadow_tex
+
+func _spawn_tree_prop(wx: int, wy: int, tid: int) -> bool:
+	var info: Dictionary = TREE_SHEETS[tid]
+	var sheet = _get_tree_sheet_texture(tid)
+	if sheet == null:
+		return false
+	var cell: Vector2i = info["cell"]
+	var variant: int = abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % 4
+	var atlas = AtlasTexture.new()
+	atlas.atlas = sheet
+	atlas.region = Rect2((variant % 2) * cell.x, float(int(variant / 2)) * cell.y, cell.x, cell.y)
+	var prop = Sprite2D.new()
+	prop.texture = atlas
+	prop.z_index = 2  # 树整体抬到z=2：给脚底阴影(等效z=1)留出地上树下的层位
+	# 脚底对齐：树干底部贴瓦片底缘(+4px入土)，水平居中带自然抖动
+	var jitter_x: float = fposmod(detail_noise.get_noise_2d(wx * 3.1, wy * 5.7), 1.0) * 6.0 - 3.0
+	prop.position = Vector2(wx * 16.0 + 8.0 + jitter_x, wy * 16.0 + 20.0 - cell.y * 0.5)
+	prop.add_to_group("tree_prop")
+	# 椭圆阴影垫在树脚（z=-1相对树体，画在树干后、地面之上）
+	var shadow = Sprite2D.new()
+	shadow.texture = _get_tree_shadow_texture()
+	var shadow_w: float = clampf(cell.x * 0.42, 24.0, 56.0)
+	shadow.scale = Vector2(shadow_w / 48.0, shadow_w * 0.38 / 20.0)
+	shadow.position = Vector2(jitter_x * -0.5, cell.y * 0.5 - 5.0)
+	shadow.z_index = -1  # 相对-1=等效z1：地面之上、树干之下
+	shadow.modulate = Color(0, 0, 0, 0.30)
+	shadow.set_meta("shadow_base_a", 0.30)   # Phase D：昼夜树影强度基准（WeatherController按日照系数缩放）
+	shadow.add_to_group("tree_shadow")
+	prop.add_child(shadow)
+	get_parent().add_child(prop)
+	return true
+
 func _ready():
 	_setup_noise()
+	_setup_biomes()	# Phase F6: 饥荒式区域划分（先于一切get_tile_id调用）
 	_load_tileset()
 	_setup_tilemap_parent()
 	_setup_poi_templates()
@@ -58,6 +134,8 @@ func _ready():
 	_generate_towns()
 	_scatter_pois()
 	_apply_poi_terrain()
+	_ensure_connectivity()	# Phase F6: 打通所有封闭区域（石中沙地等孤岛开路）
+	_compute_reachable_region()	# 刷新对外可达查询（NPC/营地选址用最新数据）
 	# 初始加载玩家周围的chunk
 	_initial_load()
 	# 强制加载POI所在位置的chunk
@@ -83,6 +161,41 @@ func _setup_noise():
 	detail_noise.seed = WORLD_SEED + 2000
 	detail_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	detail_noise.frequency = 0.05
+
+# ---- Phase F6: 饥荒式生物群系区域 ----
+const BIOME_KINDS := ["plains", "forest", "bamboo", "mountain", "desert", "snow", "lake"]
+var biome_seeds: Array = []   # [{"pos":Vector2i, "kind":String}]
+
+func _setup_biomes():
+	"""环形撒9个群系首府+中央固定平原；瓦片归属=最近首府(带噪声抖动边界)"""
+	var rng = RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 777
+	biome_seeds.clear()
+	var count := BIOME_KINDS.size() + 2
+	for i in range(count):
+		var ang := TAU * i / count + rng.randf_range(-0.3, 0.3)
+		var rad := rng.randf_range(30.0, WORLD_RADIUS - 24.0)
+		var pos := Vector2i(int(cos(ang) * rad), int(sin(ang) * rad))
+		var kind: String = BIOME_KINDS[i % BIOME_KINDS.size()]
+		biome_seeds.append({"pos": pos, "kind": kind})
+	biome_seeds.append({"pos": Vector2i.ZERO, "kind": "plains"})	# 出生区必为平原
+
+func _biome_kind(x: int, y: int) -> String:
+	if biome_seeds.is_empty():
+		return "plains"
+	var jitter: float = detail_noise.get_noise_2d(x * 1.7, y * 2.3) * 14.0
+	var best_d := 1e12
+	var best_kind := "plains"
+	for b in biome_seeds:
+		var p: Vector2i = b["pos"]
+		var d := Vector2(p.x - x, p.y - y).length_squared() + jitter * jitter * 0.01
+		if d < best_d:
+			best_d = d
+			best_kind = b["kind"]
+	return best_kind
+
+func _lake_surface_dist(x: int, y: int, seed_pos: Vector2i) -> float:
+	return Vector2(seed_pos.x - x, seed_pos.y - y).length()
 
 func _load_tileset():
 	# 每次启动在内存中构建TileSet：纹理直接从PNG解码，不依赖import系统与陈旧.tres
@@ -447,88 +560,242 @@ func _dump_spawn_diagnostics(origin: Vector2i):
 	print("[WorldGen] ASCII map around spawn (#=blocked .=walk):" + lines)
 
 func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
-	"""在指定位置生成一个城镇（含2-5格多格建筑）"""
-	var size = rng.randi_range(3, 5)  # 3x3 到 5x5
-	var half = size / 2
+	"""Phase F5: 无围栏星露谷式城镇——十字土路 + 大型建筑道具 + 开阔农田斑块"""
+	var half := rng.randi_range(7, 9)	# 需容纳最大footprint(temple 7x5)+象限余量
 
-	# 城镇周围先铺农田和栅栏
-	for dx in range(-half - 2, half + 3):
-		for dy in range(-half - 2, half + 3):
-			var wx = cx + dx
-			var wy = cy + dy
-			var cell = Vector2i(wx, wy)
-			var local_dist = max(abs(dx), abs(dy))
-
-			if local_dist == half + 2:
-				# 外围栅栏，十字方向留门（铺路）保证玩家可进入
-				if dx == 0 or dy == 0:
-					override_cells[cell] = 1   # 门口铺路
-				else:
-					override_cells[cell] = 15  # 栅栏
-			elif local_dist == half + 1:
-				# 农田环
-				override_cells[cell] = 16  # 农田
-
-	# 中心十字路
+	# 十字主路
 	for dx in range(-half, half + 1):
-		for dy in range(-half, half + 1):
-			if dx == 0 or dy == 0:
-				override_cells[Vector2i(cx + dx, cy + dy)] = 1  # 路
+		override_cells[Vector2i(cx + dx, cy)] = 1
+	for dy in range(-half, half + 1):
+		if not override_cells.has(Vector2i(cx, cy + dy)):
+			override_cells[Vector2i(cx, cy + dy)] = 1
 
-	# ---- 多格建筑布局：在四个象限内放置2-5格宽的建筑 ----
-	var occupied: Dictionary = {}  # 局部坐标 Vector2i -> true
-	var bld_target = rng.randi_range(2, 3) + size  # 城镇规模越大建筑越多
-	var bld_placed = 0
-	var attempts = 0
-	while bld_placed < bld_target and attempts < 60:
-		attempts += 1
-		var bw = rng.randi_range(2, 5)  # 建筑宽度
-		# 随机起点（必须落在同一象限，不跨中心十字路）
-		var dx0 = rng.randi_range(-half, half)
-		var dy0 = rng.randi_range(-half, half)
-		if dy0 == 0:
-			continue
-		if dx0 + bw - 1 > half:
-			continue
-		# 不跨中心竖路：整栋建筑必须在 dx=0 的同一侧
-		if dx0 <= 0 and dx0 + bw - 1 >= 0:
-			continue
-		# 检查整排空闲
-		var ok = true
-		for i in range(bw):
-			var p = Vector2i(dx0 + i, dy0)
-			if occupied.has(p):
-				ok = false
-				break
-			if override_cells.has(Vector2i(cx + dx0 + i, cy + dy0)):
-				ok = false
-				break
-		if not ok:
-			continue
-		# 放置建筑部件
-		var part_ids: Array = BUILDING_PART_IDS[bw]
-		for i in range(bw):
-			override_cells[Vector2i(cx + dx0 + i, cy + dy0)] = part_ids[i]
-			occupied[Vector2i(dx0 + i, dy0)] = true
-		bld_placed += 1
+	# 主建筑（大宅或庙宇）+ 民居若干，四象限分布
+	var quadrants := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
+	var main_kind := "manor" if rng.randf() < 0.65 else "temple"
+	var qi := rng.randi() % 4
+	_try_place_town_building(cx, cy, half, quadrants[qi], main_kind, rng)
+	var house_kinds := ["hut", "house", "house", "manor"]
+	for i in range(rng.randi_range(2, 4)):
+		var kind: String = house_kinds[rng.randi() % house_kinds.size()]
+		_try_place_town_building(cx, cy, half, quadrants[(qi + 1 + i) % 4], kind, rng)
 
-	# ---- 剩余内部空格：单格房/茅屋/院子 ----
-	for dx in range(-half, half + 1):
-		for dy in range(-half, half + 1):
-			if dx == 0 or dy == 0:
-				continue  # 已铺路
-			if occupied.has(Vector2i(dx, dy)):
-				continue  # 已放多格建筑
-			var cell = Vector2i(cx + dx, cy + dy)
-			if override_cells.has(cell):
+	# 开阔农田斑块（无栅栏，2x3）
+	for f in range(rng.randi_range(2, 3)):
+		var fx := rng.randi_range(-half + 1, half - 2)
+		var fy := rng.randi_range(-half + 1, half - 2)
+		var ok := true
+		for dx in range(3):
+			for dy in range(2):
+				var cell := Vector2i(cx + fx + dx, cy + fy + dy)
+				if override_cells.has(cell) or abs(fx + dx) <= 1 or abs(fy + dy) <= 1:
+					ok = false
+		if ok:
+			for dx in range(3):
+				for dy in range(2):
+					override_cells[Vector2i(cx + fx + dx, cy + fy + dy)] = 16
+
+func _try_place_town_building(cx: int, cy: int, half: int, quad: Vector2i, kind: String, rng: RandomNumberGenerator) -> bool:
+	"""在象限内随机找合法锚点放置建筑；footprint整体保持在中心十字路>=2格之外"""
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+	var lo_x: int = (cx + 2) if quad.x > 0 else (cx - half)
+	var hi_x: int = (cx + half - fp.x) if quad.x > 0 else (cx - 2 - fp.x + 1)
+	var lo_y: int = (cy + 2) if quad.y > 0 else (cy - half)
+	var hi_y: int = (cy + half - fp.y) if quad.y > 0 else (cy - 2 - fp.y + 1)
+	if hi_x < lo_x or hi_y < lo_y:
+		return false
+	for _attempt in range(24):
+		var a := Vector2i(rng.randi_range(lo_x, hi_x), rng.randi_range(lo_y, hi_y))
+		if _place_building_prop(kind, a):
+			_carve_door_path(a, fp, cy)
+			return true
+	return false
+
+func _carve_door_path(a: Vector2i, fp: Vector2i, road_y: int):
+	"""从门格(footprint下方中央)向主路铺小径，保证出门即达道路"""
+	var dx := a.x + int(fp.x / 2.0)
+	var y := a.y + fp.y
+	var guard := 0
+	while y != road_y and guard < 64:
+		guard += 1
+		var cell := Vector2i(dx, y)
+		var cur = override_cells.get(cell, -1)
+		if cur == 1:
+			break
+		if cur == -1 or cur == 0:
+			override_cells[cell] = 1
+		y += 1 if road_y > y else -1
+
+func _can_place_footprint(a: Vector2i, fp: Vector2i) -> bool:
+	for dx in range(fp.x):
+		for dy in range(fp.y):
+			var c := Vector2i(a.x + dx, a.y + dy)
+			if Vector2(c.x, c.y).length() > WORLD_RADIUS - 10:
+				return false
+			if override_cells.has(c):
+				return false
+			if get_tile_id(c.x, c.y) in [5, 3, 7, 17]:
+				return false
+	return true
+
+func _place_building_prop(kind: String, a: Vector2i) -> bool:
+	"""放置大型建筑：占位39写入override(参与碰撞/可达)，Sprite+StaticBody挂World"""
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+	if not _can_place_footprint(a, fp):
+		return false
+	for dx in range(fp.x):
+		for dy in range(fp.y):
+			override_cells[Vector2i(a.x + dx, a.y + dy)] = TILE_BUILDING_RESERVE
+	var def: Dictionary = BUILDING_PROPS[kind]
+	var tex := TextureGen.load_png_texture(def["png"])
+	if tex == null:
+		push_warning("[WorldGen] 大建筑纹理缺失: " + str(def["png"]))
+		return true
+	var bw := fp.x * TILE_SIZE_PX
+	var bh := fp.y * TILE_SIZE_PX
+	var tsz := tex.get_size()
+	var root := Node2D.new()
+	root.name = "Building_" + kind
+	root.z_index = 4
+	root.add_to_group("building_prop")
+	var base_cx := (a.x + fp.x * 0.5) * TILE_SIZE_PX
+	var base_y := float((a.y + fp.y) * TILE_SIZE_PX)
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.position = Vector2(base_cx, base_y - tsz.y * 0.5 + 6.0)
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	root.add_child(spr)
+	var body := StaticBody2D.new()
+	body.position = Vector2(base_cx, base_y - bh * 0.5 + 2.0)
+	var cs := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(bw - 4, bh - 2)
+	cs.shape = rect
+	body.add_child(cs)
+	root.add_child(body)
+	get_parent().add_child(root)
+	return true
+
+# ---- Phase F6: 连通性保障（饥荒式：所有可走孤岛自动开路接回主大陆） ----
+func _ensure_connectivity():
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var total_carved := 0
+	for pass_i in range(6):
+		var reach := _bfs_reachable_from_spawn(dirs)
+		var pockets := _find_pockets(reach, dirs)
+		if pockets.is_empty():
+			if pass_i > 0:
+				print("[WorldGen] Connectivity OK after ", pass_i, " repair pass(es), carved=", total_carved)
+			break
+		for pocket in pockets:
+			total_carved += _carve_connection(pocket, reach)
+	print("[WorldGen] Connectivity passes done, carved cells=", total_carved)
+
+func _bfs_reachable_from_spawn(dirs: Array) -> Dictionary:
+	var reach: Dictionary = {}
+	if player == null:
+		return reach
+	var start := Vector2i(int(floor(player.global_position.x / TILE_SIZE_PX)), int(floor(player.global_position.y / TILE_SIZE_PX)))
+	reach[start] = true
+	var queue: Array = [start]
+	var head := 0
+	while head < queue.size():
+		var c: Vector2i = queue[head]
+		head += 1
+		for d in dirs:
+			var n: Vector2i = c + d
+			if reach.has(n):
 				continue
-			var r = rng.randf()
-			if r < 0.35:
-				override_cells[cell] = 2   # 城镇房
-			elif r < 0.55:
-				override_cells[cell] = 10  # 茅屋
-			else:
-				override_cells[cell] = 0   # 草地（院子）
+			if Vector2(n.x, n.y).length() > WORLD_RADIUS - 6:
+				continue
+			if get_tile_id(n.x, n.y) in collision_tiles:
+				continue
+			reach[n] = true
+			queue.append(n)
+	return reach
+
+func _find_pockets(reach: Dictionary, dirs: Array) -> Array:
+	"""找未连通的可走pocket（>=6格才算，避免为2-3格凹缝开路浪费）"""
+	var pockets: Array = []
+	var visited := {}
+	for wy in range(-WORLD_RADIUS + 8, WORLD_RADIUS - 8, 1):
+		for wx in range(-WORLD_RADIUS + 8, WORLD_RADIUS - 8, 1):
+			var p := Vector2i(wx, wy)
+			if visited.has(p) or reach.has(p):
+				continue
+			if get_tile_id(wx, wy) in collision_tiles:
+				continue
+			var cells: Dictionary = {p: true}
+			var q: Array = [p]
+			var h2 := 0
+			while h2 < q.size() and cells.size() < 4000:
+				var cc: Vector2i = q[h2]
+				h2 += 1
+				for d in dirs:
+					var nn: Vector2i = cc + d
+					if cells.has(nn) or reach.has(nn):
+						continue
+					if Vector2(nn.x, nn.y).length() > WORLD_RADIUS - 6:
+						continue
+					if get_tile_id(nn.x, nn.y) in collision_tiles:
+						continue
+					cells[nn] = true
+					q.append(nn)
+					visited[nn] = true
+			visited[p] = true
+			if cells.size() >= 6 and cells.size() < 4000:
+				pockets.append(cells.keys())
+			elif cells.size() >= 4000:
+				pockets.append(cells.keys())
+	return pockets
+
+func _carve_connection(pocket: Array, reach: Dictionary) -> int:
+	"""最近点对L形开路：水架桥、山石沙化、栅栏拆除"""
+	var best_a := Vector2i.ZERO
+	var best_b := Vector2i.ZERO
+	var best_d := 1e12
+	var step := 2 if pocket.size() > 400 else 1
+	var i := 0
+	for a in pocket:
+		i += 1
+		if step > 1 and i % step != 0:
+			continue
+		var b_step := 3
+		var j := 0
+		for b in reach.keys():
+			j += 1
+			if b_step > 1 and j % b_step != 0:
+				continue
+			var dd: float = abs(a.x - b.x) + abs(a.y - b.y)
+			if dd < best_d:
+				best_d = dd
+				best_a = a
+				best_b = b
+	var carved := 0
+	var c := best_a
+	var guard := 0
+	while guard < 600:
+		guard += 1
+		carved += _carve_cell(c)
+		if c == best_b:
+			break
+		if abs(best_b.x - c.x) >= abs(best_b.y - c.y) and c.x != best_b.x:
+			c.x += signi(best_b.x - c.x)
+		elif c.y != best_b.y:
+			c.y += signi(best_b.y - c.y)
+		else:
+			c.x += signi(best_b.x - c.x)
+	return carved
+
+func _carve_cell(c: Vector2i) -> int:
+	var tid = get_tile_id(c.x, c.y)
+	if tid == 5:
+		override_cells[c] = 17
+		return 1
+	if tid in collision_tiles:
+		override_cells[c] = 6
+		return 1
+	return 0
 
 # ============ 地形生成（含边界和覆盖） ============
 
@@ -539,21 +806,25 @@ func get_humidity(x: int, y: int) -> float:
 	return humidity_noise.get_noise_2d(x, y)
 
 func get_terrain(x: int, y: int) -> Terrain:
-	var h = get_height(x, y)
-	var w = get_humidity(x, y)
-	if h < -0.25:
-		return Terrain.WATER
-	elif h < -0.05:
-		return Terrain.SAND
-	elif h < 0.25:
-		if w > 0.2:
+	"""Phase F6: 群系驱动的基础地形类别（供地面层/选址判断；装饰细节在get_tile_id）"""
+	match _biome_kind(x, y):
+		"desert":
+			return Terrain.SAND
+		"lake":
+			for b in biome_seeds:
+				if b["kind"] == "lake" and _lake_surface_dist(x, y, b["pos"]) < 12.0:
+					return Terrain.WATER
+			return Terrain.GRASS
+		"mountain":
+			return Terrain.MOUNTAIN
+		"snow":
+			return Terrain.SNOW
+		"forest":
 			return Terrain.FOREST
-		elif w > 0.0:
+		"bamboo":
 			return Terrain.GRASS_DARK
-		return Terrain.GRASS
-	elif h < 0.55:
-		return Terrain.MOUNTAIN
-	return Terrain.SNOW
+		_:
+			return Terrain.GRASS
 
 func get_tile_id(x: int, y: int) -> int:
 	# 1. 检查世界边界覆盖
@@ -566,33 +837,44 @@ func get_tile_id(x: int, y: int) -> int:
 	if override_cells.has(cell):
 		return override_cells[cell]
 
-	# 3. 默认噪声地形
-	var t = get_terrain(x, y)
+	# 3. Phase F6 群系驱动的地表+装饰（r=细节噪声决定密疏，群系间观感差异明显）
+	var kind := _biome_kind(x, y)
 	var d = detail_noise.get_noise_2d(x, y)
-	match t:
-		Terrain.WATER: return 5
-		Terrain.SAND: return 6
-		Terrain.GRASS: return 0
-		Terrain.GRASS_DARK: return 18
-		Terrain.FOREST:
-			var r = fmod(d + 1.0, 1.0)
-			if r > 0.85:
-				return 4  # 松树
-			elif r > 0.75:
-				return 8  # 橡树
-			elif r > 0.70:
-				return 9  # 竹子
-			elif r > 0.67:
-				return 13 # 花
+	var r = fposmod(d + 1.0, 1.0)
+	match kind:
+		"forest":
+			if r > 0.86: return 4
+			elif r > 0.70: return 8
+			elif r > 0.64: return 13
 			return 0
-		Terrain.MOUNTAIN:
-			if d > 0.3:
-				return 14 # 石头
-			return 3
-		Terrain.SNOW:
-			if d > 0.4:
-				return 7  # 雪山
-			return 7
+		"bamboo":
+			if r > 0.72: return 9
+			return 18 if r > 0.35 else 0
+		"mountain":
+			# 山脊成势(r高→山体)，谷地沙地走廊(r<=0.40)天然可穿行
+			if r > 0.80: return 3
+			elif r > 0.70: return 14
+			elif r > 0.62: return 3
+			elif r > 0.40: return 14
+			return 6
+		"desert":
+			if r > 0.94: return 14
+			return 6
+		"snow":
+			if r > 0.30: return 7
+			return 6
+		"lake":
+			for b in biome_seeds:
+				if b["kind"] == "lake":
+					var dist: float = _lake_surface_dist(x, y, b["pos"])
+					if dist < 11.0 + d * 3.0: return 5
+					elif dist < 15.0: return 6
+			return 13 if r > 0.90 else 0
+		_:
+			if r > 0.93: return 8
+			elif r > 0.90: return 4
+			elif r > 0.87: return 13
+			return 0
 	return 0
 
 # ============ Chunk系统 ============
@@ -662,8 +944,17 @@ func _load_chunk(chunk: Vector2i):
 			if tm.get_cell_source_id(0, cell) == -1:
 				var tid = get_tile_id(wx, wy)
 				if tid >= 0:
+					# 大树改用素材包道具（星露谷式冠幅），只铺地面层
+					if TREE_SHEETS.has(tid):
+						var ground_under = _get_ground_tile(wx, wy)
+						tm.set_cell(0, cell, ground_under, Vector2i(0, 0))
+						if not _spawn_tree_prop(wx, wy, tid):
+							tm.set_cell(1, cell, tid, Vector2i(0, 0))
+					elif tid == TILE_BUILDING_RESERVE:
+						# Phase F5 大建筑footprint：只铺地面（视觉与碰撞由道具节点承担）
+						tm.set_cell(0, cell, _get_ground_tile(wx, wy), Vector2i(0, 0))
 					# 装饰瓦片放在layer 1，地面放在layer 0
-					if tid in decor_tiles:
+					elif tid in decor_tiles:
 						# 先铺地面底层
 						var ground_id = _get_ground_tile(wx, wy)
 						tm.set_cell(0, cell, ground_id, Vector2i(0, 0))
@@ -682,8 +973,8 @@ func _get_ground_tile(x: int, y: int) -> int:
 		# 桥下面铺路，使桥可通行（避免水面碰撞阻挡）
 		if ov == 17:
 			return 1  # 路
-		# 多格建筑部件下面铺路，与城镇街道质感统一
-		if ov in building_part_tiles:
+		# 多格建筑/大建筑footprint下面铺路，与城镇街道质感统一
+		if ov in building_part_tiles or ov == TILE_BUILDING_RESERVE:
 			return 1  # 路
 	var t = get_terrain(x, y)
 	match t:
@@ -777,26 +1068,21 @@ func _apply_sect_terrain(cx: int, cy: int):
 					override_cells[cell] = 0   # 草
 
 func _apply_town_poi_terrain(cx: int, cy: int):
-	"""城镇POI周围铺房屋+农田"""
-	for dx in range(-3, 4):
-		for dy in range(-3, 4):
-			var cell = Vector2i(cx + dx, cy + dy)
-			var dist = max(abs(dx), abs(dy))
-			if dist == 0:
-				override_cells[cell] = 2   # 城镇房
-			elif dist == 1:
-				if dx == 0 or dy == 0:
-					override_cells[cell] = 1   # 路
-				else:
-					override_cells[cell] = 10  # 茅屋
+	"""Phase F5: 城镇POI——中心大宅道具+路+农田，无栅栏圈"""
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(Vector2i(cx, cy)) + WORLD_SEED
+	for dx in range(-4, 5):
+		for dy in range(-4, 5):
+			var cell := Vector2i(cx + dx, cy + dy)
+			var dist: int = max(abs(dx), abs(dy))
+			if dist == 0 or (dist == 1 and abs(dx) == 1 and abs(dy) == 1 and rng.randf() < 0.5):
+				continue	# 留给大建筑footprint
+			if dist <= 1:
+				override_cells[cell] = 1   # 路
 			elif dist == 2:
 				override_cells[cell] = 16  # 农田
-			elif dist == 3:
-				# 栅栏圈在十字方向留门，保证玩家可进入
-				if dx == 0 or dy == 0:
-					override_cells[cell] = 1   # 门口铺路
-				else:
-					override_cells[cell] = 15  # 栅栏
+	_place_building_prop("manor" if rng.randf() < 0.7 else "house", Vector2i(cx - 3, cy - 2))
+	_place_building_prop("hut", Vector2i(cx + 2, cy - 2))
 
 func _apply_cave_terrain(cx: int, cy: int):
 	"""洞穴周围铺石头"""
@@ -1004,23 +1290,29 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	var rng = RandomNumberGenerator.new()
 	rng.seed = hash(tpl.poi_name)
 
-	# 中心建筑
+	# 中心建筑（Phase F5: 大建筑贴图，墙脚落在POI原点上）
 	var center_sprite = Sprite2D.new()
-	center_sprite.texture = TextureGen.load_png_texture(building_tile)
-	center_sprite.z_index = 10
-	center_sprite.y_sort_enabled = true
+	var center_tex := TextureGen.load_png_texture(building_tile)
+	center_sprite.texture = center_tex
+	if center_tex:
+		center_sprite.position = Vector2(0, center_tex.get_size().y * 0.5 - 10.0)
+	center_sprite.z_index = 4
 	marker.add_child(center_sprite)
 
 	# 周围建筑
 	for i in range(building_count - 1):
-		var bx = rng.randi_range(-3, 3) * TILE_SIZE_PX
-		var by = rng.randi_range(-2, 2) * TILE_SIZE_PX
+		var bx = rng.randi_range(-4, 4) * TILE_SIZE_PX
+		var by = rng.randi_range(-2, 3) * TILE_SIZE_PX
+		if abs(bx) < 36 and abs(by) < 28:
+			bx = 48 * (1 if bx >= 0 else -1)
 		var bld_sprite = Sprite2D.new()
-		var bld_tile = _poi_secondary_building_tile(tpl.poi_type, rng)
-		bld_sprite.texture = TextureGen.load_png_texture(bld_tile)
-		bld_sprite.position = Vector2(bx, by)
-		bld_sprite.z_index = 10
-		bld_sprite.y_sort_enabled = true
+		var bld_tex := TextureGen.load_png_texture(_poi_secondary_building_tile(tpl.poi_type, rng))
+		bld_sprite.texture = bld_tex
+		if bld_tex:
+			bld_sprite.position = Vector2(bx, by + bld_tex.get_size().y * 0.5 - 10.0)
+		else:
+			bld_sprite.position = Vector2(bx, by)
+		bld_sprite.z_index = 4
 		marker.add_child(bld_sprite)
 
 	# 装饰物
@@ -1036,13 +1328,15 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 		deco_sprite.y_sort_enabled = true
 		marker.add_child(deco_sprite)
 
-	# 地点名称标签
+	# 地点名称标签（Phase F2: 字号与画面比例协调——zoom3下5px≈15px屏显，加描边保可读）
 	var label = Label.new()
 	label.text = tpl.poi_name
-	label.position = Vector2(-30, -40)
+	label.position = Vector2(-30, -52)
 	label.z_index = 20
 	label.add_theme_color_override("font_color", tpl.icon_color)
-	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.04, 1))
+	label.add_theme_constant_override("outline_size", 2)
+	label.add_theme_font_size_override("font_size", 5)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	marker.add_child(label)
 
@@ -1067,26 +1361,26 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 
 func _poi_building_tile(poi_type: String) -> String:
 	match poi_type:
-		"门派": return "res://sprites/tiles/house_temple.png"
-		"城镇": return "res://sprites/tiles/house_town.png"
+		"门派": return "res://sprites/buildings/temple.png"
+		"城镇": return "res://sprites/buildings/manor.png"
 		"洞穴": return "res://sprites/tiles/house_cave.png"
-		"修炼场": return "res://sprites/tiles/house_temple.png"
+		"修炼场": return "res://sprites/buildings/house.png"
 		"遗迹": return "res://sprites/tiles/house_cave.png"
-		"集市": return "res://sprites/tiles/house_town.png"
-		_: return "res://sprites/tiles/house_cottage.png"
+		"集市": return "res://sprites/buildings/manor.png"
+		_: return "res://sprites/buildings/hut.png"
 
 func _poi_secondary_building_tile(poi_type: String, rng: RandomNumberGenerator) -> String:
 	match poi_type:
 		"门派":
-			return ["res://sprites/tiles/house_cottage.png", "res://sprites/tiles/house_temple.png"][rng.randi() % 2]
+			return ["res://sprites/buildings/house.png", "res://sprites/buildings/hut.png"][rng.randi() % 2]
 		"城镇":
-			return ["res://sprites/tiles/house_town.png", "res://sprites/tiles/house_cottage.png", "res://sprites/tiles/farmland.png"][rng.randi() % 3]
+			return ["res://sprites/buildings/house.png", "res://sprites/buildings/hut.png", "res://sprites/tiles/farmland.png"][rng.randi() % 3]
 		"洞穴":
 			return "res://sprites/tiles/rock.png"
 		"修炼场":
-			return "res://sprites/tiles/house_cottage.png"
+			return "res://sprites/buildings/hut.png"
 		_:
-			return "res://sprites/tiles/house_cottage.png"
+			return "res://sprites/buildings/hut.png"
 
 func _poi_building_count(poi_type: String) -> int:
 	match poi_type:
@@ -1104,7 +1398,6 @@ func _random_decoration(rng: RandomNumberGenerator) -> String:
 		"res://sprites/tiles/tree_oak.png",
 		"res://sprites/tiles/flower.png",
 		"res://sprites/tiles/rock.png",
-		"res://sprites/tiles/fence.png",
 	]
 	return options[rng.randi() % options.size()]
 

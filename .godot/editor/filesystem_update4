@@ -1,0 +1,9 @@
+res://scripts/player.gd
+res://scripts/texture_generator.gd
+res://scripts/tileset_generator.gd
+res://scripts/world_generator.gd
+res://tools/screenshot_probe.gd
+res://scripts/Main.gd
+res://tools/probe_autoload.gd
+res://scenes/npc.tscn
+res://scripts/npc_character.gd
