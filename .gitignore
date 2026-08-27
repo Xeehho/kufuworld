@@ -3,3 +3,6 @@
 
 # Godot运行时user://缓存（本机环境把user://落在项目内）
 Godot/
+
+# Godot编辑器本地缓存
+.godot/
