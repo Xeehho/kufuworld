@@ -95,14 +95,14 @@ func _build_ui():
 		tab_x += 100.0
 
 	count_lbl = Label.new()
-	count_lbl.position = Vector2(16, 68)
-	count_lbl.size = Vector2(PANEL_W - 32, 16)
+	count_lbl.position = Vector2(16, 78)
+	count_lbl.size = Vector2(PANEL_W - 32, 18)
 	UITheme.style_label(count_lbl, 10, UITheme.TEXT_DIM)
 	panel.add_child(count_lbl)
 
 	scroll = ScrollContainer.new()
-	scroll.position = Vector2(14, 88)
-	scroll.size = Vector2(PANEL_W - 28, PANEL_H - 118)
+	scroll.position = Vector2(14, 104)
+	scroll.size = Vector2(PANEL_W - 28, PANEL_H - 134)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	panel.add_child(scroll)
 
@@ -220,6 +220,9 @@ func refresh():
 				list_box.add_child(_make_card(done[i], 2, i))
 
 func _empty_hint(text: String):
+	var pad := Control.new()
+	pad.custom_minimum_size = Vector2(0, 10)
+	list_box.add_child(pad)
 	var l = Label.new()
 	l.text = text
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

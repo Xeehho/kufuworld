@@ -141,7 +141,7 @@ func _create_help_section():
 	help_text.position = Vector2(10, 8)
 	help_text.size = Vector2(230, 194)
 	UITheme.style_label(help_text, 11, UITheme.TEXT_MAIN)
-	help_text.text = "WASD / 方向键  移动\n左键  轻击/使用工具    右键  重击\nQ  格挡    空格  闪避/疾跑\nE  打坐修炼    F  与人交谈\nB  建造    K  商店    V  人物面板\n左键点击路人  查看其姓名属性\n数字键1-4  锄头/水壶/菜种/采集\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  门派信息\n奇遇触发时会自动弹出面板"
+	help_text.text = "WASD / 方向键  移动\n左键  轻击/使用工具    右键  重击\nQ  格挡    空格  闪避    Shift  疾跑\nE  打坐修炼    F  交谈/站台合成\nB  建造    K  商店    V  人物面板    I  背包\nM  小地图    左键点路人/古堡  查看信息\n数字键1-4  锄头/水壶/菜种/采集\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  查看  T  背叛门派\nN  任务日志(展开时1-9接取)\nESC  关闭面板    Tab  商店买/卖"
 	help_panel.add_child(help_text)
 
 func _toggle_help():

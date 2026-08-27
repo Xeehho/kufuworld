@@ -22,12 +22,9 @@ static func build_tileset() -> TileSet:
 		1: "res://sprites/tiles/path.png",
 		2: "res://sprites/tiles/house_town.png",
 		3: "res://sprites/tiles/mountain.png",
-		4: "res://sprites/tiles/tree_pine.png",
 		5: "res://sprites/tiles/water.png",
 		6: "res://sprites/tiles/sand.png",
 		7: "res://sprites/tiles/mountain_snow.png",
-		8: "res://sprites/tiles/tree_oak.png",
-		9: "res://sprites/tiles/tree_bamboo.png",
 		10: "res://sprites/tiles/house_cottage.png",
 		11: "res://sprites/tiles/house_temple.png",
 		12: "res://sprites/tiles/house_cave.png",
@@ -38,25 +35,14 @@ static func build_tileset() -> TileSet:
 		33: "res://sprites/tiles/farmland_wet.png",   # Phase C 浇水湿润农田（无碰撞，地面层切换用）
 		17: "res://sprites/tiles/bridge.png",
 		18: "res://sprites/tiles/grass_dark.png",
-		# 多格建筑部件（19-32）：2/3/4/5格宽中式建筑的水平拼接瓦片
-		19: "res://sprites/tiles/house2_l.png",
-		20: "res://sprites/tiles/house2_r.png",
-		21: "res://sprites/tiles/house3_l.png",
-		22: "res://sprites/tiles/house3_m.png",
-		23: "res://sprites/tiles/house3_r.png",
-		24: "res://sprites/tiles/house4_l.png",
-		25: "res://sprites/tiles/house4_lm.png",
-		26: "res://sprites/tiles/house4_rm.png",
-		27: "res://sprites/tiles/house4_r.png",
-		28: "res://sprites/tiles/house5_l.png",
-		29: "res://sprites/tiles/house5_lm.png",
-		30: "res://sprites/tiles/house5_m.png",
-		31: "res://sprites/tiles/house5_rm.png",
-		32: "res://sprites/tiles/house5_r.png",
+		34: "res://sprites/tiles/snow.png",           # Phase G重构: 雪原真雪地（demo3）
+		35: "res://sprites/tiles/stone.png",          # Phase G重构: 石板广场（demo1城镇）
+		36: "res://sprites/tiles/mushroom.png",       # Phase G重构: 蘑菇装饰（demo2森林地表）
+		37: "res://sprites/tiles/daisy.png",          # Phase G重构: 雏菊装饰
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山, 7=雪山, 2=城镇房屋, 10=茅屋, 11=寺庙, 12=洞穴入口, 14=石头, 15=栅栏, 19-32=多格建筑
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
@@ -71,8 +57,8 @@ static func build_tileset() -> TileSet:
 			ts.add_source(source, id)
 			var tile_data = source.get_tile_data(Vector2i(0, 0), 0)
 			if tile_data:
-				# 树木和建筑使用Y排序（含多格建筑部件19-32）
-				if id in [4, 8, 9, 2, 10, 11, 12, 14, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]:
+				# 建筑类瓦片使用Y排序
+				if id in [2, 10, 11, 12, 14]:
 					tile_data.y_sort_origin = 8
 					tile_data.z_index = 1
 				# 为水域和山脉瓦片添加物理碰撞

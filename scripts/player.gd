@@ -56,6 +56,11 @@ var _world_gen: Node2D = null
 
 func _ready():
 	attack_indicator.visible = false
+	# 碰撞分层表（地形/建筑StaticBody=层1）：玩家=层2，NPC=层4，敌人=层8
+	# 玩家mask=1|4|8：被NPC/敌人挡住（空气墙）；NPC/敌人mask只含层1→
+	# 它们做重叠分离时不会把玩家算进去，玩家位置绝不被实体改变
+	collision_layer = 2
+	collision_mask = 1 | 4 | 8
 	combo_tree = load("res://resources/combo_tree.tres") if ResourceLoader.exists("res://resources/combo_tree.tres") else null
 	combat_stance = get_node_or_null("/root/Main/CombatStance")
 	_world_gen = get_node_or_null("/root/Main/World/WorldGenerator")
@@ -197,6 +202,12 @@ func _physics_process(delta):
 		State.STAGGER:
 			_process_stagger(delta)
 
+func _unhandled_input(event):
+	# 建造模式下ESC退出（事件驱动：ui_cancel动作轮询对注入时序敏感，真实按键事件更可靠）
+	if state == State.BUILD and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
+		_toggle_build()
+		get_viewport().set_input_as_handled()
+
 func _is_ui_blocking() -> bool:
 	"""有模态UI打开时，锁定角色移动与战斗输入"""
 	if DialogManager.is_dialog_open():
@@ -208,6 +219,10 @@ func _is_ui_blocking() -> bool:
 			return true
 		var qm = ui.get_node_or_null("QuickMenu")
 		if qm and qm.is_panel_open():
+			return true
+		# Phase H2: 任务日志抽屉展开时同样锁定（否则数字键会同时触发接任务与切换工具）
+		var ql = ui.get_node_or_null("QuestLogHUD")
+		if ql and ql.expanded:
 			return true
 	var spawner = get_node_or_null("/root/Main/World/NPCSpawner")
 	if spawner and spawner.has_method("is_interaction_open") and spawner.is_interaction_open():
@@ -233,7 +248,7 @@ func _npc_at_mouse() -> CharacterBody2D:
 	params.transform = Transform2D(0, get_global_mouse_position())
 	params.collide_with_areas = false
 	params.collide_with_bodies = true
-	params.collision_mask = 1
+	params.collision_mask = 4   # NPC层（碰撞分层表：NPC=层4）
 	var hits := space.intersect_shape(params, 8)
 	for hit in hits:
 		var col = hit.get("collider")
@@ -248,6 +263,39 @@ func _click_npc_info(npc: Node):
 		info.show_npc_info(npc)
 	if npc.has_method("show_name_tag_flash"):
 		npc.show_name_tag_flash()
+	_sfx("ui", -12.0)
+
+# ---- Phase G: 点击大建筑（古堡）查看势力信息 ----
+func _building_at_mouse() -> Node2D:
+	"""鼠标位置是否点中带信息的大型建筑（footprint占位39判定，向下扫覆盖屋顶悬出区）"""
+	var wgen = get_node_or_null("/root/Main/World/WorldGenerator")
+	if wgen == null:
+		return null
+	var mp := get_global_mouse_position()
+	var cell := Vector2i(int(floor(mp.x / 16.0)), int(floor(mp.y / 16.0)))
+	var hit := false
+	for dy in range(0, 8):
+		if int(wgen.override_cells.get(cell + Vector2i(0, dy), -1)) == int(wgen.TILE_BUILDING_RESERVE):
+			hit = true
+			break
+	if not hit:
+		return null
+	var best: Node2D = null
+	var best_d := 1e12
+	for b in get_tree().get_nodes_in_group("building_prop"):
+		if not b.has_meta("b_name"):
+			continue
+		var d: float = mp.distance_to(b.global_position)
+		if d < best_d:
+			best_d = d
+			best = b
+	return best
+
+func _click_building_info(bld: Node2D):
+	"""点击建筑：显示势力信息面板，不触发攻击/工具"""
+	var info = get_node_or_null("/root/Main/World/UI/BuildingInfoHUD")
+	if info and info.has_method("show_building_info"):
+		info.show_building_info(bld)
 	_sfx("ui", -12.0)
 
 func _process_idle(_delta):
@@ -277,7 +325,7 @@ func _process_move(_delta):
 		return
 	_update_facing(input_dir)
 	var spd = SPEED
-	if Input.is_action_pressed("player_dodge"):
+	if Input.is_action_pressed("player_sprint"):
 		spd = SPRINT_SPEED
 	velocity = input_dir * spd
 	# 地形碰撞由TileSet物理层+move_and_slide处理（脚本级角点检测已移除：
@@ -308,13 +356,17 @@ func _check_combat_input():
 		if clicked_npc != null:
 			_click_npc_info(clicked_npc)	# Phase F4: 点中NPC→信息面板，非攻击
 			return
+		var clicked_bld := _building_at_mouse()
+		if clicked_bld != null:
+			_click_building_info(clicked_bld)	# Phase G: 点中古堡→势力信息面板
+			return
 		if equipped_tool != Tool.NONE:
 			_use_tool()   # 装备工具时左键=使用工具（星露谷式）
 		else:
 			_start_attack(true)
 	elif Input.is_action_just_pressed("player_attack_heavy"):
-		if _npc_at_mouse() != null:
-			return	# 右键重击同样为NPC点击让路
+		if _npc_at_mouse() != null or _building_at_mouse() != null:
+			return	# 右键重击同样为NPC/建筑点击让路
 		_start_attack(false)
 	elif Input.is_action_just_pressed("player_block"):
 		_start_block()
@@ -752,6 +804,7 @@ func _toggle_build():
 		GameManager.is_build_mode = false
 		attack_indicator.visible = false
 		_hide_build_menu()
+		_hide_build_ghost()
 	else:
 		state = State.BUILD
 		GameManager.is_build_mode = true
@@ -789,9 +842,15 @@ func _create_build_menu():
 	build_menu.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var panel = Panel.new()
+	panel.name = "BuildPanel"
 	panel.size = Vector2(320, 350)
 	panel.add_theme_stylebox_override("panel", UITheme.panel_style(true))
-	UITheme.center_panel(panel, 320, 350)
+	# 建造落点=玩家脚下（屏幕中心），面板居中会挡住落点——停靠右侧垂直居中留出中间视野
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT)
+	panel.offset_right = -20
+	panel.offset_left = -340
+	panel.offset_top = -175
+	panel.offset_bottom = 175
 	build_menu.add_child(panel)
 
 	var title = Label.new()
@@ -825,11 +884,11 @@ func _create_build_menu():
 		build_labels.append(lbl)
 
 	var hint = Label.new()
-	hint.text = "B=退出  数字键=选择  左键=放置  F=使用站台"
-	hint.position = Vector2(24, 318)
-	hint.size = Vector2(280, 20)
+	hint.text = "B/ESC=退出  数字键=选择\n鼠标选点(手边)  绿格=可建  左键=放置"
+	hint.position = Vector2(24, 308)
+	hint.size = Vector2(280, 36)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	UITheme.style_label(hint, 11, UITheme.TEXT_DIM)
+	UITheme.style_label(hint, 10, UITheme.TEXT_DIM)
 	panel.add_child(hint)
 
 	# 挂到UI层（CanvasLayer），屏幕居中显示，不再跟随玩家世界坐标
@@ -846,11 +905,85 @@ func _refresh_build_labels():
 		else:
 			build_labels[i].add_theme_color_override("font_color", Color(1, 1, 1))
 
+# ---- 建造放置预览：按选中建筑在落点画绿/红幽灵格，让玩家知道会建到哪里 ----
+var build_ghost: Node2D = null
+var build_ghost_cells: Array = []
+const BUILD_RANGE = 56.0  # 只能在手边建造：约两格内，超出钳回
+
+func _ensure_build_ghost():
+	if build_ghost:
+		return
+	build_ghost = Node2D.new()
+	build_ghost.name = "BuildGhost"
+	build_ghost.z_index = 30
+	build_ghost.visible = false
+	get_parent().add_child(build_ghost)
+	for i in range(9):
+		var poly = Polygon2D.new()
+		poly.polygon = PackedVector2Array([Vector2(-11, -11), Vector2(11, -11), Vector2(11, 11), Vector2(-11, 11)])
+		poly.visible = false
+		build_ghost.add_child(poly)
+		build_ghost_cells.append(poly)
+
+func _update_build_ghost():
+	var tpl = GameManager.selected_building
+	if state != State.BUILD or tpl == null:
+		if build_ghost:
+			build_ghost.visible = false
+		return
+	if _is_mouse_over_ui():
+		# 鼠标悬停建造菜单时不显示预览，防误判
+		if build_ghost:
+			build_ghost.visible = false
+		return
+	_ensure_build_ghost()
+	build_ghost.visible = true
+	# 饥荒式：预览跟随鼠标位置吸附网格，但限制在玩家周围放置范围内
+	var mouse = get_global_mouse_position()
+	var dir = mouse - global_position
+	if dir.length() > BUILD_RANGE:
+		mouse = global_position + dir.normalized() * BUILD_RANGE
+	var pos = mouse
+	pos.x = snapped(pos.x, BUILD_OFFSET)
+	pos.y = snapped(pos.y, BUILD_OFFSET)
+	build_ghost.global_position = pos
+	var ok = _is_area_buildable(pos, tpl.size_x, tpl.size_y)
+	var col = Color(0.35, 1, 0.4, 0.38) if ok else Color(1, 0.3, 0.3, 0.45)
+	var n: int = tpl.size_x * tpl.size_y
+	for i in range(build_ghost_cells.size()):
+		if i < n:
+			var sx: int = i % int(tpl.size_x)
+			var sy: int = i / int(tpl.size_x)
+			build_ghost_cells[i].position = Vector2(sx * BUILD_OFFSET + BUILD_OFFSET / 2, sy * BUILD_OFFSET + BUILD_OFFSET / 2)
+			build_ghost_cells[i].color = col
+			build_ghost_cells[i].visible = true
+		else:
+			build_ghost_cells[i].visible = false
+
+func _hide_build_ghost():
+	if build_ghost:
+		build_ghost.visible = false
+
 func _process_build(delta):
 	build_place_cooldown = max(build_place_cooldown - delta, 0.0)
 	if Input.is_action_just_pressed("player_build"):
 		_toggle_build()
 		return
+	# 饥荒式：建造状态下人物仍可自由移动（含疾跑），放置方位由鼠标决定
+	var input_dir = Input.get_vector("ui_left", "ui_right", "ui_up", "ui_down")
+	if input_dir != Vector2.ZERO:
+		_update_facing(input_dir)
+		var spd = SPEED
+		if Input.is_action_pressed("player_sprint"):
+			spd = SPRINT_SPEED
+		velocity = input_dir * spd
+		if hurt_timer <= 0.0:
+			_play_anim("walk")
+	else:
+		velocity = Vector2.ZERO
+		_play_anim("idle")
+	move_and_slide()
+	_update_build_ghost()
 	if Input.is_action_just_pressed("build_slot_1"):
 		_select_building("茅屋")
 	elif Input.is_action_just_pressed("build_slot_2"):
@@ -946,9 +1079,14 @@ func _place_building():
 		print("[Build] 材料不足!")
 		build_place_cooldown = 0.5
 		return
-	var pos = global_position
-	pos.x = snapped(pos.x, BUILD_OFFSET)
-	pos.y = snapped(pos.y, BUILD_OFFSET)
+	# 饥荒式：落点取幽灵预览当前位置（鼠标吸附点），而非玩家脚下
+	var pos: Vector2
+	if build_ghost and build_ghost.visible:
+		pos = build_ghost.global_position
+	else:
+		pos = global_position
+		pos.x = snapped(pos.x, BUILD_OFFSET)
+		pos.y = snapped(pos.y, BUILD_OFFSET)
 	# 检查占地是否为可通行的地面（不能放在水里/山上）
 	if not _is_area_buildable(pos, tpl.size_x, tpl.size_y):
 		print("[Build] 此处无法建造（水域或山地）!")
@@ -1046,19 +1184,21 @@ func _try_join_clan():
 		return
 	if GameManager.reputation < c.join_condition_reputation:
 		print("[Clan] Need " + str(c.join_condition_reputation) + " reputation, have " + str(GameManager.reputation))
+		# 失败也给可见反馈（此前仅print静默）
+		GameManager.emit_event("门派", "声望不足（需%d），%s掌门婉拒了你" % [int(c.join_condition_reputation), cname], 2)
 		return
 	GameManager.join_clan(cname)
 
 func _show_player_clan():
-	if GameManager.player_clan == null:
-		print("[Clan] Not in any clan. Go near a clan POI and press J to join")
-		return
-	var c = GameManager.player_clan
-	print("[Clan] " + c.clan_name + " | Rank: " + GameManager.CLAN_RANKS[GameManager.player_rank] + " | Contribution: " + str(GameManager.contribution))
+	# P键改走QuickMenu门派面板（此前仅print控制台无UI）
+	var qm = get_node_or_null("/root/Main/World/UI/QuickMenu")
+	if qm and qm.has_method("_open_my_clan_panel"):
+		qm._open_my_clan_panel()
 
 func _betray_clan():
 	if GameManager.player_clan == null:
 		print("[Clan] Not in any clan")
+		GameManager.emit_event("门派", "你尚未加入任何门派，无从背叛", 2)
 		return
 	GameManager.betray_clan()
 

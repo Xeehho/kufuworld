@@ -193,6 +193,40 @@ func _open_encounter_panel():
 	var tw = create_tween()
 	tw.tween_property(encounter_panel, "modulate:a", 1.0, 0.15)
 
+# 奇遇最高优先级弹出：打断/关闭一切在开的界面（商店/建造/任务日志/人物档案/NPC交互/对话），面板置顶
+func _force_open_encounter():
+	# 1. 退出建造模式
+	var player = get_tree().get_first_node_in_group("player")
+	if player and "state" in player and player.state == player.State.BUILD:
+		player._toggle_build()
+	# 2. 关商店
+	var shop_hud = get_node_or_null("/root/Main/World/UI/ShopHUD")
+	if shop_hud and shop_hud.is_open:
+		shop_hud.close_shop()
+	# 3. 关任务日志抽屉
+	var quest_log = get_node_or_null("/root/Main/World/UI/QuestLogHUD")
+	if quest_log and quest_log.expanded:
+		quest_log.toggle_panel()
+	# 4. 关人物档案
+	var sheet = get_node_or_null("/root/Main/World/UI/CharacterSheet")
+	if sheet and sheet.visible:
+		sheet.close()
+	# 5. 关NPC交互菜单
+	var spawner = get_node_or_null("/root/Main/World/NPCSpawner")
+	if spawner and spawner.has_method("hide_interaction_ui") and spawner.is_interaction_open():
+		spawner.hide_interaction_ui()
+	# 6. 关对话框（_open_encounter_panel 内也会兜底）
+	DialogManager.close_dialog()
+	# 7. 弹出面板并压到同级最上方
+	_open_encounter_panel()
+	if encounter_panel and encounter_panel.visible:
+		var parent = encounter_panel.get_parent()
+		parent.move_child(encounter_panel, parent.get_child_count() - 1)
+		# 三国群英传式提示音（AudioController存在时）
+		var ac = get_node_or_null("/root/Main/World/AudioController")
+		if ac and ac.has_method("play_sfx"):
+			ac.play_sfx("ui", -6.0)
+
 func _on_encounter_option(idx: int):
 	var es = _get_encounter_system()
 	if es == null:
@@ -406,6 +440,29 @@ func _on_clan_btn():
 		return
 	_open_clan_panel()
 
+# P键入口：查看「本派」信息（不受所在地图位置限制，与地盘按钮面板区分）
+func _open_my_clan_panel():
+	if GameManager.player_clan == null:
+		GameManager.emit_event("门派", "你尚未加入任何门派，可前往门派地盘按 J 拜入", 2)
+		return
+	DialogManager.close_dialog()
+	var clan: Clan = GameManager.player_clan
+	clan_title.text = "⛩ " + clan.clan_name
+	var info = "立场：" + clan.stance + "    势力：" + str(int(clan.power)) + "    弟子：" + str(clan.member_count) + "人\n"
+	info += "身份：" + GameManager.CLAN_RANKS[GameManager.player_rank] + "    贡献：" + str(GameManager.contribution) + "\n"
+	info += clan.description
+	clan_info.text = info
+	clan_hint.text = ""
+	for child in clan_options_box.get_children():
+		child.queue_free()
+	_add_clan_option("请安问好（贡献+5）", _on_clan_greet)
+	_add_clan_option("切磋赐教（胜负难料）", _on_clan_spar)
+	_add_clan_option("背叛师门", _on_clan_betray)
+	clan_panel.visible = true
+	clan_panel.modulate.a = 0.0
+	var tw = create_tween()
+	tw.tween_property(clan_panel, "modulate:a", 1.0, 0.15)
+
 func _open_clan_panel():
 	var env = GameManager.current_environment
 	var clan: Clan = GameManager.get_clan(env) if env != "" else null
@@ -489,12 +546,11 @@ func _get_encounter_system():
 	return get_node_or_null("/root/Main/EncounterSystem")
 
 func _process(_delta):
-	# 奇遇触发时不再自动弹模态面板（突然弹出会锁死移动，玩家会误以为卡死），
-	# 改为右上角按钮闪烁提示，玩家自行点开
+	# 奇遇触发=最高优先级事件（三国群英传式打断）：强制关闭一切在开UI并立即弹出面板置顶
 	var es = _get_encounter_system()
 	var active = es != null and es.active_encounter != null
 	if active and not _encounter_was_active:
-		_start_encounter_flash()
+		_force_open_encounter()
 	elif not active and _encounter_was_active:
 		if encounter_panel.visible and not _showing_result:
 			encounter_panel.visible = false

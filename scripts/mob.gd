@@ -54,6 +54,10 @@ func setup(id: String):
 func _ready():
 	add_to_group("mobs")
 	add_to_group("hostile")
+	# 碰撞分层表（地形/建筑=层1）：玩家=2，NPC=4，敌人=8
+	# 敌人mask只含层1：不被玩家/NPC推挤（追击时穿身到玩家另一侧合围）；玩家侧则被敌人挡住
+	collision_layer = 8
+	collision_mask = 1
 	if cfg.is_empty():
 		setup(kind_id)
 	home_pos = global_position

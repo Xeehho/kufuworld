@@ -144,6 +144,8 @@ func _input(event):
 		elif is_open:
 			if event.keycode == KEY_ESCAPE:
 				close_shop()
+				# 消费事件：防止同帧背包/人物档案等面板的"商店优先"守卫失效被连锁关闭（ESC须逐层退出）
+				get_viewport().set_input_as_handled()
 			elif event.keycode == KEY_TAB:
 				mode = "sell" if mode == "buy" else "buy"
 				_refresh_display()

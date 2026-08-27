@@ -9,8 +9,8 @@ const CHUNK_PX = CHUNK_SIZE * TILE_SIZE_PX
 const LOAD_RADIUS = 3
 const WORLD_SEED = 12345
 
-# 世界边界半径（瓦片坐标）
-const WORLD_RADIUS = 120
+# 世界边界半径（瓦片坐标）——Phase G重构扩至160，配合素材包风格大世界
+const WORLD_RADIUS = 160
 
 enum Terrain {WATER, SAND, GRASS, GRASS_DARK, FOREST, MOUNTAIN, SNOW}
 
@@ -21,21 +21,13 @@ var tile_set: TileSet = null
 var loaded_chunks: Dictionary = {}
 var player_chunk: Vector2i = Vector2i(0, 0)
 var pois: Array = []
+var town_centers: Array = []   # 已生成城镇中心（瓦片坐标Vector2），供NPC日程寻路查询
 var world_cells: Dictionary = {}
 
 # 河流和城镇的覆盖数据（瓦片坐标 -> tile_id）
 var override_cells: Dictionary = {}
-# 需要碰撞的瓦片集合（含多格建筑部件19-32、39=大建筑footprint占位）
-var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 39]
-# 多格建筑部件ID集合（供地面铺设/布局判断）
-var building_part_tiles: Array = [19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
-# 每种宽度建筑各部件的瓦片ID（与 BUILDING_PARTS 顺序一致：左→右）
-const BUILDING_PART_IDS = {
-	2: [19, 20],
-	3: [21, 22, 23],
-	4: [24, 25, 26, 27],
-	5: [28, 29, 30, 31, 32],
-}
+# 需要碰撞的瓦片集合（39=大建筑footprint占位）
+var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 39]
 # ---- Phase F5: 大型建筑道具（星露谷比例，Sprite+StaticBody，替代16px瓦片房）----
 # fp=footprint占格(瓦片)；纹理由 texture_generator.generate_big_buildings() 生成到 sprites/buildings/
 const BUILDING_PROPS := {
@@ -43,6 +35,7 @@ const BUILDING_PROPS := {
 	"house":  {"png": "res://sprites/buildings/house.png",  "fp": Vector2i(4, 3)},
 	"manor":  {"png": "res://sprites/buildings/manor.png",  "fp": Vector2i(6, 4)},
 	"temple": {"png": "res://sprites/buildings/temple.png", "fp": Vector2i(7, 5)},
+	"castle": {"png": "res://sprites/buildings/castle.png", "fp": Vector2i(8, 4)},
 }
 # 虚拟占位tile id：footprint格子写入override_cells，参与碰撞/可达性但不在TileMap绘制
 const TILE_BUILDING_RESERVE := 39
@@ -201,11 +194,11 @@ const BIOME_KINDS := ["plains", "forest", "bamboo", "mountain", "desert", "snow"
 var biome_seeds: Array = []   # [{"pos":Vector2i, "kind":String}]
 
 func _setup_biomes():
-	"""环形撒9个群系首府+中央固定平原；瓦片归属=最近首府(带噪声抖动边界)"""
+	"""环形撒群系首府（两轮全群系=14个）+中央固定平原；瓦片归属=最近首府(带噪声抖动边界)"""
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 777
 	biome_seeds.clear()
-	var count := BIOME_KINDS.size() + 2
+	var count := BIOME_KINDS.size() * 2
 	for i in range(count):
 		var ang := TAU * i / count + rng.randf_range(-0.3, 0.3)
 		var rad := rng.randf_range(30.0, WORLD_RADIUS - 24.0)
@@ -375,14 +368,15 @@ func _generate_towns():
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 4000
 
-	var town_count = rng.randi_range(4, 6)
+	var town_count = rng.randi_range(6, 9)
 	var town_positions: Array = []
+	town_centers.clear()
 
 	for i in range(town_count):
 		var placed = false
 		for _attempt in range(30):
-			var tx = rng.randi_range(-85, 85)
-			var ty = rng.randi_range(-70, 70)
+			var tx = rng.randi_range(-115, 115)
+			var ty = rng.randi_range(-105, 105)
 			var h = get_height(tx, ty)
 			var w = get_humidity(tx, ty)
 
@@ -418,6 +412,7 @@ func _generate_towns():
 				continue
 
 			town_positions.append(Vector2(tx, ty))
+			town_centers.append(Vector2(tx, ty))
 			_generate_single_town(tx, ty, rng)
 			placed = true
 			break
@@ -531,6 +526,90 @@ func find_nearest_reachable(pos: Vector2, max_r: int = 60) -> Vector2:
 				return Vector2(cand.x * TILE_SIZE_PX + TILE_SIZE_PX * 0.5, cand.y * TILE_SIZE_PX + TILE_SIZE_PX * 0.5)
 	return pos
 
+func find_npc_path(from_px: Vector2, to_px: Vector2, max_explore: int = 20000) -> PackedVector2Array:
+	"""NPC瓦片寻路：A*（曼哈顿启发+二叉堆），返回像素路点队列（不含起点、含终点）。
+	目标瓦片不可通行时就近吸附；整体不可达时返回空数组（调用方自行退化处理）。"""
+	var start := Vector2i(int(floor(from_px.x / TILE_SIZE_PX)), int(floor(from_px.y / TILE_SIZE_PX)))
+	var goal := Vector2i(int(floor(to_px.x / TILE_SIZE_PX)), int(floor(to_px.y / TILE_SIZE_PX)))
+	if get_tile_id(goal.x, goal.y) in collision_tiles:
+		var snapped := find_nearest_reachable(to_px, 12)
+		goal = Vector2i(int(floor(snapped.x / TILE_SIZE_PX)), int(floor(snapped.y / TILE_SIZE_PX)))
+		if get_tile_id(goal.x, goal.y) in collision_tiles:
+			return PackedVector2Array()
+	if start == goal:
+		return PackedVector2Array([Vector2(goal.x * TILE_SIZE_PX + 8, goal.y * TILE_SIZE_PX + 8)])
+	var came_from := {start: start}
+	var g_score := {start: 0}
+	var heap: Array = [[_manhattan(start, goal), start]]   # 最小堆条目 [f, pos]
+	var explored := 0
+	var found := false
+	while heap.size() > 0 and explored < max_explore:
+		var cur: Vector2i = heap[0][1]
+		heap[0] = heap[heap.size() - 1]
+		heap.pop_back()
+		_heap_sift_down(heap)
+		if cur == goal:
+			found = true
+			break
+		explored += 1
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = cur + d
+			if get_tile_id(n.x, n.y) in collision_tiles:
+				continue
+			var ng: int = int(g_score[cur]) + 1
+			if g_score.has(n) and int(g_score[n]) <= ng:
+				continue
+			g_score[n] = ng
+			came_from[n] = cur
+			_heap_push(heap, [ng + _manhattan(n, goal), n])
+	if not found:
+		return PackedVector2Array()
+	var path_tiles: Array = []
+	var cur := goal
+	while cur != start:
+		path_tiles.append(cur)
+		cur = came_from[cur]
+	path_tiles.reverse()
+	var out := PackedVector2Array()
+	for t in path_tiles:
+		out.append(Vector2(t.x * TILE_SIZE_PX + 8, t.y * TILE_SIZE_PX + 8))
+	return out
+
+func _manhattan(a: Vector2i, b: Vector2i) -> int:
+	return absi(a.x - b.x) + absi(a.y - b.y)
+
+func _heap_push(heap: Array, item):
+	"""二叉最小堆插入"""
+	heap.append(item)
+	var i := heap.size() - 1
+	while i > 0:
+		var p := int((i - 1) / 2)
+		if int(heap[p][0]) <= int(heap[i][0]):
+			break
+		var tmp = heap[p]
+		heap[p] = heap[i]
+		heap[i] = tmp
+		i = p
+
+func _heap_sift_down(heap: Array):
+	"""二叉最小堆下沉（堆顶已被替换为末尾元素）"""
+	var i := 0
+	var n := heap.size()
+	while true:
+		var l := i * 2 + 1
+		var r := i * 2 + 2
+		var m := i
+		if l < n and int(heap[l][0]) < int(heap[m][0]):
+			m = l
+		if r < n and int(heap[r][0]) < int(heap[m][0]):
+			m = r
+		if m == i:
+			break
+		var tmp = heap[m]
+		heap[m] = heap[i]
+		heap[i] = tmp
+		i = m
+
 func _relocate_player_to_safe_spawn():
 	"""世界生成后以默认出生点为中心做稠密环形扫描，把玩家搬运到安全出生点。
 	避免出生在山区/水边被碰撞瓦片围死。"""
@@ -628,11 +707,11 @@ func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
 
 	var tpl: Dictionary = TOWN_TEMPLATES[rng.randi() % TOWN_TEMPLATES.size()]
 
-	# 中心广场（市镇/庙宇型）：5x5石板芯，强化聚落感
+	# 中心广场（市镇/庙宇型）：5x5石板芯（素材包灰石板，demo1城镇质感）
 	if bool(tpl.get("plaza", false)):
 		for dx in range(-2, 3):
 			for dy in range(-2, 3):
-				override_cells[Vector2i(cx + dx, cy + dy)] = 1
+				override_cells[Vector2i(cx + dx, cy + dy)] = 35
 
 	# 主建筑（按模板）+ 环绕民居，四象限轮转分布
 	var quadrants := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
@@ -731,6 +810,16 @@ func _place_building_prop(kind: String, a: Vector2i) -> bool:
 	root.position = Vector2(base_cx, base_y)
 	root.add_to_group("building_prop")
 	root.set_meta("base_y", base_y)
+	# 墙脚软阴影（demo1房屋落地感；z相对-1=地面之上、建筑之下）
+	var shadow := Sprite2D.new()
+	shadow.texture = _get_tree_shadow_texture()
+	shadow.scale = Vector2((bw + 22.0) / 48.0, maxf(10.0, bw * 0.30) / 20.0)
+	shadow.position = Vector2(0, -3.0)
+	shadow.z_index = -1
+	shadow.modulate = Color(0, 0, 0, 0.28)
+	shadow.set_meta("shadow_base_a", 0.28)
+	shadow.add_to_group("tree_shadow")
+	root.add_child(shadow)
 	var spr := Sprite2D.new()
 	spr.texture = tex
 	spr.position = Vector2(0, -tsz.y * 0.5 + 6.0)
@@ -914,22 +1003,29 @@ func get_tile_id(x: int, y: int) -> int:
 	var r = fposmod(d + 1.0, 1.0)
 	var tid: int = _biome_decor_tile(kind, x, y, d, r)
 	# Phase G3：城镇净空区内不生成树木/岩石（保留花），杜绝树冠压街压田、道具穿墙
+	# 回退地面按群系匹配（雪原回雪地、竹回深草），避免净空区出现异色斑块
 	if (TREE_SHEETS.has(tid) or tid == 14) and _in_town_clearance(x, y):
-		return 18 if kind == "bamboo" else 0
+		match kind:
+			"snow": return 34
+			"bamboo": return 18
+			"desert", "mountain": return 6
+			_: return 0
 	return tid
 
 func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 	match kind:
 		"forest":
+			# demo2风：针叶林+蘑菇地表+紫花
 			if r > 0.86: return 4
 			elif r > 0.70: return 8
 			elif r > 0.64: return 13
+			elif r > 0.60: return 36
 			return 0
 		"bamboo":
 			if r > 0.72: return 9
 			return 18 if r > 0.35 else 0
 		"mountain":
-			# 山脊成势(r高→山体)，谷地沙地走廊(r<=0.40)天然可穿行
+			# demo2风：深色崖壁成势(r高→山体)，谷地土路走廊(r<=0.40)天然可穿行
 			if r > 0.80: return 3
 			elif r > 0.70: return 14
 			elif r > 0.62: return 3
@@ -939,8 +1035,11 @@ func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 			if r > 0.94: return 14
 			return 6
 		"snow":
-			if r > 0.30: return 7
-			return 6
+			# demo3风：白雪地面+雪松+灰崖点缀
+			if r > 0.94: return 3
+			elif r > 0.88: return 4
+			elif r > 0.83: return 14
+			return 34
 		"lake":
 			for b in biome_seeds:
 				if b["kind"] == "lake":
@@ -949,9 +1048,11 @@ func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 					elif dist < 15.0: return 6
 			return 13 if r > 0.90 else 0
 		_:
+			# plains：橡/松疏林+紫花+雏菊
 			if r > 0.93: return 8
 			elif r > 0.90: return 4
 			elif r > 0.87: return 13
+			elif r > 0.845: return 37
 			return 0
 	return 0
 
@@ -1008,8 +1109,8 @@ func _load_chunk(chunk: Vector2i):
 		return
 
 	# 装饰瓦片ID（有透明区域，需要地面底层）
-	# 注意：碰撞瓦片(3=山, 7=雪山, 5=水)不在此列表，始终在layer 0
-	var decor_tiles = [2, 4, 8, 9, 10, 11, 12, 13, 14, 15, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]
+	# 注意：碰撞瓦片(3=山崖, 7=雪崖, 5=水)不在此列表，始终在layer 0
+	var decor_tiles = [2, 10, 11, 12, 13, 14, 15, 36, 37]
 
 	var start_x = chunk.x * CHUNK_SIZE
 	var start_y = chunk.y * CHUNK_SIZE
@@ -1051,8 +1152,8 @@ func _get_ground_tile(x: int, y: int) -> int:
 		# 桥下面铺路，使桥可通行（避免水面碰撞阻挡）
 		if ov == 17:
 			return 1  # 路
-		# 多格建筑/大建筑footprint下面铺路，与城镇街道质感统一
-		if ov in building_part_tiles or ov == TILE_BUILDING_RESERVE:
+		# 大建筑footprint下面铺路，与城镇街道质感统一
+		if ov == TILE_BUILDING_RESERVE:
 			return 1  # 路
 	var t = get_terrain(x, y)
 	match t:
@@ -1061,8 +1162,8 @@ func _get_ground_tile(x: int, y: int) -> int:
 		Terrain.GRASS: return 0
 		Terrain.GRASS_DARK: return 18
 		Terrain.FOREST: return 0  # 森林地面是草地
-		Terrain.MOUNTAIN: return 6  # 山区地面用沙地
-		Terrain.SNOW: return 6  # 雪区地面用沙地
+		Terrain.MOUNTAIN: return 1  # 山区谷地铺碎石土路（demo2棕土走廊）
+		Terrain.SNOW: return 34  # 雪原真雪地（demo3）
 	return 0
 
 func _unload_chunk(chunk: Vector2i):
@@ -1118,6 +1219,125 @@ func _apply_poi_terrain():
 				_apply_cave_terrain(tx, ty)
 			"修炼场":
 				_apply_training_terrain(tx, ty)
+			"古堡":
+				_apply_castle_terrain(tx, ty)
+
+func _apply_castle_terrain(cx: int, cy: int):
+	"""古堡POI：石板广场+石径+古堡建筑（带势力信息，点击可查看）"""
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(Vector2i(cx, cy)) + WORLD_SEED
+	for dx in range(-7, 8):
+		for dy in range(-5, 6):
+			var cell := Vector2i(cx + dx, cy + dy)
+			var dist: int = max(abs(dx), abs(dy))
+			if dist <= 5:
+				override_cells[cell] = 35   # 石板广场
+			elif dist <= 6 and (dx == 0 or dy == 0 or rng.randf() < 0.3):
+				override_cells[cell] = 1    # 石径
+	var info := _make_castle_info(rng)
+	var anchor := Vector2i(cx - 4, cy - 2)
+	_place_castle_prop(anchor, info)
+	_register_town_clearance(cx, cy, 8)
+	print("[WorldGen] Castle[%s] @(%d,%d) faction=%s" % [info["name"], cx, cy, info["faction"]])
+
+func _make_castle_info(rng: RandomNumberGenerator) -> Dictionary:
+	"""随机生成古堡信息：名称+势力（优先取游戏内门派资源）+规模+描述"""
+	var prefixes := ["黑风", "苍岚", "赤霞", "玄石", "白鹭", "青枫", "落雁", "镇岳", "寒鸦", "盘龙"]
+	var suffixes := ["古堡", "要塞", "山庄"]
+	var cname: String = prefixes[rng.randi() % prefixes.size()] + suffixes[rng.randi() % suffixes.size()]
+	var faction := "无主之地"
+	var stance := "中立"
+	var clan_desc := ""
+	# 优先从门派资源取真实势力
+	var dir := DirAccess.open("res://resources/clans")
+	if dir != null:
+		var files := []
+		for f in dir.get_files():
+			if f.ends_with(".tres"):
+				files.append(f)
+		if not files.is_empty():
+			var res = load("res://resources/clans/" + files[rng.randi() % files.size()])
+			if res != null and res.clan_name != "":
+				faction = res.clan_name
+				stance = res.stance
+				clan_desc = res.description
+	var lords := ["萧", "慕容", "独孤", "上官", "司马", "欧阳", "尉迟", "公孙"]
+	var scale_names := ["小型堡垒", "中型要塞", "大型坞堡", "雄城巨垒"]
+	var descs := [
+		"飞檐斗拱间刀光隐现，堡中弟子日夜操演武艺。",
+		"百年前由武林先辈所筑，而今仍是号令一方的雄城。",
+		"堡墙高耸箭楼林立，江湖客至此莫不低头。",
+		"山下集市繁华，山上堡门森严，一静一动皆是气象。",
+	]
+	var desc: String = descs[rng.randi() % descs.size()]
+	if clan_desc != "":
+		desc = clan_desc
+	return {
+		"name": cname,
+		"faction": faction,
+		"stance": stance,
+		"lord": lords[rng.randi() % lords.size()] + "氏一族",
+		"scale": scale_names[rng.randi() % scale_names.size()],
+		"desc": desc,
+	}
+
+func _place_castle_prop(a: Vector2i, info: Dictionary) -> bool:
+	"""放置古堡：footprint占位+Sprite+StaticBody+信息meta（点击查看）"""
+	var fp: Vector2i = BUILDING_PROPS["castle"]["fp"]
+	if not _can_place_footprint(a, fp):
+		# 古堡POI中心是选定的，footprint冲突时强清（POI选址已保证可达）
+		for dx in range(fp.x):
+			for dy in range(fp.y):
+				override_cells.erase(Vector2i(a.x + dx, a.y + dy))
+	for dx in range(fp.x):
+		for dy in range(fp.y):
+			override_cells[Vector2i(a.x + dx, a.y + dy)] = TILE_BUILDING_RESERVE
+	var def: Dictionary = BUILDING_PROPS["castle"]
+	var tex := TextureGen.load_png_texture(def["png"])
+	if tex == null:
+		push_warning("[WorldGen] 古堡纹理缺失: " + str(def["png"]))
+		return true
+	var bw := fp.x * TILE_SIZE_PX
+	var base_cx := (a.x + fp.x * 0.5) * TILE_SIZE_PX
+	var base_y := float((a.y + fp.y) * TILE_SIZE_PX)
+	var root := Node2D.new()
+	root.name = "Building_castle"
+	root.z_index = 2
+	root.position = Vector2(base_cx, base_y)
+	root.add_to_group("building_prop")
+	root.set_meta("base_y", base_y)
+	# 建筑信息（BuildingInfoHUD 读取）
+	root.set_meta("b_name", info["name"])
+	root.set_meta("b_faction", info["faction"])
+	root.set_meta("b_stance", info["stance"])
+	root.set_meta("b_lord", info["lord"])
+	root.set_meta("b_scale", info["scale"])
+	root.set_meta("b_desc", info["desc"])
+	# 墙脚软阴影
+	var shadow := Sprite2D.new()
+	shadow.texture = _get_tree_shadow_texture()
+	shadow.scale = Vector2((bw + 26.0) / 48.0, maxf(12.0, bw * 0.26) / 20.0)
+	shadow.position = Vector2(0, -3.0)
+	shadow.z_index = -1
+	shadow.modulate = Color(0, 0, 0, 0.30)
+	shadow.set_meta("shadow_base_a", 0.30)
+	shadow.add_to_group("tree_shadow")
+	root.add_child(shadow)
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.position = Vector2(0, -tex.get_size().y * 0.5 + 6.0)
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	root.add_child(spr)
+	var body := StaticBody2D.new()
+	body.position = Vector2(0, -fp.y * TILE_SIZE_PX * 0.5 + 2.0)
+	var cs := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(bw - 4, fp.y * TILE_SIZE_PX - 2)
+	cs.shape = rect
+	body.add_child(cs)
+	root.add_child(body)
+	get_parent().add_child(root)
+	return true
 
 func _apply_sect_terrain(cx: int, cy: int):
 	"""门派周围铺山地+寺庙"""
@@ -1273,6 +1493,20 @@ func _setup_poi_templates():
 	sacred_tpl.description = "天地灵气汇聚之地"
 	poi_templates.append(sacred_tpl)
 
+	var castle_tpl = POITemplate.new()
+	castle_tpl.poi_name = "古城堡"
+	castle_tpl.poi_type = "古堡"
+	castle_tpl.min_height = 0.0
+	castle_tpl.max_height = 0.5
+	castle_tpl.min_humidity = -0.8
+	castle_tpl.max_humidity = 0.8
+	castle_tpl.min_distance = 30.0
+	castle_tpl.spawn_weight = 3.0
+	castle_tpl.icon_color = Color(0.9, 0.5, 0.2)
+	castle_tpl.spawn_npcs = 2
+	castle_tpl.description = "江湖势力的老巢，点击古堡可探其底细"
+	poi_templates.append(castle_tpl)
+
 func _scatter_pois():
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 5000
@@ -1293,8 +1527,8 @@ func _scatter_pois():
 
 func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 	for _attempt in range(20):
-		var wx = rng.randi_range(-90, 90)
-		var wy = rng.randi_range(-70, 70)
+		var wx = rng.randi_range(-130, 130)
+		var wy = rng.randi_range(-115, 115)
 		var h = get_height(wx, wy)
 		var w = get_humidity(wx, wy)
 		if h < tpl.min_height or h > tpl.max_height:
@@ -1341,8 +1575,8 @@ func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
 	# 最终兜底：放宽可达性（地形会被POI铺地改造），保证POI不消失
 	push_warning("[WorldGen] force spawn " + tpl.poi_name + ": no reachable candidate, fallback to terrain-only")
 	for _attempt in range(200):
-		var wx = rng.randi_range(-80, 80)
-		var wy = rng.randi_range(-60, 60)
+		var wx = rng.randi_range(-120, 120)
+		var wy = rng.randi_range(-105, 105)
 		var h = get_height(wx, wy)
 		var w = get_humidity(wx, wy)
 		if h < tpl.min_height or h > tpl.max_height:
@@ -1376,16 +1610,18 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	rng.seed = hash(tpl.poi_name)
 
 	# 中心建筑（大建筑贴图：底缘对齐marker原点，即原点=墙脚基线）
-	var center_sprite = Sprite2D.new()
-	var center_tex := TextureGen.load_png_texture(building_tile)
-	center_sprite.texture = center_tex
-	if center_tex:
-		center_sprite.position = Vector2(0, -center_tex.get_size().y * 0.5)
-	center_sprite.z_index = 0
-	marker.add_child(center_sprite)
+	# 古堡类型：建筑已由 _apply_castle_terrain 放置（带信息meta），marker只挂标签/环境区
+	if building_tile != "":
+		var center_sprite = Sprite2D.new()
+		var center_tex := TextureGen.load_png_texture(building_tile)
+		center_sprite.texture = center_tex
+		if center_tex:
+			center_sprite.position = Vector2(0, -center_tex.get_size().y * 0.5)
+		center_sprite.z_index = 0
+		marker.add_child(center_sprite)
 
 	# 周围建筑（相对新锚点定位；z归0并入实体层）
-	for i in range(building_count - 1):
+	for i in range((building_count - 1) if building_tile != "" else 0):
 		var bx = rng.randi_range(-4, 4) * TILE_SIZE_PX
 		var by = rng.randi_range(-2, 3) * TILE_SIZE_PX
 		if abs(bx) < 36 and abs(by) < 28:
@@ -1430,6 +1666,7 @@ func _create_poi_marker(tpl: POITemplate, pos: Vector2):
 	env_zone.name = "EnvironmentZone"
 	env_zone.position = Vector2(0, -anchor_dy)
 	env_zone.z_index = 0
+	env_zone.collision_mask = 2   # 只监测玩家（碰撞分层表：玩家=层2；实体换层后默认mask=1会失检）
 	var col_shape = CollisionShape2D.new()
 	col_shape.shape = RectangleShape2D.new()
 	col_shape.shape.size = Vector2(150, 120)
@@ -1452,6 +1689,7 @@ func _poi_building_tile(poi_type: String) -> String:
 		"修炼场": return "res://sprites/buildings/house.png"
 		"遗迹": return "res://sprites/tiles/house_cave.png"
 		"集市": return "res://sprites/buildings/manor.png"
+		"古堡": return ""   # 古堡建筑由 _apply_castle_terrain 单独放置（带势力信息）
 		_: return "res://sprites/buildings/hut.png"
 
 func _poi_secondary_building_tile(poi_type: String, rng: RandomNumberGenerator) -> String:
@@ -1479,9 +1717,9 @@ func _poi_building_count(poi_type: String) -> int:
 
 func _random_decoration(rng: RandomNumberGenerator) -> String:
 	var options = [
-		"res://sprites/tiles/tree_pine.png",
-		"res://sprites/tiles/tree_oak.png",
 		"res://sprites/tiles/flower.png",
+		"res://sprites/tiles/daisy.png",
+		"res://sprites/tiles/mushroom.png",
 		"res://sprites/tiles/rock.png",
 	]
 	return options[rng.randi() % options.size()]

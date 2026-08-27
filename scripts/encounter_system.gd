@@ -233,7 +233,7 @@ func _check_encounter_condition(enc: Encounter) -> bool:
 	return true
 
 func emit_signal_encounter_start(enc: Encounter):
-	GameManager.emit_event("奇遇触发", "⚡ " + enc.title + "（点击右上角【奇遇】处理）", 5)
+	GameManager.emit_event("奇遇触发", "⚡ " + enc.title + "！已自动弹出面板处理", 5)
 	print("[Encounter] Triggered: " + enc.title)
 
 # 结算奇遇选项，返回结果字典供面板展示：

@@ -12,18 +12,6 @@ script = ExtResource("1_nh2m4")
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
 scale = Vector2(1, 1)
 
-[node name="NameTag" type="Label" parent="."]
-visible = false
-offset_left = -20.0
-offset_top = -34.0
-offset_right = 20.0
-offset_bottom = -24.0
-theme_override_colors/font_color = Color(1, 0.92, 0.55, 1)
-theme_override_colors/font_outline_color = Color(0.08, 0.06, 0.04, 1)
-theme_override_constants/outline_size = 2
-theme_override_font_sizes/font_size = 5
-horizontal_alignment = 1
-
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -4)
 shape = SubResource("RectangleShape2D_abqhh")

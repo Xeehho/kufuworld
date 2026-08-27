@@ -11,6 +11,7 @@ func _ready():
 	_setup_world_generator()
 	_setup_weather()
 	_setup_hud()
+	_setup_minimap()	# Phase G: 小地图（M键开关）
 	_setup_clan_simulator()
 	_setup_event_hud()
 	_setup_quest_system()
@@ -20,6 +21,7 @@ func _ready():
 	_setup_combat_stance()
 	_setup_combat_hud()
 	_setup_inventory()
+	_setup_inventory_hud()	# Phase I: 背包面板(I键)
 	_setup_shop()
 	_setup_shop_hud()
 	_setup_audio()   # Phase D：音效/BGM占位（早于玩法系统装配，便于各处接线）
@@ -28,6 +30,7 @@ func _ready():
 	# NPC生成延迟到纹理和世界都就绪后
 	_setup_npc_spawner()
 	_setup_npc_info_hud()
+	_setup_building_info_hud()	# Phase G: 建筑信息面板（点击古堡查看势力）
 	_setup_quest_log_hud()	# Phase F7: 游戏化任务日志
 	_setup_quest_tracker_hud()	# Phase H: 左轨任务追踪器（对标巫师3/原神objective tracker）
 	_setup_character_sheet()	# Phase F7: 人物面板(V键)
@@ -63,24 +66,18 @@ func _setup_mob_spawner():
 func _ensure_textures():
 	# 检查关键纹理是否存在，如果不存在则运行生成器
 	# 注意：必须用 FileAccess 而非 ResourceLoader.exists —— 运行时生成的PNG没有import数据
-	# 只校验"生成器管辖"的瓦片（Phase B：grass/grass_dark/path/farmland/water 已归
-	# tools/import_pack_assets.py 管，缺了要重跑python管线，程序生成不再接管）
+	# Phase G重构：全部瓦片（含terrain五件套）由 texture_generator 从素材包直接裁切
 	var tile_files = [
-		"sand", "mountain", "mountain_snow",
-		"tree_pine", "tree_oak", "tree_bamboo", "house_town", "house_cottage",
-		"house_temple", "house_cave", "flower", "rock", "fence", "bridge",
-		"house2_l", "house2_r", "house3_l", "house3_m", "house3_r",
-		"house4_l", "house4_lm", "house4_rm", "house4_r",
-		"house5_l", "house5_lm", "house5_m", "house5_rm", "house5_r",
+		"grass", "grass_dark", "path", "water", "sand", "snow", "stone",
+		"farmland", "farmland_wet", "mountain", "mountain_snow",
+		"house_town", "house_cottage", "house_temple", "house_cave",
+		"flower", "daisy", "mushroom", "rock", "fence", "bridge",
 	]
 	var need_textures = false
 	for t in tile_files:
 		if not FileAccess.file_exists("res://sprites/tiles/" + t + ".png"):
 			need_textures = true
 			break
-	for t in ["grass", "grass_dark", "path", "farmland", "water"]:
-		if not FileAccess.file_exists("res://sprites/tiles/" + t + ".png"):
-			push_warning("[Main] 素材包地形瓦片缺失: " + t + ".png —— 请重跑 python tools/import_pack_assets.py terrain")
 	if need_textures:
 		var gen_script = load("res://scripts/texture_generator.gd")
 		if gen_script:
@@ -90,8 +87,13 @@ func _ensure_textures():
 			gen.generate_tiles()  # Phase B陷阱修复：严禁generate_all——那会用程序画法覆盖素材包玩家/NPC帧
 			gen.queue_free()
 			print("[Main] Generator tiles regenerated")
-	# Phase F5: 大型建筑贴图（sprites/buildings/*.png 缺失时生成）
-	if not FileAccess.file_exists("res://sprites/buildings/house.png"):
+	# Phase F5: 大型建筑贴图（sprites/buildings/*.png 缺失时生成；逐kind校验防止增量缺失）
+	var big_missing := false
+	for kind in ["hut", "house", "manor", "temple", "castle"]:
+		if not FileAccess.file_exists("res://sprites/buildings/%s.png" % kind):
+			big_missing = true
+			break
+	if big_missing:
 		var gen_script2 = load("res://scripts/texture_generator.gd")
 		if gen_script2:
 			var gen2 = Node.new()
@@ -145,6 +147,12 @@ func _setup_hud():
 	hud.set_script(load("res://scripts/survival_hud.gd"))
 	$World/UI.add_child(hud)
 
+func _setup_minimap():
+	var mm = Control.new()
+	mm.name = "MinimapHUD"
+	mm.set_script(load("res://scripts/minimap_hud.gd"))
+	$World/UI.add_child(mm)
+
 func _setup_world_generator():
 	if world == null:
 		return
@@ -180,6 +188,12 @@ func _setup_inventory():
 	inv.name = "InventoryManager"
 	inv.set_script(load("res://scripts/inventory_manager.gd"))
 	add_child(inv)
+
+func _setup_inventory_hud():
+	var ih = Control.new()
+	ih.name = "InventoryHUD"
+	ih.set_script(load("res://scripts/inventory_hud.gd"))
+	$World/UI.add_child(ih)
 
 func _setup_shop():
 	var shop = Node.new()
@@ -223,6 +237,12 @@ func _setup_npc_info_hud():
 	nih.name = "NPCInfoHUD"
 	nih.set_script(load("res://scripts/npc_info_hud.gd"))
 	$World/UI.add_child(nih)
+
+func _setup_building_info_hud():
+	var bih = Control.new()
+	bih.name = "BuildingInfoHUD"
+	bih.set_script(load("res://scripts/building_info_hud.gd"))
+	$World/UI.add_child(bih)
 
 func _setup_quest_log_hud():
 	var ql = Control.new()

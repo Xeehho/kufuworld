@@ -97,6 +97,7 @@ func _init_interaction_ui():
 
 	# 左侧：NPC头像框
 	var avatar_bg = Panel.new()
+	avatar_bg.name = "AvatarBg"
 	avatar_bg.position = Vector2(30, 62)
 	avatar_bg.size = Vector2(116, 116)
 	avatar_bg.add_theme_stylebox_override("panel", UITheme.inset_style())
@@ -170,18 +171,46 @@ func _handle_talk():
 			DialogManager.show_dialog(nd.npc_name, ["少侠，今日风光明媚，不如对饮一杯？"])
 		elif favor < -20:
 			DialogManager.show_dialog(nd.npc_name, ["哼，你我之间没什么好说的。"])
+		else:
+			# 中性好感也给寒暄反馈（此前静默无任何可见表现）
+			var small_talk = [
+				"这位少侠面生得很，初到本地？",
+				"近日江湖不太平，出行还望小心。",
+				"听口音是外地人，途中可还顺遂？"
+			]
+			DialogManager.show_dialog(nd.npc_name, [small_talk[randi() % small_talk.size()]])
 
 func _handle_gift():
 	if current_target:
 		var nd = current_target.npc_data
 		print("[Interact] 向" + nd.npc_name + "送礼")
 		GameManager.modify_relation(nd.npc_name, "玩家", 10.0, "neutral")
+		# 送礼可见反馈（此前静默只改数值）
+		DialogManager.show_dialog(nd.npc_name, [nd.npc_name + "收下了你的心意，神色缓和了不少。（好感+10）"])
 
 func _handle_spar():
 	if current_target:
 		var nd = current_target.npc_data
 		print("[Interact] 与" + nd.npc_name + "切磋")
+		# 真实切磋：NPC按职业定基础战力，玩家内力加成+随机，胜负各有得失
+		# ⚠️ npc_type在NPC节点上，NPCData没有该字段
+		var npc_type: String = "warrior"
+		if "npc_type" in current_target:
+			npc_type = current_target.npc_type
+		var npc_power: int = {"warrior": 14, "mysterious": 13, "elder": 11, "scholar": 9, "merchant": 8}.get(npc_type, 10)
+		var my_power: int = 8 + int(GameManager.qi / 20.0) + randi() % 6   # 基础8+内力加成(0~5)+随机0~5
+		var lines: Array = [nd.npc_name + "抱拳还礼：「点到为止，请！」两人就地拆起招来。"]
+		if my_power >= npc_power:
+			GameManager.reputation += 2.0
+			GameManager.emit_event("切磋", "你与" + nd.npc_name + "切磋小胜，声望+2", 2)
+			lines.append("你招式连贯，一记巧劲卸开对方兵刃占得上风。" + nd.npc_name + "抱拳认输：「佩服。」声望+2")
+		else:
+			GameManager.health = maxf(GameManager.health - 6.0, 1.0)
+			GameManager.emit_event("切磋", "你与" + nd.npc_name + "切磋落败，受伤-6生命", 2)
+			lines.append(nd.npc_name + "招式精妙，你渐感不支，收势认负。虽是切磋仍震得手臂发麻，生命-6")
+		# 拳脚无情，武人难免介意（保留原好感设定）
 		GameManager.modify_relation(nd.npc_name, "玩家", -5.0, "neutral")
+		DialogManager.show_dialog(nd.npc_name, lines)
 
 func _handle_observe():
 	if current_target:
@@ -222,8 +251,8 @@ func show_interaction_ui(npc: CharacterBody2D):
 	var name_lbl = panel.get_node_or_null("NameLabel")
 	if name_lbl and npc.npc_data:
 		name_lbl.text = npc.npc_data.npc_name
-	# 填充NPC头像（取idle_down首帧）
-	var avatar = panel.get_node_or_null("Avatar")
+	# 填充NPC头像（取idle_down首帧）——Avatar在AvatarBg之下，须用全路径（曾因只查直接子节点永远为null）
+	var avatar = panel.get_node_or_null("AvatarBg/Avatar")
 	if avatar and npc.npc_data:
 		avatar.texture = TextureGen.load_png_texture("res://sprites/npc/%s_idle_down_0.png" % npc.npc_type)
 	# 填充性格/好感度
