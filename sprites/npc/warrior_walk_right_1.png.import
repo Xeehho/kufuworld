@@ -3,11 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://d3lown3w1qhc2"
-valid=false
+path="res://.godot/imported/warrior_walk_right_1.png-833ec89123aa5d9154302569258c4609.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://sprites/npc/warrior_walk_right_1.png"
+dest_files=["res://.godot/imported/warrior_walk_right_1.png-833ec89123aa5d9154302569258c4609.ctex"]
 
 [params]
 

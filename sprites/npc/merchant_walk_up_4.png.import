@@ -3,11 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://b4sau0mu7r62v"
-valid=false
+path="res://.godot/imported/merchant_walk_up_4.png-19b0d391d448aad7dae1e61cf7749ed9.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://sprites/npc/merchant_walk_up_4.png"
+dest_files=["res://.godot/imported/merchant_walk_up_4.png-19b0d391d448aad7dae1e61cf7749ed9.ctex"]
 
 [params]
 

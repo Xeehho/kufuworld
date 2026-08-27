@@ -3,11 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://84tqo4i7flvb"
-valid=false
+path="res://.godot/imported/elder_walk_up_4.png-8a3a526e607b8a3a6dbfcd9dd5a6c6e6.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://sprites/npc/elder_walk_up_4.png"
+dest_files=["res://.godot/imported/elder_walk_up_4.png-8a3a526e607b8a3a6dbfcd9dd5a6c6e6.ctex"]
 
 [params]
 

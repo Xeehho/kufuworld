@@ -3,11 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://4dfy8viund7k"
-valid=false
+path="res://.godot/imported/elder_idle_left_2.png-ae0d24d8e57f971d1629c7130362c4c6.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://sprites/npc/elder_idle_left_2.png"
+dest_files=["res://.godot/imported/elder_idle_left_2.png-ae0d24d8e57f971d1629c7130362c4c6.ctex"]
 
 [params]
 

@@ -3,11 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://bkyvi3itw27fq"
-valid=false
+path="res://.godot/imported/mysterious_walk_left_3.png-b83007f686bdb3712fbadb638f228790.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://sprites/npc/mysterious_walk_left_3.png"
+dest_files=["res://.godot/imported/mysterious_walk_left_3.png-b83007f686bdb3712fbadb638f228790.ctex"]
 
 [params]
 

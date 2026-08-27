@@ -1,0 +1,9 @@
+# 统一行尾策略：避免 Windows autocrlf 与 Godot 编辑器(LF)来回改写造成的伪变更
+# .import 导入元数据：Godot 始终以 LF 写回，禁止 Git 做任何行尾转换
+*.import -text
+
+# GDScript/场景/资源文本：入库统一 LF，检出保持原样（不强制转 CRLF）
+*.gd text eol=lf
+*.tscn text eol=lf
+*.tres text eol=lf
+*.godot text eol=lf
