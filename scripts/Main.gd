@@ -38,6 +38,20 @@ func _ready():
 	_setup_farm_system()
 	_setup_station_system()
 	_setup_mob_spawner()
+	_setup_tree_chop_system()   # 树木采伐（依赖WorldGenerator树精灵就绪，自身懒判安全）
+	_setup_main_story()   # 主线剧情驱动器：依赖Quest/Mob/Farm/Oath等系统就绪
+
+func _setup_tree_chop_system():
+	var tc = Node2D.new()
+	tc.name = "TreeChopSystem"
+	tc.set_script(load("res://scripts/tree_chop_system.gd"))
+	world.add_child(tc)
+
+func _setup_main_story():
+	var st = Node.new()
+	st.name = "MainStory"
+	st.set_script(load("res://scripts/main_story.gd"))
+	add_child(st)
 
 func _setup_audio():
 	var ac = Node.new()

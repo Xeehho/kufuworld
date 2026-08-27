@@ -3,12 +3,16 @@ extends Node
 signal world_state_changed
 signal relation_changed(a, b, new_value)
 signal world_event(title, body, importance)
+signal story_stage_changed(stage)
 
 var morality: float = 0.0
 var reputation: float = 0.0
 var gold: int = 100  # 初始盘缠，保证商店系统开局可用
 var qi: float = 100.0
 var max_qi: float = 100.0
+
+# 主线剧情进度（完成主N后=N；0=序章未开始）。定义见 docs/主线剧情设计.md §四
+var story_stage: int = 0
 
 var active_inner_skill: InnerSkill = null
 var inner_skill_progress: float = 0.0
@@ -388,3 +392,41 @@ func get_recent_events(count: int = 5) -> Array:
 	for i in range(start, world_events.size()):
 		result.append(world_events[i])
 	return result
+
+# ---------- 主线剧情支持 ----------
+
+func advance_story_stage(n: int):
+	if n > story_stage:
+		story_stage = n
+		story_stage_changed.emit(n)
+		world_state_changed.emit()
+		print("[Story] story_stage -> %d" % n)
+
+# 主线/分支对话效果统一入口（声明式效果字典，供 main_story 与对话选项复用）
+# 支持: morality/reputation/gold/hunger/wood/stone
+#       relation(+relation_to 指定NPC名) / give_item(+give_count)
+#       event_title(+event_body/event_importance 默认4)
+func apply_story_effects(effects: Dictionary):
+	if effects.is_empty():
+		return
+	if effects.has("morality"):
+		modify_morality(effects["morality"])
+	if effects.has("reputation"):
+		modify_reputation(effects["reputation"])
+	if effects.has("gold"):
+		modify_gold(int(effects["gold"]))
+	if effects.has("hunger"):
+		eat_food(float(effects["hunger"]))
+	if effects.has("wood"):
+		wood = max(wood + int(effects["wood"]), 0)
+		world_state_changed.emit()
+	if effects.has("stone"):
+		stone = max(stone + int(effects["stone"]), 0)
+		world_state_changed.emit()
+	if effects.has("relation") and effects.has("relation_to"):
+		modify_relation("主角", str(effects["relation_to"]), float(effects["relation"]))
+	if effects.has("give_item"):
+		ItemFactory.give(str(effects["give_item"]), int(effects.get("give_count", 1)))
+	if effects.has("event_title"):
+		emit_event(str(effects["event_title"]), str(effects.get("event_body", "")),
+			int(effects.get("event_importance", 4)))

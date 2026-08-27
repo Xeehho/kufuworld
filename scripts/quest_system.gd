@@ -178,6 +178,7 @@ func _complete_quest(q: Quest):
 		GameManager.add_contribution(q.reward_contribution)
 	active_quests.erase(q)
 	completed_quests.append(q)
+	pinned_ids.erase(q.quest_id)	# 已完成任务清追踪钉选（防幽灵id累积）
 	GameManager.emit_event("任务完成", q.title + " 已完成! 奖励:" + str(q.reward_gold) + "金", 3)
 	GameManager.world_state_changed.emit()
 
@@ -208,3 +209,24 @@ func get_active_quests() -> Array:
 
 func get_available_quests() -> Array:
 	return available_quests
+
+# 主线任务直挂接口（绕开悬赏榜与5个进行中上限，category=主线）
+# 由 main_story 调用；进度仍走 progress_quest 计数
+func add_story_quest(title: String, desc: String, target_count: int,
+		gold: int = 0, rep: float = 0.0, mor: float = 0.0) -> Quest:
+	quest_id_counter += 1
+	var q = Quest.new()
+	q.quest_id = "S" + str(quest_id_counter)
+	q.category = "主线"
+	q.title = title
+	q.description = desc
+	q.target_count = target_count
+	q.reward_gold = gold
+	q.reward_reputation = rep
+	q.reward_morality = mor
+	q.difficulty = 1
+	q.is_active = true
+	active_quests.append(q)
+	toggle_pin(q.quest_id)	# 主线自动钉选进追踪器，保证可见
+	print("[Quest] 主线任务挂载: " + title)
+	return q

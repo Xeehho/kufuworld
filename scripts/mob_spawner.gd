@@ -6,6 +6,8 @@ extends Node2D
 
 const MobScript = preload("res://scripts/mob.gd")
 
+signal mob_killed(kind_id: String)	# 任意怪物死亡广播（主线击杀计数用）
+
 const RESPAWN_DELAY := 90.0
 const SAFE_DIST_TO_RESPAWN := 260.0
 const MAX_ALIVE := 12
@@ -19,6 +21,7 @@ const CAMPS := [
 ]
 
 var camps_runtime: Array = []   # {def, center:Vector2, alive:int, respawn_timer:float}
+var story_camps: Array = []     # 主线剧情临时营地（respawn_timer=-1，不自动重生）
 var _world_gen: Node2D = null
 
 func _ready():
@@ -69,11 +72,28 @@ func _spawn_mob(kind_id: String, pos: Vector2, camp: Dictionary):
 	camp["alive"] = int(camp["alive"]) + 1
 	print("[MobSpawner] 生成 %s @ %s (%s)" % [kind_id, pos, mob.name])
 
-func _on_mob_died(_kind_id: String, camp: Dictionary):
+func _on_mob_died(kind_id: String, camp: Dictionary):
 	camp["alive"] = int(camp["alive"]) - 1
-	if int(camp["alive"]) <= 0 and float(camp["respawn_timer"]) <= 0.0:
+	mob_killed.emit(kind_id)	# 主线监听（击杀计数）
+	# respawn_timer>=0 才允许进入重生流程（story_camps 为 -1 永不重生）
+	if int(camp["alive"]) <= 0 and float(camp["respawn_timer"]) >= 0.0:
 		camp["respawn_timer"] = RESPAWN_DELAY
 		print("[MobSpawner] %s 已清空，%ds后重生" % [camp["def"]["name"], RESPAWN_DELAY])
+
+# 主线剧情临时营地：锚定玩家当前位置 + offset，一次性刷出，不参与自动重生
+func spawn_story_camp(camp_name: String, offset_tile: Vector2i, members: Array):
+	var player := get_tree().get_first_node_in_group("player") as Node2D
+	if player == null or _world_gen == null:
+		print("[MobSpawner] spawn_story_camp 失败: 玩家/世界未就绪")
+		return
+	var want := Vector2i(int(player.global_position.x / 16), int(player.global_position.y / 16)) + offset_tile
+	var center_px := Vector2(want.x * 16.0 + 8.0, want.y * 16.0 + 8.0)
+	center_px = _world_gen.find_nearest_reachable(center_px, 40)
+	var def := {"name": camp_name, "offset": offset_tile, "members": members}
+	var entry := {"def": def, "center": center_px, "alive": 0, "respawn_timer": -1.0}
+	story_camps.append(entry)
+	_spawn_camp(entry)
+	print("[MobSpawner] 主线营地[%s] 锚点=%s 解析=%s" % [camp_name, want, center_px])
 
 func _tick_respawns(delta):
 	var player := get_tree().get_first_node_in_group("player") as Node2D

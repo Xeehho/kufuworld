@@ -187,6 +187,17 @@ func _opt(text: String, result: String, gold: int = 0, qi: float = 0,
 func _process(delta):
 	if active_encounter != null:
 		return
+	# 剧情对话进行中暂缓掷骰（冷却不消耗，对话结束后恢复原节奏）
+	# 否则随机奇遇会经 _force_open_encounter 强制关闭主线对话，导致剧情断链
+	if DialogManager.is_dialog_open():
+		return
+	# 击打怪物中不触发（出招/硬直窗口 或 贴身接战）；NPC交互菜单开着也不触发
+	var pl := get_tree().get_first_node_in_group("player")
+	if pl != null and pl.has_method("is_in_combat") and pl.is_in_combat():
+		return
+	var spawner := get_node_or_null("/root/Main/World/NPCSpawner")
+	if spawner and spawner.has_method("is_interaction_open") and spawner.is_interaction_open():
+		return
 	cooldown -= delta
 	if cooldown > 0:
 		return

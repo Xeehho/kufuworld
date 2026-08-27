@@ -233,6 +233,20 @@ func _is_ui_blocking() -> bool:
 			return true
 	return false
 
+func _movement_locked() -> bool:
+	"""移动专用锁定：石伯WASD教学页(dialog teach_move)特许自由试走"""
+	if not _is_ui_blocking():
+		return false
+	if DialogManager.is_move_teach_open():
+		return false
+	return true
+
+# 供奇遇系统判定"击打怪物中"暂缓触发：出招/硬直窗口 或 面前扇形内尚有接战目标
+func is_in_combat() -> bool:
+	if state == State.ATTACK or state == State.STAGGER:
+		return true
+	return _find_mob_in_front() != null
+
 func _is_mouse_over_ui() -> bool:
 	"""鼠标悬停在任何Control上时，不触发攻击等游戏内动作"""
 	return get_viewport().gui_get_hovered_control() != null
@@ -299,7 +313,7 @@ func _click_building_info(bld: Node2D):
 	_sfx("ui", -12.0)
 
 func _process_idle(_delta):
-	if _is_ui_blocking():
+	if _movement_locked():
 		velocity = Vector2.ZERO
 		_play_anim("idle")
 		return
@@ -310,10 +324,12 @@ func _process_idle(_delta):
 		return
 	if hurt_timer <= 0.0:
 		_play_anim("idle")
-	_check_combat_input()
+	# 教学对话页打开时仅解锁移动，战斗/工具输入保持锁定
+	if not DialogManager.is_dialog_open():
+		_check_combat_input()
 
 func _process_move(_delta):
-	if _is_ui_blocking():
+	if _movement_locked():
 		velocity = Vector2.ZERO
 		state = State.IDLE
 		_play_anim("idle")
@@ -333,7 +349,9 @@ func _process_move(_delta):
 	if hurt_timer <= 0.0:
 		_play_anim("walk")
 	move_and_slide()
-	_check_combat_input()
+	# 教学对话页打开时仅解锁移动，战斗/工具输入保持锁定
+	if not DialogManager.is_dialog_open():
+		_check_combat_input()
 
 func _check_combat_input():
 	if _is_mouse_over_ui():
@@ -562,17 +580,20 @@ func _deal_damage():
 		if counter_mult > 1.0:
 			print("[Combat] 格挡反击! 伤害x" + str(counter_mult))
 	print("[Combat] " + current_skill.skill_name + " dealt " + str(final_damage) + " damage")
-	# 打击反馈：命中特效+震屏+飘字
-	var hit_pos = global_position + _facing_vector() * 40.0
-	# Phase C：优先找面前的敌人，接通真实伤害闭环
+	# 打击反馈仅对战命中时有：特效+震屏+伤害数字
 	var target_mob = _find_mob_in_front()
 	if target_mob:
-		hit_pos = target_mob.global_position + Vector2(0, -10)
+		var hit_pos = target_mob.global_position + Vector2(0, -10)
 		target_mob.take_damage(final_damage)
 		_sfx("hit")
-	_spawn_hit_effect(hit_pos)
-	_spawn_damage_number(hit_pos, final_damage)
-	_camera_shake(4.0, 0.18)
+		_spawn_hit_effect(hit_pos)
+		_spawn_damage_number(hit_pos, final_damage)
+		_camera_shake(4.0, 0.18)
+	else:
+		# 挥空不产生任何打击特效/伤害提示；命中树木则由采伐系统给轻量木屑反馈
+		var ts = get_node_or_null("/root/Main/World/TreeChopSystem")
+		if ts and bool(ts.try_chop_front(self).get("ok", false)):
+			_camera_shake(1.6, 0.06)   # 砍中树的轻微手感，无大特效
 
 # 面前扇形内最近的敌人（攻击距离56px，朝向夹角余弦>0.25）
 func _find_mob_in_front() -> CharacterBody2D:
