@@ -81,7 +81,7 @@ func _build_nodes() -> Array:
 				"娃，醒啦？三天三夜高烧不退，你这条命是打水里捞回来的。",
 				"你昏迷时手里攥着这块刻火焰纹的旧铜牌……老辈人说这是封印之物的样式，来头不小。",
 				"罢了，眼下世道不太平，先学几手安身立命的本事。",
-				{"text": "WASD走动，空手左键就能劈柴——看准一棵树连挥三下放倒它，木柴自然到手，饿不着自己比什么都强。", "teach_move": true},
+				{"text": "WASD走动；屋后柴堆边有把旧斧头，数字键5掏斧、对准树连挥三下放倒拾柴——空手可打不动树。饿了就按1到4伺候庄稼。", "teach_move": true},
 				{"text": "（石伯把铜牌塞回你手里）你打算怎么办？", "options": [
 					{"text": "接过铜牌细看",
 					 "result": "火焰纹路古朴斑驳，指尖传来一丝若有似无的温热——冥冥中似有什么在这江湖尽头等你。"},
@@ -307,3 +307,16 @@ func _on_dialog_option_chosen(opt: Dictionary):
 
 func _on_story_stage_changed(stage: int):
 	pass   # 预留：阶段变化广播（结局/UIHook 可连接 story_stage_changed 使用）
+
+# 供舆图标注寻路：当前主线目标营地坐标（kills型节点才有目标）
+func get_story_target() -> Dictionary:
+	if node_index < 0 or mob_spawner == null:
+		return {}
+	var cfg: Dictionary = nodes[node_index]
+	if String(cfg.get("complete_mode", "")) != "kills":
+		return {}
+	if cfg.has("camp") and not mob_spawner.story_camps.is_empty():
+		return {"pos": mob_spawner.story_camps[-1]["center"], "name": String(cfg["title"])}
+	if not mob_spawner.camps_runtime.is_empty():
+		return {"pos": mob_spawner.camps_runtime[0]["center"], "name": String(cfg["title"])}
+	return {}

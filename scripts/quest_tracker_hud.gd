@@ -14,7 +14,7 @@ const TRACK_W := 236.0
 const CARD_H := 38.0
 const CARD_SEP := 5
 const MAX_SHOW := 3
-const HEADER_Y := 210.0
+const HEADER_Y := 238.0   # BugFix: 210会压住SurvivalHUD手持chip(y202-224)，下移让出
 
 func _ready():
 	# AGENTS规范：全屏根节点 set_anchors_and_offsets_preset + mouse_filter IGNORE

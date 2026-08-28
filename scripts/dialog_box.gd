@@ -111,6 +111,7 @@ func _after_typing():
 		return
 	next_button.text = "关闭 ✕" if current_index >= dialog_queue.size() - 1 else "继续 ▼"
 	next_button.visible = true
+	_fit_next_button(next_button.text)
 	# WASD教学页：解锁玩家移动，四方向全按过→自动翻页
 	var entry = dialog_queue[current_index]
 	move_teach_active = entry is Dictionary and bool(entry.get("teach_move", false))
@@ -118,6 +119,14 @@ func _after_typing():
 	DialogManager.set_move_teach(move_teach_active)
 	if move_teach_active:
 		next_button.text = "按 WASD 四方走动试试 ▼"
+		_fit_next_button(next_button.text)
+
+# BugFix: 动态替换的按钮文本（如WASD教学提示）超长会穿出固定112px按钮 → 按文本自适应向左扩展
+func _fit_next_button(txt: String):
+	var need := 40.0 + txt.length() * 14.0
+	var w := clampf(need, 112.0, 240.0)
+	next_button.position.x = 776.0 - w
+	next_button.size.x = w
 
 func _process(_delta):
 	# 教学页监听四方向：全按过一次即自动推进（模拟完成"走动"练习）
@@ -159,6 +168,7 @@ func _select_option(idx: int):
 		c.queue_free()
 	options_box.visible = false
 	next_button.visible = true
+	_fit_next_button(next_button.text)
 	var result_text := str(opt.get("result", ""))
 	if result_text != "":
 		name_label.text = base_speaker

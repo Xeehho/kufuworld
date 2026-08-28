@@ -36,8 +36,10 @@ var hurt_timer: float = 0.0         # >0期间IDLE/MOVE不覆盖hurt动画
 var _ds_hooked: bool = false        # DeathSystem信号是否已连接
 
 # ---- Phase C 星露谷工具系统 ----
-enum Tool {NONE, HOE, CAN, SEEDS, COLLECT}
-const TOOL_NAMES := {"hoe": "锄头", "can": "水壶", "seeds": "菜种", "collect": "采集"}
+enum Tool {NONE, HOE, CAN, SEEDS, COLLECT, AXE}
+
+signal tool_changed(tool_name: String)   # 手持变化广播（HUD/人物面板显示用）
+const TOOL_NAMES := {"hoe": "锄头", "can": "水壶", "seeds": "菜种", "collect": "采集", "axe": "斧头"}
 const TOOL_ORDER := [Tool.HOE, Tool.CAN, Tool.SEEDS, Tool.COLLECT]
 var equipped_tool: int = Tool.NONE
 var tool_cooldown: float = 0.0
@@ -116,9 +118,7 @@ func rebuild_sprite_frames():
 		["idle", 4, 6.0, true],
 		["walk", 6, 10.0, true],
 		["run", 6, 10.0, true],
-		["attack", 8, 14.0, false],   # Slice 轻击(8帧)
-		["heavy", 8, 14.0, false],    # Pierce 重击(8帧)
-		["block", 4, 5.0, true],      # Carry_Idle 持械防御姿态
+		["block", 4, 5.0, true],      # Carry_Idle 双掌推
 		["hurt", 4, 8.0, false],      # 受击
 		["death", 8, 10.0, false],    # 死亡倒地
 	]
@@ -140,6 +140,45 @@ func rebuild_sprite_frames():
 				sf.add_animation(anim_name)
 			sf.set_animation_speed(anim_name, spec[2])
 			sf.set_animation_loop(anim_name, spec[3])
+			for tex in frames:
+				sf.add_frame(anim_name, tex)
+			loaded_any = true
+	# BugFix: 徒手攻击原用Slice(斧)/Pierce(匕)素材帧，空手挥击凭空出现斧子/匕首
+	# 改用Collect空手帧：轻击=前段下探掌(0-3)，重击=后段起身升掌(4-7)
+	for dir_name in dir_names:
+		for anim_def in [["attack", [0, 1, 2, 3], 10.0], ["heavy", [4, 5, 6, 7], 10.0]]:
+			var anim_name: String = str(anim_def[0]) + "_" + dir_name
+			var frames: Array = []
+			for i in anim_def[1]:
+				var tex = TextureGen.load_png_texture("res://sprites/player/collect_%s_%d.png" % [dir_name, i])
+				if tex:
+					frames.append(tex)
+			if frames.is_empty():
+				push_warning("[Player] 缺失徒手攻击帧: " + anim_name)
+				continue
+			if not sf.has_animation(anim_name):
+				sf.add_animation(anim_name)
+			sf.set_animation_speed(anim_name, anim_def[2])
+			sf.set_animation_loop(anim_name, false)
+			for tex in frames:
+				sf.add_frame(anim_name, tex)
+			loaded_any = true
+	# 工具专用动作动画（行为-表现一致）：axe=Slice挥斧 / watering=浇水 / collect=弯腰农作
+	for dir_name in dir_names:
+		for tool_anim in [["axe", "attack", 8, 10.0], ["watering", "watering", 8, 10.0], ["collect", "collect", 8, 10.0]]:
+			var anim_name: String = str(tool_anim[0]) + "_" + dir_name
+			var frames: Array = []
+			for i in range(int(tool_anim[2])):
+				var tex = TextureGen.load_png_texture("res://sprites/player/%s_%s_%d.png" % [str(tool_anim[1]), dir_name, i])
+				if tex:
+					frames.append(tex)
+			if frames.is_empty():
+				push_warning("[Player] 缺失工具动画帧: " + anim_name)
+				continue
+			if not sf.has_animation(anim_name):
+				sf.add_animation(anim_name)
+			sf.set_animation_speed(anim_name, tool_anim[3])
+			sf.set_animation_loop(anim_name, false)
 			for tex in frames:
 				sf.add_frame(anim_name, tex)
 			loaded_any = true
@@ -369,6 +408,9 @@ func _check_combat_input():
 	if Input.is_action_just_pressed("tool_slot_4"):
 		_select_tool(Tool.COLLECT)
 		return
+	if Input.is_action_just_pressed("tool_slot_5"):
+		_select_tool(Tool.AXE)
+		return
 	if Input.is_action_just_pressed("player_attack_light"):
 		var clicked_npc := _npc_at_mouse()
 		if clicked_npc != null:
@@ -416,12 +458,14 @@ func _tool_name(t: int) -> String:
 		Tool.CAN: return TOOL_NAMES["can"]
 		Tool.SEEDS: return TOOL_NAMES["seeds"]
 		Tool.COLLECT: return TOOL_NAMES["collect"]
+		Tool.AXE: return TOOL_NAMES["axe"]
 	return "徒手"
 
 func _select_tool(t: int):
 	equipped_tool = Tool.NONE if equipped_tool == t else t
 	_sfx("ui", -12.0)
 	_float_text(global_position + Vector2(0, -34), "装备：" + _tool_name(equipped_tool), Color(0.75, 0.95, 1.0))
+	tool_changed.emit(_tool_name(equipped_tool))
 
 func _use_tool():
 	if tool_cooldown > 0.0:
@@ -441,6 +485,14 @@ func _use_tool():
 			res = farm.try_plant(target_pos)
 		Tool.COLLECT:
 			res = farm.try_collect(target_pos)
+		Tool.AXE:
+			# 砍树必须装备斧头（逻辑一致性：没有斧子不能砍树）
+			var ts = get_node_or_null("/root/Main/World/TreeChopSystem")
+			if ts:
+				var chop: Dictionary = ts.try_chop_front(self)
+				res = {"ok": bool(chop.get("ok", false)), "msg": str(chop.get("msg", ""))}
+			else:
+				res = {"ok": false, "msg": ""}
 	if res["msg"] != "":
 		_float_text(target_pos + Vector2(-10, -20), res["msg"], Color(1, 0.95, 0.5) if res["ok"] else Color(1, 0.55, 0.45))
 	# Phase D：农活动作音效（成功才响）
@@ -450,12 +502,22 @@ func _use_tool():
 			Tool.CAN: _sfx("water")
 			Tool.SEEDS: _sfx("plant")
 			Tool.COLLECT: _sfx("harvest")
+			Tool.AXE: _sfx("hit")
 	_play_tool_swing()
 
+# 工具使用动作：按手持工具播对应动画（行为-表现一致性）
 func _play_tool_swing():
 	_sfx("swing", -10.0)
 	anim.speed_scale = 2.6
-	_play_anim("attack")
+	match equipped_tool:
+		Tool.CAN:
+			_play_anim("watering")          # 水壶→浇水动作
+		Tool.AXE:
+			_play_anim("axe")               # 斧头→挥斧劈砍（Slice素材，语义正确）
+		Tool.HOE, Tool.SEEDS, Tool.COLLECT:
+			_play_anim("collect")           # 锄头/播种/采集→弯腰农作
+		_:
+			_play_anim("attack")            # 徒手→掌法（Collect帧）
 	await get_tree().create_timer(0.26).timeout
 	anim.speed_scale = 1.0
 	if state == State.IDLE or state == State.MOVE:
@@ -488,7 +550,11 @@ func _start_attack(is_light: bool):
 	current_skill = skill
 	frame_counter = 0
 	skill_phase = "startup"
-	_play_anim("heavy" if not is_light else "attack")
+	# 持斧时重击播挥斧动作（行为-表现一致）；否则掌法
+	if equipped_tool == Tool.AXE and not is_light:
+		_play_anim("axe")
+	else:
+		_play_anim("heavy" if not is_light else "attack")
 	_sfx("swing", -9.0)
 	velocity = Vector2.ZERO
 
@@ -572,6 +638,10 @@ func _damage_color() -> Color:
 func _deal_damage():
 	GameManager.consume_qi(current_skill.cost)
 	var base_damage = current_skill.damage
+	# 装备武器加成接入战斗（行为逻辑：装备武器→打得更疼）
+	var inv = get_node_or_null("/root/Main/InventoryManager")
+	if inv:
+		base_damage += inv.get_total_attack()
 	var final_damage = base_damage
 	if combat_stance:
 		var dmg_mult = combat_stance.on_hit_dealt()
@@ -590,10 +660,8 @@ func _deal_damage():
 		_spawn_damage_number(hit_pos, final_damage)
 		_camera_shake(4.0, 0.18)
 	else:
-		# 挥空不产生任何打击特效/伤害提示；命中树木则由采伐系统给轻量木屑反馈
-		var ts = get_node_or_null("/root/Main/World/TreeChopSystem")
-		if ts and bool(ts.try_chop_front(self).get("ok", false)):
-			_camera_shake(1.6, 0.06)   # 砍中树的轻微手感，无大特效
+		# 挥掌（徒手默认）：无打击特效/伤害数字/震屏；砍树已移至斧头工具（逻辑一致性）
+		pass
 
 # 面前扇形内最近的敌人（攻击距离56px，朝向夹角余弦>0.25）
 func _find_mob_in_front() -> CharacterBody2D:
@@ -1260,6 +1328,10 @@ func take_hit_with_stance(damage: float, from_pos: Vector2 = Vector2(INF, INF)):
 	# Phase D：死亡后免疫；from_pos为攻击者位置（mob传入），用于微击退
 	if _is_dead or state == State.DEAD:
 		return
+	# 装备防具减伤接入战斗（行为逻辑：穿甲→更抗打），保底1点伤害
+	var inv = get_node_or_null("/root/Main/InventoryManager")
+	if inv:
+		damage = maxf(damage - inv.get_total_defense(), 1.0)
 	var actual_damage = damage
 	var staggered := false
 	if combat_stance:
@@ -1271,6 +1343,11 @@ func take_hit_with_stance(damage: float, from_pos: Vector2 = Vector2(INF, INF)):
 			enter_stagger()
 	# 受击反馈：红闪+hurt动画（大硬直另有STAGGER表现，不叠加hurt动画）
 	hurt_timer = 0.32
+	# 遇袭自动收起工具，立即可还手（左键即攻击，无需手动切回）
+	if equipped_tool != Tool.NONE:
+		equipped_tool = Tool.NONE
+		_float_text(global_position + Vector2(0, -44), "收起工具迎敌！", Color(1, 0.85, 0.5))
+		tool_changed.emit(_tool_name(Tool.NONE))
 	var tw := create_tween()
 	modulate = Color(1.0, 0.35, 0.35)
 	tw.tween_property(self, "modulate", Color.WHITE, 0.22)

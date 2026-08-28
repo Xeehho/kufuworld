@@ -3,8 +3,9 @@ extends Node
 var encounters: Array = []
 var active_encounter: Encounter = null
 # 开局宽限期：避免游戏第一帧就强制触发奇遇弹出面板
-var cooldown: float = 25.0
-const COOLDOWN_MAX = 30.0
+var cooldown: float = 45.0
+# 反馈调整：30s一发过于频繁，改为最长2分钟一次
+const COOLDOWN_MAX = 120.0
 
 func _ready():
 	_create_prototype_encounters()

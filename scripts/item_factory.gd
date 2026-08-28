@@ -16,7 +16,12 @@ const PHASE_C_ITEMS := {
 	# 敌人掉落物（与inventory_manager默认物品同id同属性，可正确堆叠）
 	"iron_ore": ["铁矿石", "山贼携带的铁矿，可熔炼", 3, 0, 10, 0],
 	"herb_material": ["草药", "白骨教众掉落的药草，可炼丹", 3, 0, 8, 0],
+	# 合成武器（陷阱25：一切合成/掉落物id必须收录，否则give()静默失败）
+	"iron_sword": ["铁剑", "工作台锻打的铁剑", 0, 1, 80, 0],
 }
+
+# 武器攻击力补全表（PHASE_C_ITEMS基础格式无攻击力字段，按id补）
+const WEAPON_ATTACK := {"iron_sword": 8}
 
 static func _script():
 	return load("res://scripts/item_resource.gd")
@@ -35,6 +40,9 @@ static func create(id: String) -> Resource:
 	item.rarity = def[3]
 	item.base_price = def[4]
 	item.hunger_restore = def[5]
+	# 武器补攻击力（工作台铁剑等需与商店同物同强度）
+	if WEAPON_ATTACK.has(id):
+		item.attack_bonus = WEAPON_ATTACK[id]
 	return item
 
 # 便捷：把 count 个物品塞进 InventoryManager（找不到管理器时只打日志）
@@ -53,4 +61,9 @@ static func _inventory() -> Node:
 	var root = Engine.get_main_loop()
 	if root == null:
 		return null
-	return (root as SceneTree).current_scene.get_node_or_null("InventoryManager")
+	var tree := root as SceneTree
+	# 常规：InventoryManager挂在主场景下；兜底：Main/InventoryManager（探针等自定义场景时current_scene不同）
+	var inv = tree.current_scene.get_node_or_null("InventoryManager") if tree.current_scene else null
+	if inv == null:
+		inv = tree.root.get_node_or_null("Main/InventoryManager")
+	return inv

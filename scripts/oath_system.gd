@@ -1,5 +1,15 @@
 extends Node
 
+# 誓言立场分类：善誓与自身道行相悖（道德堕落/入邪派）时自动解除
+const OATH_ALIGNMENT := {
+	"行侠仗义": "善",
+	"灭掉魔教": "善",
+	"成为天下第一": "中",
+	"富甲一方": "中",
+	"博学多才": "中",
+}
+const FALLEN_MORALITY := -30.0   # 道德低于此值视为堕入魔道
+
 var oaths: Array = []
 var milestone_templates = {
 	"成为天下第一": [
@@ -30,12 +40,21 @@ var milestone_templates = {
 }
 
 func create_oath(title: String, description: String = "") -> Dictionary:
-	# 同时只能持有一个誓言：立新誓言前自动放弃未达成的旧誓言
-	for i in range(oaths.size() - 1, -1, -1):
-		if not oaths[i]["is_fulfilled"]:
-			GameManager.emit_event("背誓", "你放弃了旧誓言「" + oaths[i]["title"] + "」", 3)
-			print("[Oath] Abandoned: " + oaths[i]["title"])
-			oaths.remove_at(i)
+	# 规则：未竟之誓不可更换——除非先做完其中一个
+	for o in oaths:
+		if not o["is_fulfilled"]:
+			var deny := {"ok": false, "msg": "已有未竟之誓「" + o["title"] + "」，不可另立新誓"}
+			GameManager.emit_event("誓愿未竟", deny["msg"], 3)
+			print("[Oath] Denied (active oath exists): " + title)
+			return deny
+	# 善誓与自身道行相斥：堕入魔道（道德过低/已入邪派）时不可立善誓
+	var alignment: String = OATH_ALIGNMENT.get(title, "中")
+	if alignment == "善" and _is_fallen():
+		var deny2 := {"ok": false, "msg": "你的所作所为已与善誓相悖（道德/阵营不符），无法立此誓"}
+		GameManager.emit_event("立誓受阻", deny2["msg"], 3)
+		print("[Oath] Denied (fallen): " + title)
+		return deny2
+
 	var milestones: Array = []
 	if milestone_templates.has(title):
 		milestones = milestone_templates[title].duplicate()
@@ -45,6 +64,7 @@ func create_oath(title: String, description: String = "") -> Dictionary:
 	var oath = {
 		"title": title,
 		"description": description,
+		"alignment": alignment,
 		"milestones": milestones,
 		"completed_milestones": [],
 		"progress": 0.0,
@@ -56,7 +76,22 @@ func create_oath(title: String, description: String = "") -> Dictionary:
 	GameManager.emit_event("立誓", "你在心中立下誓言: " + title, 4)
 	print("[Oath] Created: " + title)
 	GameManager.world_state_changed.emit()
-	return oath
+	return {"ok": true, "msg": "立誓成功"}
+
+func _is_fallen() -> bool:
+	"""堕入魔道判定：道德过低 或 已入邪派门派"""
+	if GameManager.morality < FALLEN_MORALITY:
+		return true
+	var c = GameManager.player_clan
+	return c != null and c.stance == "邪派"
+
+# 善誓与道行相悖时自动解除（附声望惩罚）
+func _break_oath_by_conflict(oath: Dictionary):
+	oaths.erase(oath)
+	GameManager.modify_reputation(-20)
+	GameManager.emit_event("背誓",
+		"你道行日损，善誓「" + str(oath["title"]) + "」自然消解（声望-20）", 6)
+	print("[Oath] Broken by conflict: " + str(oath["title"]))
 
 func _check_oath_progress(oath: Dictionary):
 	var title = oath["title"]
@@ -130,15 +165,23 @@ func _extract_number(text: String) -> int:
 	return 999
 
 func _count_completed_category(cat: String) -> int:
-	var count = 0
+	# BugFix：原实现恒返回0（引用了不存在的get_completed_quests）——改为直接遍历已完成任务
 	var qs = get_node_or_null("/root/Main/QuestSystem")
-	if qs and qs.has_method("get_completed_quests"):
+	if qs == null:
 		return 0
+	var count := 0
+	for q in qs.completed_quests:
+		if q.category == cat:
+			count += 1
 	return count
 
 func _process(_delta):
-	for oath in oaths:
+	# 善誓与道行相斥：堕入魔道时自动解除（duplicate防遍历中移除）
+	for oath in oaths.duplicate():
 		if not oath["is_fulfilled"]:
+			if str(oath.get("alignment", "中")) == "善" and _is_fallen():
+				_break_oath_by_conflict(oath)
+				continue
 			_check_oath_progress(oath)
 
 func get_oaths() -> Array:

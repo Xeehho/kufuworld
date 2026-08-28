@@ -19,7 +19,8 @@ func _ready():
 
 func _create_ui():
 	death_panel = Panel.new()
-	UITheme.center_panel(death_panel, 420, 240)
+	# BugFix: 240高装不下传承信息4行文本（穿出面板底缘），扩到300
+	UITheme.center_panel(death_panel, 420, 300)
 	death_panel.add_theme_stylebox_override("panel", UITheme.panel_style())
 	add_child(death_panel)
 
@@ -45,9 +46,10 @@ func _create_ui():
 	UITheme.style_label(timer_label, 13, UITheme.TEXT_DIM)
 	death_panel.add_child(timer_label)
 
+	# BugFix: 传承信息为4行文本，原36px(2行)高度溢出面板 → 64px并下移
 	inheritance_label = Label.new()
-	inheritance_label.position = Vector2(20, 194)
-	inheritance_label.size = Vector2(380, 36)
+	inheritance_label.position = Vector2(20, 196)
+	inheritance_label.size = Vector2(380, 88)
 	inheritance_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	UITheme.style_label(inheritance_label, 11, Color(0.6, 0.8, 1))
 	death_panel.add_child(inheritance_label)
@@ -66,7 +68,9 @@ func _process(delta):
 		
 		var outcome_name = ds.get_death_outcome_name()
 		detail_label.text = "结局: " + outcome_name
-		
+
+		# 每次结局刷新都重置传承信息，防上次死亡的文本残留到本次
+		inheritance_label.text = ""
 		if ds.death_outcome == 0:  # RESCUED
 			detail_label.text += "\n侠义在身，路遇贵人相救"
 			detail_label.text += "\n损失部分铜钱，恢复部分气血"

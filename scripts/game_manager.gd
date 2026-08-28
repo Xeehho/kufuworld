@@ -143,12 +143,18 @@ func _process(delta):
 		meditation_timer = 0.0
 		_tick_cultivation()
 
+var _survival_emit_accum := 0.0   # BugFix: 生存衰减每帧广播world_state_changed→全部监听UI每帧重刷（移动时"反复出现"感），节流至0.25s
+
 func _tick_survival(delta):
 	hunger = max(hunger - 0.5 * delta, 0)
 	poison = max(poison - 0.1 * delta, 0)
 	if poison > 50:
 		health = max(health - 0.5 * delta, 0)
-	world_state_changed.emit()
+	# 节流广播：0.25s一次（数值变化粒度低，无需每帧惊动全部UI）
+	_survival_emit_accum += delta
+	if _survival_emit_accum >= 0.25:
+		_survival_emit_accum = 0.0
+		world_state_changed.emit()
 
 func take_hit(damage: float):
 	health = max(health - damage, 0)

@@ -21,7 +21,6 @@ func _ready():
 	_setup_combat_stance()
 	_setup_combat_hud()
 	_setup_inventory()
-	_setup_inventory_hud()	# Phase I: 背包面板(I键)
 	_setup_shop()
 	_setup_shop_hud()
 	_setup_audio()   # Phase D：音效/BGM占位（早于玩法系统装配，便于各处接线）
@@ -33,7 +32,7 @@ func _ready():
 	_setup_building_info_hud()	# Phase G: 建筑信息面板（点击古堡查看势力）
 	_setup_quest_log_hud()	# Phase F7: 游戏化任务日志
 	_setup_quest_tracker_hud()	# Phase H: 左轨任务追踪器（对标巫师3/原神objective tracker）
-	_setup_character_sheet()	# Phase F7: 人物面板(V键)
+	_setup_character_panel()	# 统一角色面板（替代旧CharacterSheet+InventoryHUD：V/I键+头像点击）
 	# Phase C 星露谷交互玩法（依赖WorldGenerator/InventoryManager就绪）
 	_setup_farm_system()
 	_setup_station_system()
@@ -203,11 +202,12 @@ func _setup_inventory():
 	inv.set_script(load("res://scripts/inventory_manager.gd"))
 	add_child(inv)
 
-func _setup_inventory_hud():
-	var ih = Control.new()
-	ih.name = "InventoryHUD"
-	ih.set_script(load("res://scripts/inventory_hud.gd"))
-	$World/UI.add_child(ih)
+func _setup_character_panel():
+	# 统一角色面板：左人物信息/中装备三槽/右行囊45格（V/I键+左上头像点击打开）
+	var cp = Control.new()
+	cp.name = "CharacterPanel"
+	cp.set_script(load("res://scripts/character_panel.gd"))
+	$World/UI.add_child(cp)
 
 func _setup_shop():
 	var shop = Node.new()
@@ -272,7 +272,5 @@ func _setup_quest_tracker_hud():
 	$World/UI.add_child(qt)
 
 func _setup_character_sheet():
-	var cs = Control.new()
-	cs.name = "CharacterSheet"
-	cs.set_script(load("res://scripts/character_sheet.gd"))
-	$World/UI.add_child(cs)
+	# 已由 _setup_character_panel（统一角色面板）替代，保留空函数防外部引用报错
+	pass

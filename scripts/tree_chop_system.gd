@@ -12,6 +12,10 @@ const WOOD_MIN := 2
 const WOOD_MAX := 3
 
 func try_chop_front(player: Node2D) -> Dictionary:
+	# 逻辑一致性：没有斧子不能砍树（须装备斧头工具，数字键5；player.Tool.AXE=5）
+	var has_axe: bool = player != null and int(player.get("equipped_tool")) == 5
+	if not has_axe:
+		return {"ok": false, "msg": "需要装备斧头才能砍树（数字键5）"}
 	# 几何与 player._find_mob_in_front 同源：距离56px内+朝向夹角余弦>0.25，取最近树
 	var fwd: Vector2 = Vector2.DOWN
 	if player != null and player.has_method("_facing_vector"):

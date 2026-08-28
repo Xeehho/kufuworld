@@ -28,6 +28,7 @@ func is_dialog_open() -> bool:
 func close_dialog():
 	# 外部强关（奇遇置顶/面板互斥等）：标记非用户读完，主线可据此重开对话
 	if dialogue_box and dialogue_box.visible:
+		print("[Dialog] 外部强关对话 (meta=%s)" % str(dialogue_box.last_meta))
 		dialogue_box._finish_dialog(false)
 
 func _ensure_box():
