@@ -280,6 +280,30 @@ Main (Node2D) [Main.gd]
 - Phase H: QuestTrackerHUD 同挂 $World/UI——追踪进度靠 _process 轻轮询（progress_quest不发信号），
   增删任务靠 GameManager.world_state_changed；卡片Panel必须MOUSE_FILTER_STOP才能被gui_get_hovered_control识别防误攻击
 
+## 青石城要点（2026-08-29新增，必读）
+
+### 城池生成（world_generator.gd）
+- 世界半径 WORLD_RADIUS=200；青石城中心固定 `CITY_POS=(75,0)`、半边长 `CITY_HALF=22`，`_generate_city()` 在河流之后、出生点迁移之前执行（城镇/POI选址自动避让34格）
+- 城墙=tile 40（collision_tiles含40，TileSet每启动重建含城砖纹理）；四门3格豁口铺路保证连通；`city_info` 登记 buildings{锚点/门前格}/gate_px/center_px——`get_city_info()` 供NPC生成器解析岗位
+- 城内建筑用 `_force_place_building_prop`（跳过选址校验，城内坐标为人工规划）；新增大建筑 yamen/tavern/apothecary/shop_a/shop_b + 市摊×2 + 水井（accent主题色梁柱+檐下幌子区分功能）
+- 城池chunk由 `_load_poi_chunks` 强制加载±2（城远于玩家初始加载半径）
+
+### 城内NPC与性别化外观
+- NPC外观11类（python管线 `import_pack_assets.py` 导出）：男=warrior/scholar/mysterious/merchant(金棕)/elder(灰白)/guard(红缨)；女=tavern_f/matron_f/peasant_f/herbalist_f/seamstress_f（Citizen_F素材）；`tint_rows` 乘法染色跳过皮肤
+- `npc_spawner.city_npc_configs`：11名城内NPC，legs=[state,ref,start,end,off] 固定作息（ref=建筑key/gate:n·s·e·w/plaza）；NPCData.custom_schedule 非空则覆盖自动日程；"idle"腿=idle_hold原地驻留（乞丐守门）
+- 新增npc_type务必同步：npc_spawner切磋战力表、npc_character占位色块
+
+### 主线待接取制
+- `add_story_quest` 只入 `pending_story_quests`；玩家在任务日志"可接取"页签/追踪器金卡接取（accept_story_quest）后才激活+钉选
+- kills/item型节点：目标达成未接取只提示不推进剧情；接取时补记前期进度；`settle_story_quest` 负责节点收尾兜底
+
+### 对话挂起/恢复（修重复播放）
+- 外部强关走 `suspend_dialog()`（保留队列页码现场）+ `resume_dialog()` 原地续播；main_story 恢复优先续播，现场丢失才重播且 branch_resolved 不重播（防选项双发）
+
+### 打坐
+- `active_inner_skill` 由 GameManager._ready 默认装备青木长生功（无装备则E键提示，不会静默失败）
+- 坐姿帧=程序化 `meditate_down_0/1.png`（`generate_meditate_frames`，Main._ensure_textures缺失即生成）；头顶进度盘=内力条+修炼条；打坐每拍回内力+2
+
 ## 已知问题与待优化
 
 ### 当前已知问题

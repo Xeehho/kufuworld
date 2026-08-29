@@ -1,9 +1,13 @@
 extends Node
 
+signal story_quest_accepted(quest_id: String)
+
 var active_quests: Array = []
 var completed_quests: Array = []
 var available_quests: Array = []
 var quest_id_counter: int = 0
+# 主线任务待接取池：由 main_story 挂载，玩家在任务日志确认接取后才进入进行中（修"主线自动接取"）
+var pending_story_quests: Array = []
 # Phase H: 追踪状态源——QuestTrackerHUD/QuestLogHUD 共享；空=自动追踪前3个进行中任务
 var pinned_ids: Array = []
 
@@ -212,6 +216,7 @@ func get_available_quests() -> Array:
 
 # 主线任务直挂接口（绕开悬赏榜与5个进行中上限，category=主线）
 # 由 main_story 调用；进度仍走 progress_quest 计数
+# 修"主线自动接取"：挂载后先入待接取池（追踪器显示"待接取"卡），玩家接取后才激活
 func add_story_quest(title: String, desc: String, target_count: int,
 		gold: int = 0, rep: float = 0.0, mor: float = 0.0) -> Quest:
 	quest_id_counter += 1
@@ -225,8 +230,56 @@ func add_story_quest(title: String, desc: String, target_count: int,
 	q.reward_reputation = rep
 	q.reward_morality = mor
 	q.difficulty = 1
-	q.is_active = true
-	active_quests.append(q)
-	toggle_pin(q.quest_id)	# 主线自动钉选进追踪器，保证可见
-	print("[Quest] 主线任务挂载: " + title)
+	q.is_active = false
+	pending_story_quests.append(q)
+	print("[Quest] 主线任务待接取: " + title)
+	GameManager.world_state_changed.emit()
 	return q
+
+func accept_story_quest(quest_id: String) -> bool:
+	"""玩家确认接取主线：待接取池 → 进行中 + 自动钉选追踪"""
+	for i in range(pending_story_quests.size()):
+		var q: Quest = pending_story_quests[i]
+		if q.quest_id == quest_id:
+			pending_story_quests.remove_at(i)
+			q.is_active = true
+			active_quests.append(q)
+			if not pinned_ids.has(q.quest_id):
+				pinned_ids.append(q.quest_id)
+			GameManager.emit_event("已接委托", "主线·" + q.title, 3)
+			GameManager.world_state_changed.emit()
+			story_quest_accepted.emit(q.quest_id)
+			print("[Quest] 主线已接取: " + q.title)
+			return true
+	return false
+
+func get_pending_story_quests() -> Array:
+	return pending_story_quests
+
+func is_story_quest_active(quest_id: String) -> bool:
+	for q in active_quests:
+		if q.quest_id == quest_id and q.is_active:
+			return true
+	return false
+
+func settle_story_quest(quest_id: String):
+	"""主线节点收尾：待接取→直接结算（事已办成不扣奖励）；进行中未达标→补满走完成链路"""
+	for i in range(pending_story_quests.size()):
+		var q: Quest = pending_story_quests[i]
+		if q.quest_id == quest_id:
+			pending_story_quests.remove_at(i)
+			q.is_completed = true
+			GameManager.gold += q.reward_gold
+			GameManager.modify_reputation(q.reward_reputation)
+			GameManager.modify_morality(q.reward_morality)
+			completed_quests.append(q)
+			GameManager.emit_event("主线完成", q.title + " 已结算! 奖励:" + str(q.reward_gold) + "金", 3)
+			GameManager.world_state_changed.emit()
+			print("[Quest] 主线待接取任务随节点完成自动结算: " + q.title)
+			return
+	for q in active_quests:
+		if q.quest_id == quest_id:
+			if not q.is_completed:
+				q.current_count = q.target_count
+				_complete_quest(q)
+			return

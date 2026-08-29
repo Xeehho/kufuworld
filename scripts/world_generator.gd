@@ -9,8 +9,8 @@ const CHUNK_PX = CHUNK_SIZE * TILE_SIZE_PX
 const LOAD_RADIUS = 3
 const WORLD_SEED = 12345
 
-# 世界边界半径（瓦片坐标）——Phase G重构扩至160，配合素材包风格大世界
-const WORLD_RADIUS = 160
+# 世界边界半径（瓦片坐标）——扩至200：为青石城（玩法锚点主城）腾出东侧疆域
+const WORLD_RADIUS = 200
 
 enum Terrain {WATER, SAND, GRASS, GRASS_DARK, FOREST, MOUNTAIN, SNOW}
 
@@ -26,8 +26,8 @@ var world_cells: Dictionary = {}
 
 # 河流和城镇的覆盖数据（瓦片坐标 -> tile_id）
 var override_cells: Dictionary = {}
-# 需要碰撞的瓦片集合（39=大建筑footprint占位）
-var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 39]
+# 需要碰撞的瓦片集合（39=大建筑footprint占位，40=青石城城墙）
+var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 39, 40]
 # ---- Phase F5: 大型建筑道具（星露谷比例，Sprite+StaticBody，替代16px瓦片房）----
 # fp=footprint占格(瓦片)；纹理由 texture_generator.generate_big_buildings() 生成到 sprites/buildings/
 const BUILDING_PROPS := {
@@ -36,6 +36,15 @@ const BUILDING_PROPS := {
 	"manor":  {"png": "res://sprites/buildings/manor.png",  "fp": Vector2i(6, 4)},
 	"temple": {"png": "res://sprites/buildings/temple.png", "fp": Vector2i(7, 5)},
 	"castle": {"png": "res://sprites/buildings/castle.png", "fp": Vector2i(8, 4)},
+	# ---- 青石城功能建筑/市集道具 ----
+	"yamen":      {"png": "res://sprites/buildings/yamen.png",      "fp": Vector2i(7, 5)},   # 府衙
+	"tavern":     {"png": "res://sprites/buildings/tavern.png",     "fp": Vector2i(6, 5)},   # 酒楼
+	"apothecary": {"png": "res://sprites/buildings/apothecary.png", "fp": Vector2i(5, 4)},   # 药坊
+	"shop_a":     {"png": "res://sprites/buildings/shop_a.png",     "fp": Vector2i(4, 3)},   # 铁匠铺/杂货铺
+	"shop_b":     {"png": "res://sprites/buildings/shop_b.png",     "fp": Vector2i(4, 3)},   # 布庄
+	"stall_red":  {"png": "res://sprites/buildings/stall_red.png",  "fp": Vector2i(1, 1)},   # 市摊（红棚）
+	"stall_teal": {"png": "res://sprites/buildings/stall_teal.png", "fp": Vector2i(1, 1)},   # 市摊（青棚）
+	"well":       {"png": "res://sprites/buildings/well.png",       "fp": Vector2i(1, 1)},   # 水井
 }
 # 虚拟占位tile id：footprint格子写入override_cells，参与碰撞/可达性但不在TileMap绘制
 const TILE_BUILDING_RESERVE := 39
@@ -154,6 +163,7 @@ func _ready():
 	_setup_tilemap_parent()
 	_setup_poi_templates()
 	_generate_rivers()
+	_generate_city()	# 青石城：先于城镇/POI写入override，后续选址自动避让
 	# 顺序关键：先定位安全出生点，再以出生点为源做可达性洪泛，
 	# 之后城镇/POI选址必须落在可达区内（修复少林寺入口在海上等问题）
 	_relocate_player_to_safe_spawn()
@@ -340,6 +350,98 @@ func _generate_rivers():
 
 	print("[WorldGen] Generated " + str(river_count) + " rivers")
 
+# ============ 青石城（主城）============
+# 玩法锚点城池：围墙圈+四门+十字主街+中央广场+功能建筑（府衙/酒楼/药坊/铁匠铺/布庄/杂货铺/民居）
+# 城内市摊/水井点缀；非门派NPC（商人/手工业者/衙役等）由 npc_spawner 依 city_info 迁入并赋予固定日程
+const TILE_CITY_WALL := 40
+const CITY_POS := Vector2i(75, 0)     # 城中心（瓦片坐标）：出生点正东
+const CITY_HALF := 22                 # 城墙半边长（45x45占地）
+
+var city_info: Dictionary = {}        # {center_px, buildings:{key:{anchor,door_px,fp}}, gate_px:{n,s,e,w}}
+
+func _generate_city():
+	var cx := CITY_POS.x
+	var cy := CITY_POS.y
+	var h := CITY_HALF
+	# 1) 城内地坪统一压草（消除山/水/装饰，保证城内棋盘可规划）
+	for dx in range(-h + 1, h):
+		for dy in range(-h + 1, h):
+			override_cells[Vector2i(cx + dx, cy + dy)] = 0
+	# 2) 围墙圈 + 四门豁口（3格宽铺路，保证城内外连通）
+	for dx in range(-h, h + 1):
+		for dy in range(-h, h + 1):
+			if absi(dx) == h or absi(dy) == h:
+				override_cells[Vector2i(cx + dx, cy + dy)] = TILE_CITY_WALL
+	for g in range(-1, 2):
+		override_cells[Vector2i(cx + g, cy - h)] = 1
+		override_cells[Vector2i(cx + g, cy + h)] = 1
+		override_cells[Vector2i(cx - h, cy + g)] = 1
+		override_cells[Vector2i(cx + h, cy + g)] = 1
+	# 3) 十字主街 + 中央石板广场
+	for d in range(-h, h + 1):
+		override_cells[Vector2i(cx + d, cy)] = 1
+		override_cells[Vector2i(cx, cy + d)] = 1
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			override_cells[Vector2i(cx + dx, cy + dy)] = 35
+	# 4) 功能建筑（规划化摆放：府衙镇北、酒楼居东、药坊居西、市肆环广场、民居四角）
+	city_info = {"center_px": Vector2(cx * 16.0 + 8.0, cy * 16.0 + 8.0), "buildings": {}, "gate_px": {
+		"n": Vector2(cx * 16.0 + 8.0, (cy - h + 2) * 16.0 + 8.0),
+		"s": Vector2(cx * 16.0 + 8.0, (cy + h - 2) * 16.0 + 8.0),
+		"w": Vector2((cx - h + 2) * 16.0 + 8.0, cy * 16.0 + 8.0),
+		"e": Vector2((cx + h - 2) * 16.0 + 8.0, cy * 16.0 + 8.0),
+	}}
+	var bdefs := {
+		"yamen":      ["yamen",      Vector2i(cx - 5, cy - 20)],   # 府衙：北端镇守
+		"tavern":     ["tavern",     Vector2i(cx + 9, cy - 11)],   # 酒楼：东北闹市
+		"apothecary": ["apothecary", Vector2i(cx - 16, cy - 11)],  # 药坊：西北
+		"smithy":     ["shop_a",     Vector2i(cx - 17, cy + 5)],   # 铁匠铺：西南作坊区
+		"cloth":      ["shop_b",     Vector2i(cx + 10, cy + 6)],   # 布庄：东南
+		"grocery":    ["shop_a",     Vector2i(cx - 13, cy - 17)],  # 杂货铺：西北里巷
+		"house_ne":   ["house",      Vector2i(cx + 7, cy - 18)],   # 民居：东北
+		"house_se":   ["house",      Vector2i(cx + 13, cy + 12)],  # 民居：东南
+		"house_w":    ["hut",        Vector2i(cx - 10, cy + 12)],  # 民居：西南
+	}
+	for key in bdefs:
+		var kind: String = bdefs[key][0]
+		var a: Vector2i = bdefs[key][1]
+		_force_place_building_prop(kind, a)
+		var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+		var door := Vector2i(a.x + int(fp.x / 2.0), a.y + fp.y)
+		city_info["buildings"][key] = {"anchor": a, "fp": fp,
+			"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0)}
+		_carve_door_path(a, fp, cy)   # 门前小径连主街，出门即达路网
+	# 5) 市集：主街两侧四个市摊 + 水井（登记进buildings供NPC站位/日程）
+	var stalls := {
+		"stall_w1": ["stall_red",  Vector2i(cx - 8, cy + 1)],
+		"stall_w2": ["stall_red",  Vector2i(cx - 8, cy - 3)],
+		"stall_e1": ["stall_teal", Vector2i(cx + 8, cy + 1)],
+		"stall_e2": ["stall_teal", Vector2i(cx + 8, cy - 3)],
+		"well":     ["well",       Vector2i(cx - 5, cy - 5)],
+	}
+	for key in stalls:
+		var kind2: String = stalls[key][0]
+		var a2: Vector2i = stalls[key][1]
+		_force_place_building_prop(kind2, a2)
+		city_info["buildings"][key] = {"anchor": a2, "fp": Vector2i(1, 1),
+			"door_px": Vector2((a2.x + 0.5) * 16.0, (a2.y + 1.5) * 16.0)}
+	# 6) 城名标（北门上方，世界空间小字）
+	var lbl := Label.new()
+	lbl.text = "· 青 石 城 ·"
+	lbl.add_theme_font_size_override("font_size", 5)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.92, 0.6))
+	lbl.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.04))
+	lbl.add_theme_constant_override("outline_size", 2)
+	lbl.z_index = 20
+	lbl.position = Vector2(cx * 16.0 + 8.0 - 26.0, (cy - h) * 16.0 - 12.0)
+	get_parent().add_child(lbl)
+	# 7) 登记净空区（城墙外余量圈不生成树木/岩石）
+	_register_town_clearance(cx, cy, h)
+	print("[WorldGen] City[青石城] @(%d,%d) half=%d buildings=%d" % [cx, cy, h, city_info["buildings"].size()])
+
+func get_city_info() -> Dictionary:
+	return city_info
+
 # ============ 城镇系统 ============
 
 # ---- Phase G3: 城镇模板——三型布局（主建筑/民居组合/农田数量/中心广场）----
@@ -375,8 +477,8 @@ func _generate_towns():
 	for i in range(town_count):
 		var placed = false
 		for _attempt in range(30):
-			var tx = rng.randi_range(-115, 115)
-			var ty = rng.randi_range(-105, 105)
+			var tx = rng.randi_range(-155, 155)
+			var ty = rng.randi_range(-145, 145)
 			var h = get_height(tx, ty)
 			var w = get_humidity(tx, ty)
 
@@ -393,6 +495,10 @@ func _generate_towns():
 					too_close = true
 					break
 			if too_close:
+				continue
+
+			# 避让青石城（城圈45x45+街道余量）
+			if Vector2(tx, ty).distance_to(Vector2(CITY_POS)) < 34:
 				continue
 
 			# 检查是否在边界内
@@ -792,11 +898,25 @@ func _place_building_prop(kind: String, a: Vector2i) -> bool:
 	for dx in range(fp.x):
 		for dy in range(fp.y):
 			override_cells[Vector2i(a.x + dx, a.y + dy)] = TILE_BUILDING_RESERVE
+	_attach_building_sprite(kind, a)
+	return true
+
+func _force_place_building_prop(kind: String, a: Vector2i):
+	"""城内规划摆放：跳过选址校验（城内地坪已统一压草、坐标为人工规划），直接占格+挂道具"""
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+	for dx in range(fp.x):
+		for dy in range(fp.y):
+			override_cells[Vector2i(a.x + dx, a.y + dy)] = TILE_BUILDING_RESERVE
+	_attach_building_sprite(kind, a)
+
+func _attach_building_sprite(kind: String, a: Vector2i):
+	"""建筑视觉/碰撞道具：Sprite(z=2实体层Y-sort) + StaticBody + 墙脚阴影，挂World"""
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
 	var def: Dictionary = BUILDING_PROPS[kind]
 	var tex := TextureGen.load_png_texture(def["png"])
 	if tex == null:
 		push_warning("[WorldGen] 大建筑纹理缺失: " + str(def["png"]))
-		return true
+		return
 	var bw := fp.x * TILE_SIZE_PX
 	var bh := fp.y * TILE_SIZE_PX
 	var tsz := tex.get_size()
@@ -834,7 +954,6 @@ func _place_building_prop(kind: String, a: Vector2i) -> bool:
 	body.add_child(cs)
 	root.add_child(body)
 	get_parent().add_child(root)
-	return true
 
 # ---- Phase F6: 连通性保障（饥荒式：所有可走孤岛自动开路接回主大陆） ----
 func _ensure_connectivity():
@@ -1189,7 +1308,7 @@ func is_tile_blocking(world_pos: Vector2) -> bool:
 # ============ POI周围chunk强制加载 ============
 
 func _load_poi_chunks():
-	"""确保所有POI位置周围的chunk被加载"""
+	"""确保所有POI位置周围的chunk被加载（含青石城：城池远于玩家初始加载半径）"""
 	for p in pois:
 		var poi_pos: Vector2 = p["position"]
 		var poi_chunk = world_to_chunk(poi_pos)
@@ -1199,6 +1318,13 @@ func _load_poi_chunks():
 				var c = poi_chunk + Vector2i(dx, dy)
 				if not loaded_chunks.has(c):
 					_load_chunk(c)
+	# 青石城chunk强制加载（城圈45x45 → ±2 chunk覆盖全城）
+	var city_chunk = world_to_chunk(Vector2(CITY_POS.x * TILE_SIZE_PX, CITY_POS.y * TILE_SIZE_PX))
+	for dx in range(-2, 3):
+		for dy in range(-2, 3):
+			var c2 = city_chunk + Vector2i(dx, dy)
+			if not loaded_chunks.has(c2):
+				_load_chunk(c2)
 	print("[WorldGen] POI chunks loaded")
 
 func _apply_poi_terrain():
@@ -1527,8 +1653,8 @@ func _scatter_pois():
 
 func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 	for _attempt in range(20):
-		var wx = rng.randi_range(-130, 130)
-		var wy = rng.randi_range(-115, 115)
+		var wx = rng.randi_range(-(WORLD_RADIUS - 30), WORLD_RADIUS - 30)
+		var wy = rng.randi_range(-(WORLD_RADIUS - 45), WORLD_RADIUS - 45)
 		var h = get_height(wx, wy)
 		var w = get_humidity(wx, wy)
 		if h < tpl.min_height or h > tpl.max_height:
@@ -1537,6 +1663,9 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 			continue
 		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 		if _too_close_to_other_poi(pos, tpl.min_distance):
+			continue
+		# 避让青石城（城圈+余量）
+		if Vector2(wx, wy).distance_to(Vector2(CITY_POS)) < 34:
 			continue
 		# 检查是否在世界边界内
 		if sqrt(wx * wx + wy * wy) > WORLD_RADIUS - 10:

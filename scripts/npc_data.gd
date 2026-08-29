@@ -11,3 +11,5 @@ extends Resource
 @export var sleep_start_hour: int = 22
 @export var work_start_hour: int = 8
 @export var dialogue_id: String = ""
+# 城池NPC固定日程（非空则覆盖自动生成）：腿={start,end,state,pos}，state∈work/leisure/wander/idle
+@export var custom_schedule: Array = []

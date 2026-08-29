@@ -64,6 +64,17 @@ const RELATION_TYPES = ["师徒", "仇敌", "挚友", "爱慕", "中立", "同�
 func _ready():
 	_load_clans()
 	_setup_initial_diplomacy()
+	_equip_default_inner()
+
+func _equip_default_inner():
+	"""开局默认装备基础心法（青木长生功）。
+	修"打坐无反应/无恢复进度"根因：此前active_inner_skill从未赋值→start_meditation永远静默拒绝"""
+	var path := "res://resources/inner/青木长生功.tres"
+	if ResourceLoader.exists(path):
+		active_inner_skill = load(path)
+		print("[Meditation] 默认心法已装备: " + str(active_inner_skill.skill_name))
+	else:
+		push_warning("[Meditation] 内功资源缺失: " + path)
 
 func get_relation(id_a: String, id_b: String) -> float:
 	var key = _relation_key(id_a, id_b)
@@ -214,6 +225,8 @@ func _tick_cultivation():
 		if not debuff_active:
 			debuff_active = true
 			print("[Meditation] 五行相克! 修炼效率降低，内力受损")
+	# 打坐吐纳：每拍持续恢复内力（此前仅修炼圆满一次性回复，"打坐看不到恢复进度"）
+	qi = minf(qi + 2.0, max_qi)
 	
 	inner_skill_progress += progress
 	if inner_skill_progress >= active_inner_skill.max_progress:

@@ -18,6 +18,7 @@ func _ready():
 	_setup_encounter_system()
 	_setup_oath_system()
 	_setup_quick_menu()
+	_setup_pause_hud()
 	_setup_combat_stance()
 	_setup_combat_hud()
 	_setup_inventory()
@@ -84,7 +85,7 @@ func _ensure_textures():
 		"grass", "grass_dark", "path", "water", "sand", "snow", "stone",
 		"farmland", "farmland_wet", "mountain", "mountain_snow",
 		"house_town", "house_cottage", "house_temple", "house_cave",
-		"flower", "daisy", "mushroom", "rock", "fence", "bridge",
+		"flower", "daisy", "mushroom", "rock", "fence", "bridge", "city_wall",
 	]
 	var need_textures = false
 	for t in tile_files:
@@ -102,7 +103,9 @@ func _ensure_textures():
 			print("[Main] Generator tiles regenerated")
 	# Phase F5: 大型建筑贴图（sprites/buildings/*.png 缺失时生成；逐kind校验防止增量缺失）
 	var big_missing := false
-	for kind in ["hut", "house", "manor", "temple", "castle"]:
+	for kind in ["hut", "house", "manor", "temple", "castle",
+			"yamen", "tavern", "apothecary", "shop_a", "shop_b",
+			"stall_red", "stall_teal", "well"]:
 		if not FileAccess.file_exists("res://sprites/buildings/%s.png" % kind):
 			big_missing = true
 			break
@@ -113,8 +116,19 @@ func _ensure_textures():
 			gen2.set_script(gen_script2)
 			add_child(gen2)
 			gen2.generate_big_buildings()
+			gen2.generate_city_props()
 			gen2.queue_free()
 			print("[Main] Big buildings regenerated")
+	# 打坐专用坐姿帧（meditate_down_0/1，程序化生成；素材包无坐姿）
+	if not FileAccess.file_exists("res://sprites/player/meditate_down_0.png"):
+		var gen_script3 = load("res://scripts/texture_generator.gd")
+		if gen_script3:
+			var gen3 = Node.new()
+			gen3.set_script(gen_script3)
+			add_child(gen3)
+			gen3.generate_meditate_frames()
+			gen3.queue_free()
+			print("[Main] Meditate frames regenerated")
 	# 玩家/NPC帧动画与TileSet均在运行时从PNG直接构建（player.gd / npc_character.gd / world_generator.gd），
 	# 不再依赖 player_frames.tres / ground_tiles.tres，避免运行时生成资源无import数据导致的加载失败
 
@@ -141,6 +155,12 @@ func _setup_quick_menu():
 	qm.name = "QuickMenu"
 	qm.set_script(load("res://scripts/quick_menu.gd"))
 	$World/UI.add_child(qm)
+
+func _setup_pause_hud():
+	var ph = Control.new()
+	ph.name = "PauseHUD"
+	ph.set_script(load("res://scripts/pause_hud.gd"))
+	$World/UI.add_child(ph)   # ESC无面板时呼出全局暂停（暂停时世界冻结）
 
 func _setup_clan_simulator():
 	var sim = Node.new()

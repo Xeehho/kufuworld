@@ -26,10 +26,17 @@ func is_dialog_open() -> bool:
 	return dialogue_box != null and dialogue_box.visible
 
 func close_dialog():
-	# 外部强关（奇遇置顶/面板互斥等）：标记非用户读完，主线可据此重开对话
+	# 外部强关（奇遇置顶/面板互斥等）：优先挂起现场（可原地续播，防止剧情对话从头重放），
+	# 并标记非用户读完，主线可据此恢复/重开
 	if dialogue_box and dialogue_box.visible:
-		print("[Dialog] 外部强关对话 (meta=%s)" % str(dialogue_box.last_meta))
-		dialogue_box._finish_dialog(false)
+		print("[Dialog] 外部挂起对话 (meta=%s)" % str(dialogue_box.last_meta))
+		dialogue_box.suspend_dialog()
+
+func resume_dialog() -> bool:
+	# 原地续播挂起的对话；无挂起现场返回false（调用方自行兜底重播）
+	if dialogue_box == null or not is_instance_valid(dialogue_box):
+		return false
+	return dialogue_box.resume_dialog()
 
 func _ensure_box():
 	if dialogue_box != null and is_instance_valid(dialogue_box):

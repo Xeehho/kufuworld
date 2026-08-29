@@ -29,6 +29,7 @@ var reopen_pending_meta: String = ""   # 被外部强关(奇遇置顶等)的对�
 var branch_resolved_meta: String = ""  # 当前节点已完成过分支选择的meta（防重播双发奖励）
 var _poll_accum: float = 0.0
 var _encounter_system: Node = null
+var _accept_hinted: bool = false       # "目标已达成但未接取委托"提示只发一次
 
 func _ready():
 	nodes = _build_nodes()
@@ -47,6 +48,8 @@ func _late_setup():
 		mob_spawner.mob_killed.connect(_on_any_mob_killed)
 	if inventory:
 		inventory.inventory_changed.connect(_on_inventory_changed)
+	if quest_system and quest_system.has_signal("story_quest_accepted"):
+		quest_system.story_quest_accepted.connect(_on_story_quest_accepted)
 	_start_when_ready()
 
 func _process(delta):
@@ -60,13 +63,20 @@ func _process(delta):
 					waiting_oath_title = ""
 					_complete_node(node_index)
 					break
-	# 被强关的剧情对话重开：等奇遇面板关闭且对话框空闲；已做过分支选择则不重播
-	if reopen_pending_meta != "" and node_index >= 0 and reopen_pending_meta != branch_resolved_meta:
+	# 被强关的剧情对话恢复：优先原地续播挂起现场（不重放已看过的页，修WASD教学页双显）；
+	# 挂起现场丢失时才整段重播，且分支已决时不再重播（防选项效果双发）
+	if reopen_pending_meta != "" and node_index >= 0:
 		var enc_active: bool = _encounter_system != null and _encounter_system.active_encounter != null
 		if not enc_active and not DialogManager.is_dialog_open():
-			var cfg: Dictionary = nodes[node_index]
-			DialogManager.show_dialog(str(cfg.get("speaker", "")), cfg.get("lines", []), reopen_pending_meta)
-			print("[Story] 剧情对话被打断，已自动恢复")
+			var resumed: bool = DialogManager.resume_dialog()
+			if resumed:
+				print("[Story] 剧情对话原地恢复（续播挂起页）")
+			elif reopen_pending_meta != branch_resolved_meta:
+				var cfg: Dictionary = nodes[node_index]
+				DialogManager.show_dialog(str(cfg.get("speaker", "")), cfg.get("lines", []), reopen_pending_meta)
+				print("[Story] 剧情对话被打断，已从头恢复")
+			else:
+				print("[Story] 挂起现场丢失且分支已决，跳过重播（防选项双发）")
 		reopen_pending_meta = ""
 
 # ---------- 节点数据 ----------
@@ -181,6 +191,7 @@ func start_node(i: int):
 		return
 	node_index = i
 	kills_progress = 0
+	_accept_hinted = false
 	var cfg: Dictionary = nodes[i]
 	var ev: Array = cfg.get("intro_event", [])
 	if ev.size() >= 2:
@@ -217,12 +228,49 @@ func _attach_quest(cfg: Dictionary):
 		int(qcfg.get("reward_gold", 0)), float(qcfg.get("reward_rep", 0)),
 		float(qcfg.get("reward_morality", 0)))
 	story_quest_id = q.quest_id
+	# 待接取提示：追踪器已显示"待接取"卡片，这里再用事件流提醒一次接取入口
+	GameManager.emit_event("主线委托", "「%s」待接取——按N打开任务日志" % str(qcfg["title"]), 3)
+
+func _on_story_quest_accepted(quest_id: String):
+	"""玩家接取主线委托：补记接取前的目标进度（击杀/收集不白费）"""
+	if node_index < 0 or quest_id != story_quest_id:
+		return
+	var cfg: Dictionary = nodes[node_index]
+	match String(cfg.get("complete_mode", "")):
+		"kills":
+			if kills_progress > 0 and quest_system:
+				quest_system.progress_quest(story_quest_id, kills_progress)
+			if kills_progress >= int(cfg.get("kill_target", 99)):
+				_complete_node(node_index)
+		"item":
+			_check_item_done()
+
+func _story_target_reached(cfg: Dictionary) -> bool:
+	"""目标是否已达成（与接取无关）：kills按计数，item按背包"""
+	match String(cfg.get("complete_mode", "")):
+		"kills":
+			return kills_progress >= int(cfg.get("kill_target", 99))
+		"item":
+			return inventory != null and item_target_id != "" \
+				and inventory.get_item_count(item_target_id) >= item_needed
+	return false
+
+func _hint_accept_once():
+	if _accept_hinted:
+		return
+	_accept_hinted = true
+	var cfg: Dictionary = nodes[node_index]
+	var title := str(cfg["quest"]["title"]) if cfg.has("quest") else "主线委托"
+	GameManager.emit_event("主线委托", "目标已达成——按N打开任务日志接取「%s」领取奖励" % title, 3)
 
 func _complete_node(idx: int):
 	if idx < 0 or idx >= nodes.size() or node_index != idx:
 		return
 	var cfg: Dictionary = nodes[idx]
 	node_index = -1
+	# 主线委托随节点收尾：进行中→补满结算；极端卡在待接取→直接结算（事已办成）
+	if story_quest_id != "" and quest_system != null:
+		quest_system.settle_story_quest(story_quest_id)
 	story_quest_id = ""
 	waiting_oath_title = ""
 	item_target_id = ""
@@ -267,23 +315,40 @@ func _on_any_mob_killed(kind_id: String):
 	if not kind_id.begins_with(String(cfg.get("kill_prefix", "~"))):
 		return
 	kills_progress += 1
-	if quest_system:
+	var accepted: bool = quest_system != null and quest_system.is_story_quest_active(story_quest_id)
+	if accepted and quest_system:
 		quest_system.progress_quest(story_quest_id)   # UI进度与任务结算走统一链路
 	if kills_progress >= int(cfg.get("kill_target", 99)):
-		_complete_node(node_index)
+		if accepted:
+			_complete_node(node_index)
+		else:
+			_hint_accept_once()   # 目标已达成但委托未接取：不推进剧情，等接取后自动结算
 
 func _on_inventory_changed():
 	if node_index < 0 or item_target_id == "":
 		return
 	if inventory == null or inventory.get_item_count(item_target_id) < item_needed:
 		return
-	# 达标：锁定目标防止重复触发
-	var done_idx: int = node_index
-	item_target_id = ""
-	item_needed = 0
-	if quest_system and story_quest_id != "":
-		quest_system.progress_quest(story_quest_id)
-	_complete_node(done_idx)
+	_check_item_done()
+
+func _check_item_done():
+	"""物品型节点达标检测：接取后结算推进；未接取只提示（修"主线自动接取"后的一致语义）"""
+	if node_index < 0 or item_target_id == "":
+		return
+	if inventory == null or inventory.get_item_count(item_target_id) < item_needed:
+		return
+	var cfg: Dictionary = nodes[node_index]
+	var accepted: bool = quest_system != null and quest_system.is_story_quest_active(story_quest_id)
+	if accepted:
+		# 达标：锁定目标防止重复触发
+		var done_idx: int = node_index
+		item_target_id = ""
+		item_needed = 0
+		if quest_system and story_quest_id != "":
+			quest_system.progress_quest(story_quest_id)
+		_complete_node(done_idx)
+	else:
+		_hint_accept_once()
 
 # 主3 前置校验：山贼营若已被提前清空则立即强制补怪（防卡死）
 func _ensure_thief_camp_ready():

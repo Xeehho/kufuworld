@@ -28,6 +28,7 @@ var wander_center: Vector2 = Vector2.ZERO  # 到达目的地后的局部游荡�
 var stuck_timer: float = 0.0          # 卡死检测计时
 var last_pos: Vector2 = Vector2.ZERO
 var repath_cooldown: float = 0.0      # 重寻路冷却（防抖）
+var idle_hold: bool = false           # 日程"idle"腿：原地驻留不转游荡（乞丐/守卫小憩）
 var _world_gen_ref: Node2D = null
 
 @onready var anim: AnimatedSprite2D = $AnimatedSprite2D
@@ -172,6 +173,12 @@ func _create_fallback_visual():
 		"merchant": Color(0.55, 0.40, 0.20),
 		"elder": Color(0.40, 0.42, 0.50),
 		"mysterious": Color(0.18, 0.15, 0.25),
+		"guard": Color(0.45, 0.22, 0.18),
+		"tavern_f": Color(0.62, 0.35, 0.30),
+		"matron_f": Color(0.55, 0.30, 0.35),
+		"peasant_f": Color(0.45, 0.48, 0.30),
+		"herbalist_f": Color(0.35, 0.52, 0.38),
+		"seamstress_f": Color(0.50, 0.35, 0.55),
 	}
 	fallback.color = colors.get(npc_type, Color(0.5, 0.5, 0.3))
 	add_child(fallback)
@@ -214,6 +221,10 @@ func _generate_waypoints_around(center: Vector2):
 func _build_schedule():
 	var home: Vector2 = npc_data.home_position
 	var work: Vector2 = npc_data.work_position
+	# 城池NPC固定日程（npc_spawner按建筑锚点生成，每人有自己的作息：不随机、不扎堆）
+	if npc_data.custom_schedule.size() > 0:
+		schedule = npc_data.custom_schedule.duplicate(true)
+		return
 	var town := _nearest_town_center(home)
 	if town != Vector2.INF:
 		schedule = [
@@ -272,10 +283,17 @@ func _update_schedule():
 		return
 	match str(leg["state"]):
 		"work":
+			idle_hold = false
 			_transition_leg(ScheduleState.WORK, leg["pos"], "work_%d" % idx)
 		"leisure":
+			idle_hold = false
 			_transition_leg(ScheduleState.WALK, leg["pos"], "leisure_%d" % idx)
+		"idle":
+			# 原地驻留（乞丐坐守城门/更夫打盹）：到点即静止，不转游荡
+			idle_hold = true
+			_transition_leg(ScheduleState.IDLE, leg["pos"], "idle_%d" % idx)
 		_:
+			idle_hold = false
 			_transition_leg(ScheduleState.WALK, leg["pos"], "wander_%d" % idx)
 
 func _transition_leg(state: int, target: Vector2, key: String):
@@ -387,6 +405,11 @@ func _state_name() -> String:
 		_: return "休息"
 
 func _process_idle(delta):
+	# idle_hold（日程"idle"腿）：原地驻留（乞丐坐守/守卫小憩），不自动转游荡
+	if idle_hold:
+		velocity = Vector2.ZERO
+		_play_anim("idle")
+		return
 	idle_timer += delta
 	if idle_timer > idle_switch_interval:
 		idle_timer = 0.0

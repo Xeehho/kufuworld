@@ -23,6 +23,8 @@ var current_options: Array = []      # 当前待选分支（空=线性模式）
 var options_box: VBoxContainer = null
 var typing_tween: Tween = null
 var _options_shown_for: int = -1     # 防重：当前页已展示过选项
+var suspended := false               # 被外部强关挂起：保留队列/页码现场，可 resume_dialog() 原地续播
+                                     # （修复：剧情对话被奇遇等强关后从头重播→WASD教学页出现两次）
 # teach_move 教学页：页内解锁玩家移动，四方向全按过自动翻下一句
 const MOVE_TEACH_ACTIONS := ["ui_left", "ui_right", "ui_up", "ui_down"]
 var move_teach_active := false
@@ -55,6 +57,7 @@ func _on_panel_gui_input(event: InputEvent):
 func show_dialog(character: String, texts: Array, meta: String = ""):
 	if texts.is_empty():
 		return
+	suspended = false   # 新对话使旧挂起现场失效
 	base_speaker = character
 	last_meta = meta
 	dialog_queue = texts
@@ -103,6 +106,8 @@ func _show_current_text():
 	typing_tween.tween_callback(_after_typing)
 
 func _after_typing():
+	if not visible or suspended:
+		return
 	if _options_shown_for == current_index:
 		return
 	var opts = _entry_options(dialog_queue[current_index])
@@ -201,6 +206,7 @@ func _advance():
 		_show_current_text()
 
 func _finish_dialog(user_driven: bool = true):
+	suspended = false
 	last_close_user_driven = user_driven
 	visible = false
 	dialog_queue.clear()
@@ -211,6 +217,41 @@ func _finish_dialog(user_driven: bool = true):
 	move_pressed_set.clear()
 	DialogManager.set_move_teach(false)
 	dialog_finished.emit()
+
+# ---- 挂起/恢复：外部强关时保留现场，续播不再从头重放（WASD教学页双显根因）----
+func suspend_dialog():
+	"""外部强关（奇遇置顶/面板互斥）：挂起当前页现场并隐藏。
+	仍发出 dialog_finished(false)，调用方据此登记待恢复。"""
+	if not visible:
+		return
+	if typing_tween and typing_tween.is_valid():
+		typing_tween.kill()
+	suspended = true
+	last_close_user_driven = false
+	visible = false
+	current_options = []
+	options_box.visible = false
+	move_teach_active = false
+	move_pressed_set.clear()
+	DialogManager.set_move_teach(false)
+	dialog_finished.emit()
+
+func resume_dialog() -> bool:
+	"""原地续播挂起的对话（从挂起页继续，选项页会重新展示）。无现场返回false。"""
+	if not suspended or dialog_queue.is_empty():
+		return false
+	if current_index >= dialog_queue.size():
+		return false
+	suspended = false
+	visible = true
+	panel.modulate.a = 0.0
+	panel.scale = Vector2(0.96, 0.96)
+	panel.pivot_offset = panel.size / 2
+	var tw = create_tween().set_parallel(true)
+	tw.tween_property(panel, "modulate:a", 1.0, 0.18)
+	tw.tween_property(panel, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_show_current_text()
+	return true
 
 func get_last_meta() -> String:
 	return last_meta

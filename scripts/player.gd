@@ -55,9 +55,71 @@ var build_selected_index: int = -1
 const COLLISION_HALF_W = 6.0
 const COLLISION_HALF_H = 4.0
 var _world_gen: Node2D = null
+var meditate_particles: CPUParticles2D = null   # 打坐吐纳粒子（青色内力上升）
+var meditate_ui: Node2D = null                  # 打坐进度盘（头顶）：内力恢复条+修炼进度条
+var med_qi_fill: ColorRect = null
+var med_prog_fill: ColorRect = null
+const MED_W := 46.0
+
+func _setup_meditate_particles():
+	meditate_particles = CPUParticles2D.new()
+	meditate_particles.emitting = false
+	meditate_particles.amount = 12
+	meditate_particles.lifetime = 1.5
+	meditate_particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	meditate_particles.emission_sphere_radius = 12.0
+	meditate_particles.direction = Vector2(0, -1)
+	meditate_particles.spread = 24.0
+	meditate_particles.gravity = Vector2(0, -18)
+	meditate_particles.initial_velocity_min = 6.0
+	meditate_particles.initial_velocity_max = 15.0
+	meditate_particles.scale_amount_min = 1.0
+	meditate_particles.scale_amount_max = 2.4
+	meditate_particles.color = Color(0.45, 0.9, 1.0, 0.8)
+	meditate_particles.position = Vector2(0, -10)
+	add_child(meditate_particles)
+
+# 打坐进度盘（头顶世界空间）：上行=内力恢复，下行=内功修炼进度；仅打坐时显示
+func _setup_meditate_ui():
+	meditate_ui = Node2D.new()
+	meditate_ui.z_index = 30
+	meditate_ui.visible = false
+	add_child(meditate_ui)
+	var lbl := Label.new()
+	lbl.text = "· 打坐吐纳 ·"
+	lbl.add_theme_font_size_override("font_size", 5)
+	lbl.add_theme_color_override("font_color", Color(0.75, 0.93, 1.0))
+	lbl.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.10))
+	lbl.add_theme_constant_override("outline_size", 2)
+	lbl.position = Vector2(-22, -62)
+	meditate_ui.add_child(lbl)
+	# 内力恢复条
+	var bg_qi := ColorRect.new()
+	bg_qi.color = Color(0.05, 0.07, 0.11, 0.85)
+	bg_qi.position = Vector2(-MED_W / 2, -52)
+	bg_qi.size = Vector2(MED_W, 5)
+	meditate_ui.add_child(bg_qi)
+	med_qi_fill = ColorRect.new()
+	med_qi_fill.color = Color(0.42, 0.85, 1.0, 0.95)
+	med_qi_fill.position = Vector2(-MED_W / 2 + 1, -51)
+	med_qi_fill.size = Vector2(0, 3)
+	meditate_ui.add_child(med_qi_fill)
+	# 内功修炼进度条
+	var bg_p := ColorRect.new()
+	bg_p.color = Color(0.05, 0.07, 0.11, 0.85)
+	bg_p.position = Vector2(-MED_W / 2, -45)
+	bg_p.size = Vector2(MED_W, 5)
+	meditate_ui.add_child(bg_p)
+	med_prog_fill = ColorRect.new()
+	med_prog_fill.color = Color(0.95, 0.78, 0.35, 0.95)
+	med_prog_fill.position = Vector2(-MED_W / 2 + 1, -44)
+	med_prog_fill.size = Vector2(0, 3)
+	meditate_ui.add_child(med_prog_fill)
 
 func _ready():
 	attack_indicator.visible = false
+	_setup_meditate_particles()   # 打坐吐纳内力粒子
+	_setup_meditate_ui()          # 打坐进度盘（内力/修炼双条）
 	# 碰撞分层表（地形/建筑StaticBody=层1）：玩家=层2，NPC=层4，敌人=层8
 	# 玩家mask=1|4|8：被NPC/敌人挡住（空气墙）；NPC/敌人mask只含层1→
 	# 它们做重叠分离时不会把玩家算进去，玩家位置绝不被实体改变
@@ -182,6 +244,30 @@ func rebuild_sprite_frames():
 			for tex in frames:
 				sf.add_frame(anim_name, tex)
 			loaded_any = true
+	# 打坐盘坐动画：专用坐姿帧（meditate_down_0/1，程序化生成，素材包无坐姿）；
+	# 缺失时回退Collect弯腰两帧。坐姿无方向差异，四方向统一用down帧
+	for dir_name in dir_names:
+		var anim_name: String = "meditate_" + str(dir_name)
+		var frames: Array = []
+		for i in [0, 1]:
+			var tex = TextureGen.load_png_texture("res://sprites/player/meditate_down_%d.png" % i)
+			if tex:
+				frames.append(tex)
+		if frames.is_empty():
+			for i in [4, 5]:
+				var tex2 = TextureGen.load_png_texture("res://sprites/player/collect_%s_%d.png" % [dir_name, i])
+				if tex2:
+					frames.append(tex2)
+		if frames.is_empty():
+			push_warning("[Player] 缺失打坐动画帧: " + anim_name)
+			continue
+		if not sf.has_animation(anim_name):
+			sf.add_animation(anim_name)
+		sf.set_animation_speed(anim_name, 1.5)
+		sf.set_animation_loop(anim_name, true)
+		for tex in frames:
+			sf.add_frame(anim_name, tex)
+		loaded_any = true
 	if loaded_any:
 		anim.sprite_frames = sf
 		# Body_A 64x64帧人物脚线在y≈48，帧中心y=32 → 上移16px使脚底=节点原点
@@ -246,6 +332,17 @@ func _unhandled_input(event):
 	if state == State.BUILD and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_toggle_build()
 		get_viewport().set_input_as_handled()
+	# 滚轮循环切换手持工具：徒手→锄→壶→种→采集→斧→徒手（用户要求）
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if _is_ui_blocking() or state == State.BUILD or state == State.DEAD:
+				return
+			var order := [Tool.NONE, Tool.HOE, Tool.CAN, Tool.SEEDS, Tool.COLLECT, Tool.AXE]
+			var idx := order.find(equipped_tool)
+			if idx < 0:
+				idx = 0
+			var step := 1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1
+			_select_tool(order[(idx + step + order.size()) % order.size()])
 
 func _is_ui_blocking() -> bool:
 	"""有模态UI打开时，锁定角色移动与战斗输入"""
@@ -421,7 +518,11 @@ func _check_combat_input():
 			_click_building_info(clicked_bld)	# Phase G: 点中古堡→势力信息面板
 			return
 		if equipped_tool != Tool.NONE:
-			_use_tool()   # 装备工具时左键=使用工具（星露谷式）
+			# 手持工具遇敌转攻击（修"装上斧头打不了野怪"）：面前有敌人时挥击优先
+			if _find_mob_in_front() != null:
+				_start_attack(true)
+			else:
+				_use_tool()   # 装备工具时左键=使用工具（星露谷式）
 		else:
 			_start_attack(true)
 	elif Input.is_action_just_pressed("player_attack_heavy"):
@@ -539,8 +640,14 @@ func _float_text(pos: Vector2, txt: String, color: Color):
 	tw.tween_property(lbl, "modulate:a", 0.0, 0.8).set_delay(0.15)
 	tw.chain().tween_callback(lbl.queue_free)
 
+var _qi_warn_cd := 0.0
+
 func _start_attack(is_light: bool):
 	if GameManager.qi < 2:
+		# BugFix: 原先静默return，内力耗尽后左键"没反应"（用户误以为攻击坏了）
+		if _qi_warn_cd <= 0.0:
+			_qi_warn_cd = 0.8
+			_float_text(global_position + Vector2(0, -34), "内力不足，按E打坐恢复", Color(1.0, 0.75, 0.45))
 		return
 	state = State.ATTACK
 	var skill = _get_skill(is_light)
@@ -821,25 +928,49 @@ func _process_dodge(delta):
 
 func _toggle_meditate():
 	if state == State.MEDITATE:
-		state = State.IDLE
-		GameManager.stop_meditation()
-		attack_indicator.visible = false
-	else:
-		state = State.MEDITATE
-		GameManager.start_meditation()
-		velocity = Vector2.ZERO
-		attack_indicator.visible = true
-		attack_indicator.color = Color(0.3, 0.3, 0.8, 0.5)
+		_exit_meditate()
+		return
+	if GameManager.active_inner_skill == null:
+		_float_text(global_position + Vector2(0, -34), "尚未修炼内功心法，无法打坐", Color(1.0, 0.72, 0.45))
+		return
+	state = State.MEDITATE
+	GameManager.start_meditation()
+	velocity = Vector2.ZERO
+	attack_indicator.visible = true
+	attack_indicator.color = Color(0.3, 0.3, 0.8, 0.5)
+	_play_anim("meditate")   # 盘坐动作（专用坐姿帧慢循环+呼吸起伏）
+	if meditate_particles:
+		meditate_particles.emitting = true
+	if meditate_ui:
+		meditate_ui.visible = true
+	_float_text(global_position + Vector2(0, -34), "开始打坐（E起身）", Color(0.65, 0.9, 1.0))
+
+func _exit_meditate():
+	state = State.IDLE
+	GameManager.stop_meditation()
+	attack_indicator.visible = false
+	if meditate_particles:
+		meditate_particles.emitting = false
+	if meditate_ui:
+		meditate_ui.visible = false
+	_play_anim("idle")
 
 func _process_meditate(_delta):
 	if Input.is_action_just_pressed("player_meditate"):
-		state = State.IDLE
-		GameManager.stop_meditation()
-		attack_indicator.visible = false
+		_exit_meditate()
 		return
 	if GameManager.is_meditating == false:
-		state = State.IDLE
-		attack_indicator.visible = false
+		# 打坐被外部终止（修炼圆满/死亡等）：起身并反馈
+		_exit_meditate()
+		if GameManager.active_inner_skill != null and GameManager.inner_skill_progress >= GameManager.active_inner_skill.max_progress:
+			_float_text(global_position + Vector2(0, -34), "修炼圆满！", Color(0.55, 1.0, 0.75))
+		return
+	# 刷新打坐进度盘：上行内力恢复、下行内功修炼进度
+	if meditate_ui and med_qi_fill and med_prog_fill and GameManager.active_inner_skill != null:
+		var qi_ratio := clampf(GameManager.qi / maxf(1.0, GameManager.max_qi), 0.0, 1.0)
+		var prog_ratio := clampf(GameManager.inner_skill_progress / maxf(1.0, GameManager.active_inner_skill.max_progress), 0.0, 1.0)
+		med_qi_fill.size.x = (MED_W - 2.0) * qi_ratio
+		med_prog_fill.size.x = (MED_W - 2.0) * prog_ratio
 
 func _try_interact():
 	if interact_cooldown > 0:
@@ -879,6 +1010,7 @@ func _process(_delta):
 	interact_cooldown -= _delta if interact_cooldown > 0 else 0
 	tool_cooldown -= _delta if tool_cooldown > 0 else 0
 	hurt_timer -= _delta if hurt_timer > 0 else 0
+	_qi_warn_cd -= _delta if _qi_warn_cd > 0 else 0
 	_update_target_indicator()
 	# Phase D 死亡兜底轮询：毒/饿等非战斗减血到0也进死亡闭环（战斗路径见take_hit_with_stance）
 	if not _is_dead and GameManager.health <= 0.0:

@@ -326,14 +326,41 @@ def export_player():
     return count
 
 # ================= NPC（F3: 内容bbox归一化，修复merchant/elder模型过小） =================
+# 性别化NPC：男款=Knight/Wizzard/Rogue；女款=Citizen_F(Tavern_A/Tavern_B/Peasant_A)
+# opts.tint=(r,g,b)乘法染色（跳过皮肤像素）：在仅有3个男体的素材约束下衍生男掌柜/灰袍长者/红缨捕头等
 NPC_MAP = {
-    "warrior":    ("Npc's","Knight"),
-    "scholar":    ("Npc's","Wizzard"),
-    "mysterious": ("Npc's","Rogue"),
-    "merchant":   ("Npc's","Citizen_F","Peasant_A"),
-    "elder":      ("Npc's","Citizen_F","Tavern_B"),
+    "warrior":      ("Npc's","Knight"),                                          # 武人（男·铁甲）
+    "scholar":      ("Npc's","Wizzard"),                                         # 书生（男·青衫）
+    "mysterious":   ("Npc's","Rogue"),                                           # 神秘人（男·兜帽）
+    "merchant":     ("Npc's","Wizzard",   {"tint": (1.30, 0.98, 0.55)}),         # 商人（男·金棕锦袍）
+    "elder":        ("Npc's","Wizzard",   {"tint": (0.80, 0.82, 0.92)}),         # 长者（男·灰白道袍）
+    "guard":        ("Npc's","Knight",    {"tint": (0.88, 0.55, 0.50)}),         # 捕头（男·红缨甲士）
+    "tavern_f":     ("Npc's","Citizen_F","Tavern_A"),                            # 酒楼跑堂（女·围裙）
+    "matron_f":     ("Npc's","Citizen_F","Tavern_B"),                            # 老板娘/大娘（女）
+    "peasant_f":    ("Npc's","Citizen_F","Peasant_A"),                           # 农妇/货娘（女）
+    "herbalist_f":  ("Npc's","Citizen_F","Tavern_B",  {"tint": (0.62, 1.05, 0.62)}),   # 药坊大夫（女·药青衫）
+    "seamstress_f": ("Npc's","Citizen_F","Peasant_A", {"tint": (1.02, 0.72, 1.12)}),   # 布庄老板娘（女·紫裙）
 }
 TARGET_CHAR_H = 29.0   # 统一人物可见像素高（对齐warrior/mob基准）
+
+def tint_rows(rows, tint):
+    """乘法染色（跳过皮肤/透明像素）：男款衍生+女款变体的核心"""
+    if not tint:
+        return rows
+    out = []
+    for row in rows:
+        b = bytearray(row)
+        for i in range(0, len(b), 4):
+            r, g, bb, a = b[i], b[i+1], b[i+2], b[i+3]
+            if a == 0:
+                continue
+            if _is_skin((r/255.0, g/255.0, bb/255.0, a/255.0)):
+                continue
+            b[i]   = min(255, int(r  * tint[0]))
+            b[i+1] = min(255, int(g  * tint[1]))
+            b[i+2] = min(255, int(bb * tint[2]))
+        out.append(bytes(b))
+    return out
 
 def _paste_canvas(fr, tw, th, ts=32):
     canvas=[bytearray(ts*4) for _ in range(ts)]
@@ -346,7 +373,10 @@ def export_npcs():
     total=0
     TS=32
     out_dir=os.path.join(SPR,"npc")
-    for ntype, parts in NPC_MAP.items():
+    for ntype, spec in NPC_MAP.items():
+        opts = spec[-1] if isinstance(spec[-1], dict) else {}
+        parts = list(spec[:-1]) if isinstance(spec[-1], dict) else list(spec)
+        tint = opts.get("tint")
         base = P("Entities", *parts)
         sheets=[]
         for dp,_,fs in os.walk(base):
@@ -367,6 +397,7 @@ def export_npcs():
         if idle_src is None:
             print("  [npc] MISS idle sheet:", ntype); continue
         w0,h0,rows0 = load_png(idle_src)
+        rows0 = tint_rows(rows0, tint)
         bb = _bbox_px(rows0, w0, h0)
         src_h = max(1, bb[3]-bb[1]+1)
         scale = TARGET_CHAR_H / src_h
@@ -376,6 +407,7 @@ def export_npcs():
             if src is None:
                 print("  [npc] MISS sheet:", ntype, anim); continue
             w,h,rows=load_png(src); fw=h; n=w//fw
+            rows = tint_rows(rows, tint)
             f0 = crop(rows,fw,fw,0,False)
             b0 = _bbox_px(f0, fw, fw)
             ref_base = (fw-1-b0[3]) if b0[2] >= 0 else 0   # 本表frame0脚底基准

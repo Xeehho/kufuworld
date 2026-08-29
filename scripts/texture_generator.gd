@@ -103,7 +103,91 @@ func generate_tiles():
 	_save_tile(_mini_house(wall_sheet, bprops, "town"), "house_town")
 	_save_tile(_mini_house(wall_sheet, bprops, "cottage"), "house_cottage")
 	_save_tile(_mini_house(wall_sheet, bprops, "temple"), "house_temple")
+	# ---- 青石城：城墙砖（程序化，素材包无城墙）----
+	_save_tile(_city_wall_tile(), "city_wall")
 	print("[TextureGen] Tiles generated (Pixel Crawler pack crops)")
+
+# 城墙砖瓦片：青灰砖+错缝砖线+顶部压光，四面围墙用（tile id 40）
+func _city_wall_tile() -> Image:
+	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
+	var base := Color(0.44, 0.43, 0.42)
+	var mortar := Color(0.27, 0.26, 0.26)
+	var hi := Color(0.55, 0.53, 0.50)
+	var lo := Color(0.35, 0.34, 0.33)
+	img.fill(base)
+	for y in range(TILE_SIZE):
+		if y % 4 == 3:
+			for x in range(TILE_SIZE):
+				img.set_pixel(x, y, mortar)   # 横缝
+	for y in range(TILE_SIZE):
+		if y % 4 == 3:
+			continue
+		var off := ((y / 4) % 2) * 4
+		for x in range(TILE_SIZE):
+			if (x + off) % 8 == 7:
+				img.set_pixel(x, y, mortar)   # 竖缝错砌
+	for x in range(TILE_SIZE):
+		img.set_pixel(x, 0, hi)
+		img.set_pixel(x, 15, lo)
+	return img
+
+# ============ 青石城市集道具（程序化） ============
+# 市摊：20x24，木柱+条纹布棚+摊台
+func _market_stall(awning: Color) -> Image:
+	var img := Image.create(20, 24, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var wood := Color(0.48, 0.33, 0.19)
+	var wood_d := Color(0.36, 0.24, 0.13)
+	var stripe := Color(0.92, 0.90, 0.84)
+	# 摊台
+	for x in range(2, 18):
+		for y in range(15, 19):
+			img.set_pixel(x, y, wood if y < 17 else wood_d)
+	# 柱
+	for y in range(4, 22):
+		img.set_pixel(2, y, wood_d)
+		img.set_pixel(17, y, wood_d)
+	# 布棚（条纹）
+	for x in range(0, 20):
+		for y in range(0, 6):
+			var c := awning if (x / 3) % 2 == 0 else stripe
+			img.set_pixel(x, y, c)
+		img.set_pixel(x, 6, wood_d)   # 檐口
+	# 棚下货物点缀
+	for x in range(4, 8):
+		img.set_pixel(x, 14, Color(0.85, 0.55, 0.30))
+	for x in range(11, 15):
+		img.set_pixel(x, 14, Color(0.55, 0.75, 0.45))
+	return img
+
+# 水井：18x22，石圈+木架小顶
+func _city_well() -> Image:
+	var img := Image.create(18, 22, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var stone := Color(0.46, 0.45, 0.44)
+	var stone_d := Color(0.32, 0.31, 0.31)
+	var wood := Color(0.48, 0.33, 0.19)
+	var roof := Color(0.52, 0.28, 0.20)
+	# 木架
+	for y in range(2, 14):
+		img.set_pixel(3, y, wood)
+		img.set_pixel(14, y, wood)
+	for x in range(2, 16):
+		img.set_pixel(x, 1, roof)
+		img.set_pixel(x, 2, roof.darkened(0.2))
+	# 石圈
+	for x in range(2, 16):
+		for y in range(14, 20):
+			var c := stone if y < 18 else stone_d
+			img.set_pixel(x, y, c)
+	for x in range(4, 14):
+		for y in range(15, 17):
+			img.set_pixel(x, y, Color(0.12, 0.15, 0.18))   # 井口深色
+	img.set_pixel(8, 8, Color(0.30, 0.22, 0.14))
+	img.set_pixel(9, 9, Color(0.30, 0.22, 0.14))           # 吊绳
+	img.set_pixel(7, 11, Color(0.42, 0.30, 0.18))
+	img.set_pixel(8, 11, Color(0.42, 0.30, 0.18))          # 木桶
+	return img
 
 # ============================================================
 # 素材包裁切基础设施（Pixel Crawler / anokolisa 16x16）
@@ -341,6 +425,12 @@ const BIG_BUILDING_DEFS := {
 	"manor":  {"size": Vector2i(100, 84), "thatch": false, "temple": false},
 	"temple": {"size": Vector2i(122, 100),"thatch": false, "temple": true},
 	"castle": {"size": Vector2i(176, 128),"thatch": false, "temple": false},
+	# ---- 青石城功能建筑（accent=幌子/镶边主题色，结构复用大建筑拼装）----
+	"yamen":      {"size": Vector2i(126, 96), "thatch": false, "temple": true,  "accent": Color(0.62, 0.16, 0.13)},  # 府衙：朱红
+	"tavern":     {"size": Vector2i(104, 84), "thatch": false, "temple": false, "accent": Color(0.16, 0.42, 0.30)},  # 酒楼：酒绿
+	"apothecary": {"size": Vector2i(84, 70),  "thatch": false, "temple": false, "accent": Color(0.20, 0.45, 0.48)},  # 药坊：药青
+	"shop_a":     {"size": Vector2i(64, 54),  "thatch": false, "temple": false, "accent": Color(0.45, 0.30, 0.16)},  # 铁匠铺：铁木棕
+	"shop_b":     {"size": Vector2i(64, 54),  "thatch": false, "temple": false, "accent": Color(0.36, 0.26, 0.48)},  # 布庄：紫
 }
 
 func generate_big_buildings():
@@ -355,9 +445,23 @@ func generate_big_buildings():
 		if kind == "castle":
 			img = _compose_castle(sz.x, sz.y)
 		else:
-			img = _compose_big_building(sz.x, sz.y, def["thatch"], def["temple"])
+			img = _compose_big_building(sz.x, sz.y, def["thatch"], def["temple"], def.get("accent", Color(0, 0, 0, 0)))
 		img.save_png(ProjectSettings.globalize_path(path))
 		print("[TextureGen] big building: ", kind, " ", sz)
+
+# 城市小道具：市摊×2配色 + 水井（缺失才生成）
+func generate_city_props():
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://sprites/buildings"))
+	var outs := {
+		"stall_red": _market_stall(Color(0.72, 0.22, 0.18)),
+		"stall_teal": _market_stall(Color(0.18, 0.48, 0.45)),
+		"well": _city_well(),
+	}
+	for pname in outs:
+		var path := "res://sprites/buildings/%s.png" % pname
+		if not FileAccess.file_exists(path):
+			outs[pname].save_png(ProjectSettings.globalize_path(path))
+			print("[TextureGen] city prop: ", pname)
 
 # 原木条填充（横梁/角柱/脊梁共用；logw=横原木墙瓦片）
 static func _fill_logs(img: Image, x0: int, x1: int, y0: int, h: int, logw: Image, seed_off: int = 0):
@@ -367,7 +471,9 @@ static func _fill_logs(img: Image, x0: int, x1: int, y0: int, h: int, logw: Imag
 
 # 大建筑整体拼装（demo1房屋结构复刻）：
 # 三角人字坡顶（出檐比墙宽+坡边描边+脊梁圆木+檐口投影）+ 木架灰泥墙（角柱/双横梁/墙基）+ 木门楣梁 + 蓝窗带框
-func _compose_big_building(W: int, H: int, thatch: bool, temple: bool) -> Image:
+# accent非透明时：角柱/横梁/门框染主题色 + 右檐挂幌子（招牌），区分府衙/酒楼/药坊等功能建筑
+func _compose_big_building(W: int, H: int, thatch: bool, temple: bool, accent: Color = Color(0, 0, 0, 0)) -> Image:
+	var use_accent := accent.a > 0.0
 	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 	var roofs := _pack_image("Environment/Structures/Buildings/Roofs.png")
@@ -388,14 +494,22 @@ func _compose_big_building(W: int, H: int, thatch: bool, temple: bool) -> Image:
 	var wx1 := W - 1 - over
 	var wy0 := roof_h - 3                        # 墙顶藏进檐下
 	var apex := (W - 1) * 0.5
+	# 主题色梁柱：accent存在时以accent木纹替换原木梁（府衙朱红/酒楼酒绿…）
+	var beam_img := logw
+	if use_accent:
+		beam_img = Image.create(16, 16, false, Image.FORMAT_RGBA8)
+		for yy in range(16):
+			for xx in range(16):
+				var f := 0.82 + 0.18 * float((xx * 7 + yy * 3) % 4) / 3.0
+				beam_img.set_pixel(xx, yy, Color(accent.r * f, accent.g * f, accent.b * f))
 
 	# ---- 墙体：灰泥+木架（角柱/檐下横梁/中腰横梁/墙基）----
 	for x in range(wx0, wx1 + 1):
 		for y in range(wy0, H):
 			img.set_pixel(x, y, plaster.get_pixel(2 + ((x - wx0 + 5) % 12), 4 + ((y - wy0 + 7) % 9)))
-	_fill_logs(img, wx0, wx1, wy0, 3, logw, 3)                 # 檐下横梁
+	_fill_logs(img, wx0, wx1, wy0, 3, beam_img, 3)             # 檐下横梁
 	var mid_y := wy0 + int((H - wy0) * 0.55)
-	_fill_logs(img, wx0, wx1, mid_y, 2, logw, 8)               # 中腰横梁
+	_fill_logs(img, wx0, wx1, mid_y, 2, beam_img, 8)           # 中腰横梁
 	for y in range(H - 3, H):                                  # 墙基压暗
 		for x in range(wx0, wx1 + 1):
 			var f := 0.55 if y >= H - 2 else 0.8
@@ -404,8 +518,8 @@ func _compose_big_building(W: int, H: int, thatch: bool, temple: bool) -> Image:
 	var pw := 3                                                # 两侧角柱（圆木）
 	for y in range(wy0, H):
 		for k in range(pw):
-			img.set_pixel(wx0 + k, y, logw.get_pixel((k * 5 + 2) % 16, (y + 5) % 16))
-			img.set_pixel(wx1 - k, y, logw.get_pixel((k * 5 + 6) % 16, (y + 5) % 16))
+			img.set_pixel(wx0 + k, y, beam_img.get_pixel((k * 5 + 2) % 16, (y + 5) % 16))
+			img.set_pixel(wx1 - k, y, beam_img.get_pixel((k * 5 + 6) % 16, (y + 5) % 16))
 
 	# ---- 屋顶：正面三角坡（檐口到达全宽=出檐效果）----
 	for y in range(roof_h):
@@ -422,12 +536,12 @@ func _compose_big_building(W: int, H: int, thatch: bool, temple: bool) -> Image:
 	for y in range(4):
 		var rhalf := float(y) / maxf(1.0, float(roof_h - 1)) * (W * 0.5)
 		for x in range(maxi(0, int(ceil(apex - rhalf)) + 1), mini(W - 1, int(apex + rhalf) - 1) + 1):
-			if temple:
+			if temple and not use_accent:
 				img.set_pixel(x, y, gold)
 			elif thatch:
 				img.set_pixel(x, y, edge if y >= 2 else Color(0.45, 0.30, 0.17))
 			else:
-				img.set_pixel(x, y, logw.get_pixel((x + 1) % 16, 2))
+				img.set_pixel(x, y, beam_img.get_pixel((x + 1) % 16, 2))
 	# 檐口描边行 + 墙面投影2行
 	for x in range(W):
 		if img.get_pixel(x, roof_h - 1).a > 0.0:
@@ -449,7 +563,7 @@ func _compose_big_building(W: int, H: int, thatch: bool, temple: bool) -> Image:
 			img.set_pixel(dx0 + x, dy0 + y, src.get_pixel(x % 16, y % 16))
 	for x in range(dx0 - 2, dx0 + dw + 2):                     # 楣梁
 		for y in range(dy0 - 3, dy0):
-			img.set_pixel(x, y, logw.get_pixel((x + 5) % 16, 2))
+			img.set_pixel(x, y, beam_img.get_pixel((x + 5) % 16, 2))
 	for y in range(dy0 - 1, H):
 		if dx0 - 2 >= 0:
 			img.set_pixel(dx0 - 2, y, edge)
@@ -481,7 +595,22 @@ func _compose_big_building(W: int, H: int, thatch: bool, temple: bool) -> Image:
 				img.set_pixel(sx - 1, wyy + y2, edge)
 				img.set_pixel(sx + ww, wyy + y2, edge)
 			for x in range(ww):                                 # 窗台
-				img.set_pixel(sx + x, wyy + wh + 1, logw.get_pixel((sx + x) % 16, 2))
+				img.set_pixel(sx + x, wyy + wh + 1, beam_img.get_pixel((sx + x) % 16, 2))
+
+	# ---- 幌子（招牌）：右檐下挂竖幅，accent亮底+米白滚边+挂杆，功能建筑辨识 ----
+	if use_accent:
+		var bfx := wx1 - 9
+		var bfy := roof_h + 1
+		var bfw := 10
+		var bfh := clampi(int((H - roof_h) * 0.42), 14, 28)
+		var fill := accent.lightened(0.18)
+		for y2 in range(bfy - 4, bfy):                          # 挂杆
+			if bfx + 1 < W:
+				img.set_pixel(bfx + 1, y2, Color(0.24, 0.16, 0.10))
+		for y2 in range(bfy, mini(H - 4, bfy + bfh)):
+			for x2 in range(bfx, mini(W - 1, bfx + bfw)):
+				var c := fill if x2 > bfx and x2 < bfx + bfw - 1 else Color(0.95, 0.90, 0.75)
+				img.set_pixel(x2, y2, c)
 	return img
 
 # ============ 古堡（demo风扩大建筑：双石塔+城垛+旗帜 + 中央绿瓦主楼）============
@@ -937,6 +1066,9 @@ func _draw_npc_body(img: Image, npc_type: String, dir: int, frame: int, bob: int
 			robe = Color(0.58, 0.59, 0.63); robe_d = Color(0.42, 0.43, 0.47); belt = Color(0.32, 0.30, 0.34)
 		"mysterious": # 神秘人：夜行衣
 			robe = Color(0.17, 0.15, 0.24); robe_d = Color(0.11, 0.10, 0.17); belt = Color(0.38, 0.22, 0.50)
+		_:
+			# 兜底：新增npc类型（tavern_f/herbalist_f等，实际帧由python管线导出）漏配时防崩溃
+			robe = Color(0.70, 0.78, 0.80); robe_d = Color(0.52, 0.60, 0.63); belt = Color(0.30, 0.38, 0.42)
 
 	var leg_sway = 0
 	if action == "walk":
@@ -1082,3 +1214,75 @@ func _save_npc_walk_frame(npc_type: String, dir: int, frame: int):
 	_draw_npc_body(img, npc_type, dir, frame, bob, "walk")
 	var dir_name = ["down", "left", "right", "up"][dir]
 	img.save_png("res://sprites/npc/%s_walk_%s_%d.png" % [npc_type, dir_name, frame])
+
+# ============================================================
+# 打坐盘坐帧（素材包无坐姿，程序化绘制）
+# 画布64x64对齐Body_A约定：坐姿底缘=y48（与站姿脚线一致，offset-16直接复用）
+# 侠客同款配色（月白长袍+黛青镶边+乌发发髻+朱红发带），两帧呼吸起伏
+# ============================================================
+const M_ROBE := Color(0.90, 0.88, 0.82)
+const M_ROBE_D := Color(0.76, 0.74, 0.68)
+const M_TRIM := Color(0.24, 0.34, 0.42)
+const M_BELT := Color(0.30, 0.26, 0.24)
+const M_HAIR := Color(0.13, 0.11, 0.10)
+const M_RIBBON := Color(0.80, 0.24, 0.18)
+const M_SKIN := Color(0.88, 0.71, 0.57)
+const M_SKIN_D := Color(0.74, 0.57, 0.44)
+const M_BOOT := Color(0.16, 0.14, 0.13)
+const M_OUT := Color(0.10, 0.10, 0.13)
+
+func generate_meditate_frames():
+	DirAccess.make_dir_recursive_absolute("res://sprites/player")
+	for f in range(2):
+		var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		_draw_meditate_pose(img, f)
+		img.save_png("res://sprites/player/meditate_down_%d.png" % f)
+	print("[TextureGen] meditate frames generated (2)")
+
+func _mpx(img: Image, x: int, y: int, c: Color):
+	if x >= 0 and x < 64 and y >= 0 and y < 64:
+		img.set_pixel(x, y, c)
+
+func _mrect(img: Image, x0: int, y0: int, x1: int, y1: int, c: Color):
+	for x in range(x0, x1 + 1):
+		for y in range(y0, y1 + 1):
+			_mpx(img, x, y, c)
+
+func _draw_meditate_pose(img: Image, frame: int):
+	var bob := 1 if frame == 1 else 0   # 呼吸：第二帧身体下沉1px
+	# ---- 盘腿下摆（贴地加宽，盘坐轮廓）----
+	_mrect(img, 22, 44, 42, 47, M_ROBE_D)          # 下摆贴地
+	_mrect(img, 24, 42, 40, 44, M_ROBE)            # 腿盘上沿
+	_mpx(img, 23, 43, M_OUT); _mpx(img, 41, 43, M_OUT)
+	_mrect(img, 27, 45, 30, 46, M_BOOT)            # 交叠脚尖
+	_mrect(img, 34, 45, 37, 46, M_BOOT)
+	# ---- 躯干（压缩至盘坐比例）----
+	_mrect(img, 27, 36 + bob, 37, 43, M_ROBE)
+	_mrect(img, 34, 38 + bob, 37, 43, M_ROBE_D)    # 侧影
+	_mpx(img, 26, 37 + bob, M_OUT); _mpx(img, 26, 42, M_OUT); _mpx(img, 38, 38 + bob, M_OUT); _mpx(img, 38, 42, M_OUT)
+	# ---- 腰带 ----
+	_mrect(img, 27, 40 + bob, 37, 41 + bob, M_BELT)
+	_mpx(img, 31, 40 + bob, Color(0.38, 0.68, 0.52))   # 玉佩扣
+	# ---- 交领 ----
+	_mrect(img, 30, 36 + bob, 34, 37 + bob, M_TRIM)
+	_mpx(img, 32, 38 + bob, M_TRIM); _mpx(img, 31, 39 + bob, M_TRIM); _mpx(img, 33, 39 + bob, M_TRIM)
+	# ---- 搭膝的手臂与手 ----
+	_mrect(img, 23, 39 + bob, 27, 43 + bob, M_ROBE)
+	_mrect(img, 37, 39 + bob, 41, 43 + bob, M_ROBE)
+	_mpx(img, 23, 42 + bob, M_ROBE_D); _mpx(img, 41, 42 + bob, M_ROBE_D)
+	_mrect(img, 25, 43 + bob, 27, 44 + bob, M_SKIN)    # 左手搭膝
+	_mrect(img, 37, 43 + bob, 39, 44 + bob, M_SKIN)    # 右手搭膝
+	# ---- 颈与头 ----
+	_mrect(img, 30, 34 + bob, 33, 35 + bob, M_SKIN_D)
+	_mrect(img, 28, 26 + bob, 36, 34 + bob, M_SKIN)    # 脸
+	_mrect(img, 29, 33 + bob, 35, 34 + bob, M_SKIN_D)  # 下颌影
+	# 闭目吐纳（细横线）
+	_mpx(img, 30, 30 + bob, M_OUT); _mpx(img, 34, 30 + bob, M_OUT)
+	# ---- 乌发+发髻+发带 ----
+	_mrect(img, 27, 22 + bob, 37, 27 + bob, M_HAIR)
+	_mrect(img, 26, 26 + bob, 27, 31 + bob, M_HAIR)    # 左鬓
+	_mrect(img, 37, 26 + bob, 38, 31 + bob, M_HAIR)    # 右鬓
+	_mrect(img, 29, 18 + bob, 34, 22 + bob, M_HAIR)    # 发髻
+	_mrect(img, 29, 21 + bob, 34, 21 + bob, M_RIBBON)  # 朱红发带
+	_mpx(img, 28, 19 + bob, M_HAIR); _mpx(img, 35, 19 + bob, M_HAIR)

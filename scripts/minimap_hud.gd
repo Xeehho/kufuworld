@@ -5,8 +5,8 @@ extends Control
 # 标注：POI金点/城镇绿点/营地紫菱/敌人红点/路人蓝点/玩家白点/主线目标青虚线
 # 非模态HUD（不锁移动，不在ui_modal组）
 
-const BIG_TILES := 320
-const BIG_WORLD_HALF := 160          # WORLD_RADIUS
+const BIG_TILES := 400
+const BIG_WORLD_HALF := 200          # WORLD_RADIUS
 const PANEL_SIZE := Vector2(692, 736)
 const VIEW_POS := Vector2(26, 40)    # 地图显示区左上（面板内）
 const VIEW_SIZE := Vector2(640, 640)
@@ -23,7 +23,7 @@ const TILE_COLORS := {
 	15: Color(0.62, 0.48, 0.31), 16: Color(0.52, 0.38, 0.23), 17: Color(0.68, 0.51, 0.31),
 	18: Color(0.27, 0.43, 0.20), 33: Color(0.42, 0.31, 0.19), 34: Color(0.90, 0.92, 0.95),
 	35: Color(0.58, 0.58, 0.56), 36: Color(0.72, 0.53, 0.30), 37: Color(0.82, 0.77, 0.58),
-	39: Color(0.66, 0.42, 0.26),
+	39: Color(0.66, 0.42, 0.26), 40: Color(0.60, 0.58, 0.56),   # 40=青石城城墙
 }
 const DEFAULT_COLOR := Color(0.30, 0.44, 0.24)
 const STORY_LINE_COLOR := Color(0.3, 0.95, 0.85)   # 主线引导线青色
@@ -193,6 +193,10 @@ func _refresh():
 	for tc in wg.town_centers:
 		var tv := Vector2(tc.x * 16.0 + 8.0, tc.y * 16.0 + 8.0)
 		_dot_on(_big_view, _to_big(tv), 2, Color(0.35, 0.85, 0.55))
+	# 青石城地标（金色菱形）
+	var city_info: Dictionary = wg.get("city_info") if wg.get("city_info") != null else {}
+	if not city_info.is_empty() and city_info.has("center_px"):
+		_diamond_on(_big_view, _to_big(city_info["center_px"]), Color(1.0, 0.92, 0.5))
 	_draw_camps(_big_view)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		_dot_on(_big_view, _to_big(mob.global_position), 1, Color(0.90, 0.25, 0.20))

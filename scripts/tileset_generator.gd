@@ -39,10 +39,11 @@ static func build_tileset() -> TileSet:
 		35: "res://sprites/tiles/stone.png",          # Phase G重构: 石板广场（demo1城镇）
 		36: "res://sprites/tiles/mushroom.png",       # Phase G重构: 蘑菇装饰（demo2森林地表）
 		37: "res://sprites/tiles/daisy.png",          # Phase G重构: 雏菊装饰
+		40: "res://sprites/tiles/city_wall.png",      # 青石城城墙砖（四面围墙，有碰撞）
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15]
+	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
