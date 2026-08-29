@@ -17,6 +17,7 @@ func _ready():
 	await _test_character_panel_shot()
 	await _test_world_map()
 	await _test_axe_and_equip()
+	await _test_pause()
 	await _test_death_hud()
 	_log("=== 探针结束 ===")
 	_flush()
@@ -166,6 +167,19 @@ func _test_axe_and_equip():
 			str(give_ok), str(eq_ok), str(int(inv.get_total_attack()))])
 		inv.unequip_slot("weapon")
 		_log("[装备战斗] 卸下后攻击加成=%s (期望0)" % str(int(inv.get_total_attack())))
+
+# 全局暂停：程序化 open/close + 暂停中截图验收
+func _test_pause():
+	var ph = get_node_or_null("/root/Main/World/UI/PauseHUD")
+	if ph == null:
+		_log("[FAIL] PauseHUD 缺失")
+		return
+	ph.open_pause()
+	await get_tree().create_timer(0.35).timeout   # 淡入完成
+	_log("[暂停] open paused=%s visible=%s (期望true/true)" % [str(get_tree().paused), str(ph.visible)])
+	await _shot("shot_pause.png")
+	ph.close_pause()
+	_log("[暂停] close paused=%s visible=%s (期望false/false)" % [str(get_tree().paused), str(ph.visible)])
 
 # 死亡界面：程序化致死，验证结局面板文本不穿模、无残留
 func _test_death_hud():
