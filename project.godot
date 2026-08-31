@@ -20,6 +20,8 @@ config/features=PackedStringArray("4.6")
 
 [autoload]
 
+
+
 GameManager="*res://scripts/game_manager.gd"
 DialogManager="*res://scripts/dialog_manager.gd"
 _mcp_game_helper="*res://addons/godot_ai/runtime/game_helper.gd"

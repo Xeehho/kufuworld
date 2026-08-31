@@ -133,6 +133,9 @@ func _spawn_tree_prop(wx: int, wy: int, tid: int) -> bool:
 	var prop = Sprite2D.new()
 	prop.texture = atlas
 	prop.z_index = 2  # 与玩家/NPC/Mob统一实体层z=2，交给World递归Y-sort交融（G4）
+	# 雪原树木加冷霜色调（2026-08-31：素材包原树偏秋红，乘法染色降温增雪意）
+	if _biome_kind(wx, wy) == "snow":
+		prop.modulate = Color(0.78, 0.87, 1.0)
 	# Phase G4基点锚定：节点原点=树干脚底(瓦片底缘+4px入土)，贴图用offset上移半高。
 	# Y-sort按节点y排序，锚在脚底才能正确表现"人在树前/树后"
 	var jitter_x: float = fposmod(detail_noise.get_noise_2d(wx * 3.1, wy * 5.7), 1.0) * 6.0 - 3.0
@@ -233,6 +236,62 @@ func _biome_kind(x: int, y: int) -> String:
 
 func _lake_surface_dist(x: int, y: int, seed_pos: Vector2i) -> float:
 	return Vector2(seed_pos.x - x, seed_pos.y - y).length()
+
+# ============ 群系调色板（2026-08-31：铺设规则群系感知，治"雪地长草"类违和） ============
+# 所有 override 铺设点禁止直接写 0/1/6/16 等硬编码地面瓦片，一律按类别经调色板翻译。
+# 类别语义：ground=基础地面 path=道路 farm=农田 channel=连通开路 plaza=石板广场
+# 41=雪覆农田 / 42=雪径（新瓦片，无碰撞，layer 0）
+const BIOME_PALETTES := {
+	"plains":   {"ground": 0,  "path": 1,  "farm": 16, "channel": 0,  "plaza": 35},
+	"forest":   {"ground": 0,  "path": 1,  "farm": 16, "channel": 0,  "plaza": 35},
+	"bamboo":   {"ground": 18, "path": 1,  "farm": 16, "channel": 18, "plaza": 35},
+	"mountain": {"ground": 6,  "path": 1,  "farm": 16, "channel": 6,  "plaza": 35},
+	"desert":   {"ground": 6,  "path": 6,  "farm": 16, "channel": 6,  "plaza": 35},
+	"snow":     {"ground": 34, "path": 42, "farm": 41, "channel": 34, "plaza": 35},
+	"lake":     {"ground": 0,  "path": 1,  "farm": 16, "channel": 0,  "plaza": 35},
+}
+
+func _palette_at(x: int, y: int) -> Dictionary:
+	"""取指定坐标所属群系的铺设调色板"""
+	return BIOME_PALETTES.get(_biome_kind(x, y), BIOME_PALETTES["plains"])
+
+func _biome_nearest_two(x: int, y: int) -> Array:
+	"""与 _biome_kind 同一抖动算法，一次线性扫描返回 [最近群系, 次近群系, 最近距离², 次近距离²]"""
+	if biome_seeds.is_empty():
+		return ["plains", "plains", 0.0, 0.0]
+	var jitter: float = detail_noise.get_noise_2d(x * 1.7, y * 2.3) * 14.0
+	var d1 := 1e12
+	var d2 := 1e12
+	var k1 := "plains"
+	var k2 := "plains"
+	for b in biome_seeds:
+		var p: Vector2i = b["pos"]
+		var d := Vector2(p.x - x, p.y - y).length_squared() + jitter * jitter * 0.01
+		if d < d1:
+			d2 = d1
+			k2 = k1
+			d1 = d
+			k1 = b["kind"]
+		elif d < d2:
+			d2 = d
+			k2 = b["kind"]
+	return [k1, k2, d1, d2]
+
+const BIOME_BLEND_BAND := 3.0   # 过渡带宽度（格）：次近首府距最近首府不足此值时 dither 混铺
+
+func _ground_of(x: int, y: int) -> int:
+	"""群系过渡带感知的基础地面：边界带内按细节噪声在两侧群系地面间 dither，
+	其余区域返回最近群系的调色板 ground——消除群系硬切边"""
+	var two := _biome_nearest_two(x, y)
+	var g1: int = BIOME_PALETTES.get(two[0], BIOME_PALETTES["plains"])["ground"]
+	var g2: int = BIOME_PALETTES.get(two[1], BIOME_PALETTES["plains"])["ground"]
+	if g1 == g2:
+		return g1
+	if sqrt(two[3]) - sqrt(two[2]) >= BIOME_BLEND_BAND:
+		return g1
+	var d = detail_noise.get_noise_2d(x, y)
+	var r = fposmod(d + 1.0, 1.0)
+	return g1 if r > 0.5 else g2
 
 func _load_tileset():
 	# 每次启动在内存中构建TileSet：纹理直接从PNG解码，不依赖import系统与陈旧.tres
@@ -363,27 +422,39 @@ func _generate_city():
 	var cx := CITY_POS.x
 	var cy := CITY_POS.y
 	var h := CITY_HALF
-	# 1) 城内地坪统一压草（消除山/水/装饰，保证城内棋盘可规划）
+	# 1) 城内地坪统一压平（消除山/水/装饰，保证城内棋盘可规划）；地面按群系调色板（雪原建城则城内为雪面）
+	# 2026-08-31：河道保持水面——城市不得阻断河流（与城镇同规）
 	for dx in range(-h + 1, h):
 		for dy in range(-h + 1, h):
-			override_cells[Vector2i(cx + dx, cy + dy)] = 0
-	# 2) 围墙圈 + 四门豁口（3格宽铺路，保证城内外连通）
+			var cc := Vector2i(cx + dx, cy + dy)
+			if get_tile_id(cc.x, cc.y) == 5:
+				continue
+			override_cells[cc] = _palette_at(cx + dx, cy + dy)["ground"]
+	# 2) 围墙圈 + 四门豁口（3格宽铺路，保证城内外连通）；河道穿墙处留水门（桥面，河从墙下过）
 	for dx in range(-h, h + 1):
 		for dy in range(-h, h + 1):
 			if absi(dx) == h or absi(dy) == h:
-				override_cells[Vector2i(cx + dx, cy + dy)] = TILE_CITY_WALL
+				var wc := Vector2i(cx + dx, cy + dy)
+				override_cells[wc] = (17 if get_tile_id(wc.x, wc.y) == 5 else TILE_CITY_WALL)
 	for g in range(-1, 2):
-		override_cells[Vector2i(cx + g, cy - h)] = 1
-		override_cells[Vector2i(cx + g, cy + h)] = 1
-		override_cells[Vector2i(cx - h, cy + g)] = 1
-		override_cells[Vector2i(cx + h, cy + g)] = 1
-	# 3) 十字主街 + 中央石板广场
+		var gn := Vector2i(cx + g, cy - h)
+		var gs := Vector2i(cx + g, cy + h)
+		var gw := Vector2i(cx - h, cy + g)
+		var ge := Vector2i(cx + h, cy + g)
+		if get_tile_id(gn.x, gn.y) != 5: override_cells[gn] = _palette_at(gn.x, gn.y)["path"]
+		if get_tile_id(gs.x, gs.y) != 5: override_cells[gs] = _palette_at(gs.x, gs.y)["path"]
+		if get_tile_id(gw.x, gw.y) != 5: override_cells[gw] = _palette_at(gw.x, gw.y)["path"]
+		if get_tile_id(ge.x, ge.y) != 5: override_cells[ge] = _palette_at(ge.x, ge.y)["path"]
+	# 3) 十字主街 + 中央石板广场；主街过河处铺桥保连通
 	for d in range(-h, h + 1):
-		override_cells[Vector2i(cx + d, cy)] = 1
-		override_cells[Vector2i(cx, cy + d)] = 1
+		var s1 := Vector2i(cx + d, cy)
+		var s2 := Vector2i(cx, cy + d)
+		override_cells[s1] = (17 if get_tile_id(s1.x, s1.y) == 5 else _palette_at(cx + d, cy)["path"])
+		override_cells[s2] = (17 if get_tile_id(s2.x, s2.y) == 5 else _palette_at(cx, cy + d)["path"])
 	for dx in range(-3, 4):
 		for dy in range(-3, 4):
-			override_cells[Vector2i(cx + dx, cy + dy)] = 35
+			if get_tile_id(cx + dx, cy + dy) != 5:
+				override_cells[Vector2i(cx + dx, cy + dy)] = 35
 	# 4) 功能建筑（规划化摆放：府衙镇北、酒楼居东、药坊居西、市肆环广场、民居四角）
 	city_info = {"center_px": Vector2(cx * 16.0 + 8.0, cy * 16.0 + 8.0), "buildings": {}, "gate_px": {
 		"n": Vector2(cx * 16.0 + 8.0, (cy - h + 2) * 16.0 + 8.0),
@@ -488,6 +559,11 @@ func _generate_towns():
 			if w < -0.3 or w > 0.6:
 				continue
 
+			# 群系约束（2026-08-31）：城镇不落雪原/沙漠/湖心——农田与绿草铺装在寒冷干旱群系违和
+			var bk := _biome_kind(tx, ty)
+			if bk == "snow" or bk == "desert" or bk == "lake":
+				continue
+
 			# 检查与其他城镇的距离
 			var too_close = false
 			for tp in town_positions:
@@ -513,8 +589,8 @@ func _generate_towns():
 			if not _is_reachable_cell(tx, ty):
 				continue
 
-			# 不能压河：城镇范围（含栅栏农田环）内不得有水面
-			if _area_has_water(tx, ty, 7):
+			# 不能压河：城镇范围（half最大9+门口小径+余量）内不得有水面——河流必须绕城镇而过
+			if _area_has_water(tx, ty, 12):
 				continue
 
 			town_positions.append(Vector2(tx, ty))
@@ -534,6 +610,16 @@ func _area_has_water(cx: int, cy: int, r: int) -> bool:
 		for dy in range(-r, r + 1):
 			if get_tile_id(cx + dx, cy + dy) == 5:
 				return true
+	return false
+
+func is_in_settlement(p: Vector2) -> bool:
+	"""2026-08-31：判定某像素点是否落在青石城/城镇范围内（MobSpawner营地避让用）"""
+	var t := Vector2i(int(p.x / 16.0), int(p.y / 16.0))
+	if absi(t.x - CITY_POS.x) <= CITY_HALF + 2 and absi(t.y - CITY_POS.y) <= CITY_HALF + 2:
+		return true
+	for tc in town_centers:
+		if Vector2(t.x, t.y).distance_to(tc) < 13.0:
+			return true
 	return false
 
 func _spawn_tile() -> Vector2:
@@ -804,20 +890,29 @@ func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
 	Phase F5基础上重构为TOWN_TEMPLATES驱动，并登记净空区抑制周边树木。"""
 	var half := rng.randi_range(7, 9)	# 需容纳最大footprint(temple 7x5)+象限余量
 
-	# 十字主路
+	# 十字主路（按群系调色板：雪原城镇=雪径，避免棕土路穿雪）
+	# 2026-08-31：逐格避水——override会覆写基面导致河流被城镇路面截断，河面保持为水
 	for dx in range(-half, half + 1):
-		override_cells[Vector2i(cx + dx, cy)] = 1
+		var rc := Vector2i(cx + dx, cy)
+		if get_tile_id(rc.x, rc.y) == 5:
+			continue
+		override_cells[rc] = _palette_at(rc.x, rc.y)["path"]
 	for dy in range(-half, half + 1):
-		if not override_cells.has(Vector2i(cx, cy + dy)):
-			override_cells[Vector2i(cx, cy + dy)] = 1
+		var rc2 := Vector2i(cx, cy + dy)
+		if override_cells.has(rc2) or get_tile_id(rc2.x, rc2.y) == 5:
+			continue
+		override_cells[rc2] = _palette_at(rc2.x, rc2.y)["path"]
 
 	var tpl: Dictionary = TOWN_TEMPLATES[rng.randi() % TOWN_TEMPLATES.size()]
 
-	# 中心广场（市镇/庙宇型）：5x5石板芯（素材包灰石板，demo1城镇质感）
+	# 中心广场（市镇/庙宇型）：5x5石板芯（素材包灰石板，demo1城镇质感）；河面不覆
 	if bool(tpl.get("plaza", false)):
 		for dx in range(-2, 3):
 			for dy in range(-2, 3):
-				override_cells[Vector2i(cx + dx, cy + dy)] = 35
+				var pc := Vector2i(cx + dx, cy + dy)
+				if get_tile_id(pc.x, pc.y) == 5:
+					continue
+				override_cells[pc] = 35
 
 	# 主建筑（按模板）+ 环绕民居，四象限轮转分布
 	var quadrants := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
@@ -838,10 +933,12 @@ func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
 				var cell := Vector2i(cx + fx + dx, cy + fy + dy)
 				if override_cells.has(cell) or abs(fx + dx) <= 1 or abs(fy + dy) <= 1:
 					ok = false
+				if get_tile_id(cell.x, cell.y) == 5:
+					ok = false   # 农田不得覆写河面
 		if ok:
 			for dx in range(3):
 				for dy in range(2):
-					override_cells[Vector2i(cx + fx + dx, cy + fy + dy)] = 16
+					override_cells[Vector2i(cx + fx + dx, cy + fy + dy)] = _palette_at(cx + fx + dx, cy + fy + dy)["farm"]
 
 	# Phase G3：登记城镇净空区（half+余量），周边格子不再生成树木/岩石
 	_register_town_clearance(cx, cy, half)
@@ -871,11 +968,16 @@ func _carve_door_path(a: Vector2i, fp: Vector2i, road_y: int):
 	while y != road_y and guard < 64:
 		guard += 1
 		var cell := Vector2i(dx, y)
-		var cur = override_cells.get(cell, -1)
-		if cur == 1:
+		# 2026-08-31：基面为水/崖即停——小径不得穿河凿崖（旧逻辑只看override，河水被硬铺成路）
+		if get_tile_id(cell.x, cell.y) in [5, 3, 7]:
 			break
-		if cur == -1 or cur == 0:
-			override_cells[cell] = 1
+		var cur = override_cells.get(cell, -1)
+		# 已是既有路径（含调色板路径/主街）即接驳完成
+		if cur == _palette_at(cell.x, cell.y)["path"]:
+			break
+		# 空地或调色板基础地面（城内地坪已整体压平为调色板地面）才铺门前小径
+		if cur == -1 or cur == 0 or cur == _palette_at(cell.x, cell.y)["ground"]:
+			override_cells[cell] = _palette_at(cell.x, cell.y)["path"]
 		y += 1 if road_y > y else -1
 
 func _can_place_footprint(a: Vector2i, fp: Vector2i) -> bool:
@@ -1072,7 +1174,8 @@ func _carve_cell(c: Vector2i) -> int:
 		override_cells[c] = 17
 		return 1
 	if tid in collision_tiles:
-		override_cells[c] = 6
+		# 开路材质按群系调色板（雪原=雪径，避免沙路穿雪）
+		override_cells[c] = _palette_at(c.x, c.y)["channel"]
 		return 1
 	return 0
 
@@ -1134,45 +1237,45 @@ func get_tile_id(x: int, y: int) -> int:
 func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 	match kind:
 		"forest":
-			# demo2风：针叶林+蘑菇地表+紫花
+			# demo2风：针叶林+蘑菇地表+紫花（基面走过渡带混铺）
 			if r > 0.86: return 4
 			elif r > 0.70: return 8
 			elif r > 0.64: return 13
 			elif r > 0.60: return 36
-			return 0
+			return _ground_of(x, y)
 		"bamboo":
 			if r > 0.72: return 9
-			return 18 if r > 0.35 else 0
+			return 18 if r > 0.35 else _ground_of(x, y)
 		"mountain":
 			# demo2风：深色崖壁成势(r高→山体)，谷地土路走廊(r<=0.40)天然可穿行
 			if r > 0.80: return 3
 			elif r > 0.70: return 14
 			elif r > 0.62: return 3
 			elif r > 0.40: return 14
-			return 6
+			return _ground_of(x, y)
 		"desert":
 			if r > 0.94: return 14
-			return 6
+			return _ground_of(x, y)
 		"snow":
-			# demo3风：白雪地面+雪松+灰崖点缀
-			if r > 0.94: return 3
+			# demo3风：白雪地面+雪松+雪线崖壁点缀（崖用7=积雪崖，避免深色秃崖突兀）
+			if r > 0.94: return 7
 			elif r > 0.88: return 4
 			elif r > 0.83: return 14
-			return 34
+			return _ground_of(x, y)
 		"lake":
 			for b in biome_seeds:
 				if b["kind"] == "lake":
 					var dist: float = _lake_surface_dist(x, y, b["pos"])
 					if dist < 11.0 + d * 3.0: return 5
 					elif dist < 15.0: return 6
-			return 13 if r > 0.90 else 0
+			return 13 if r > 0.90 else _ground_of(x, y)
 		_:
 			# plains：橡/松疏林+紫花+雏菊
 			if r > 0.93: return 8
 			elif r > 0.90: return 4
 			elif r > 0.87: return 13
 			elif r > 0.845: return 37
-			return 0
+			return _ground_of(x, y)
 	return 0
 
 # ============ Chunk系统 ============
@@ -1271,19 +1374,17 @@ func _get_ground_tile(x: int, y: int) -> int:
 		# 桥下面铺路，使桥可通行（避免水面碰撞阻挡）
 		if ov == 17:
 			return 1  # 路
-		# 大建筑footprint下面铺路，与城镇街道质感统一
-		if ov == TILE_BUILDING_RESERVE:
-			return 1  # 路
+		# 2026-08-31：大建筑footprint底瓦不再铺路——碎石路从建筑四周露出一圈很突兀，
+		# 改为落到基面取色（草/沙/雪随群系），视觉上建筑"长"在地面上
+		if ov != TILE_BUILDING_RESERVE:
+			return ov
 	var t = get_terrain(x, y)
 	match t:
 		Terrain.WATER: return 5
-		Terrain.SAND: return 6
-		Terrain.GRASS: return 0
-		Terrain.GRASS_DARK: return 18
-		Terrain.FOREST: return 0  # 森林地面是草地
 		Terrain.MOUNTAIN: return 1  # 山区谷地铺碎石土路（demo2棕土走廊）
-		Terrain.SNOW: return 34  # 雪原真雪地（demo3）
-	return 0
+		_:
+			# 其余群系走过渡带感知地面（雪=34、沙=6、竹=18、草=0，边界带 dither 混铺）
+			return _ground_of(x, y)
 
 func _unload_chunk(chunk: Vector2i):
 	# 使用单一TileMap时，不卸载chunk以避免空隙
@@ -1359,7 +1460,7 @@ func _apply_castle_terrain(cx: int, cy: int):
 			if dist <= 5:
 				override_cells[cell] = 35   # 石板广场
 			elif dist <= 6 and (dx == 0 or dy == 0 or rng.randf() < 0.3):
-				override_cells[cell] = 1    # 石径
+				override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 石径（群系化）
 	var info := _make_castle_info(rng)
 	var anchor := Vector2i(cx - 4, cy - 2)
 	_place_castle_prop(anchor, info)
@@ -1476,11 +1577,11 @@ func _apply_sect_terrain(cx: int, cy: int):
 				if dx == 0 and dy == 0:
 					override_cells[cell] = 11  # 寺
 				else:
-					override_cells[cell] = 1   # 路
+					override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 路
 			elif dist <= 2:
 				# 山环在十字方向留门（铺路），保证玩家可进入门派
 				if dx == 0 or dy == 0:
-					override_cells[cell] = 1   # 门口铺路
+					override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 门口铺路
 				else:
 					override_cells[cell] = 3   # 山
 			elif dist <= 3:
@@ -1489,7 +1590,7 @@ func _apply_sect_terrain(cx: int, cy: int):
 				if r > 0.5:
 					override_cells[cell] = 4   # 松树
 				else:
-					override_cells[cell] = 0   # 草
+					override_cells[cell] = _palette_at(cell.x, cell.y)["ground"]
 
 func _apply_town_poi_terrain(cx: int, cy: int):
 	"""Phase F5: 城镇POI——中心大宅道具+路+农田，无栅栏圈"""
@@ -1502,9 +1603,9 @@ func _apply_town_poi_terrain(cx: int, cy: int):
 			if dist == 0 or (dist == 1 and abs(dx) == 1 and abs(dy) == 1 and rng.randf() < 0.5):
 				continue	# 留给大建筑footprint
 			if dist <= 1:
-				override_cells[cell] = 1   # 路
+				override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 路
 			elif dist == 2:
-				override_cells[cell] = 16  # 农田
+				override_cells[cell] = _palette_at(cell.x, cell.y)["farm"]   # 农田（雪原=雪覆田）
 	_place_building_prop("manor" if rng.randf() < 0.7 else "house", Vector2i(cx - 3, cy - 2))
 	_place_building_prop("hut", Vector2i(cx + 2, cy - 2))
 	# Phase G3：城镇POI同样登记净空区
@@ -1516,9 +1617,9 @@ func _apply_cave_terrain(cx: int, cy: int):
 		for dy in range(-3, 4):
 			var cell = Vector2i(cx + dx, cy + dy)
 			var dist = max(abs(dx), abs(dy))
-			# 南侧（dx==0, dy>0）留一条草地通道，保证玩家可接近洞口
+			# 南侧（dx==0, dy>0）留一条可通行通道，保证玩家可接近洞口（雪原=雪面通道）
 			if dx == 0 and dy > 0:
-				override_cells[cell] = 0   # 通道
+				override_cells[cell] = _palette_at(cell.x, cell.y)["ground"]   # 通道
 				continue
 			if dist == 0:
 				override_cells[cell] = 12  # 洞
@@ -1540,11 +1641,13 @@ func _apply_training_terrain(cx: int, cy: int):
 			if dist == 0:
 				override_cells[cell] = 11  # 寺
 			elif dist <= 1:
-				override_cells[cell] = 1   # 路
+				override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 路
 			elif dist <= 2:
-				override_cells[cell] = 13  # 花
+				# 花环：雪原/沙漠不放花（违和），退化为当地地面
+				var bk := _biome_kind(cell.x, cell.y)
+				override_cells[cell] = 13 if (bk != "snow" and bk != "desert") else _palette_at(cell.x, cell.y)["ground"]
 			else:
-				override_cells[cell] = 0   # 草
+				override_cells[cell] = _palette_at(cell.x, cell.y)["ground"]
 
 # ============ POI系统 ============
 

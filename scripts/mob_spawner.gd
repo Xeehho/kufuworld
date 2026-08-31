@@ -44,18 +44,44 @@ func _setup_camps():
 	for def in CAMPS:
 		var want := spawn_tile + (def["offset"] as Vector2i)
 		var center_px := Vector2(want.x * 16.0 + 8.0, want.y * 16.0 + 8.0)
-		center_px = _world_gen.find_nearest_reachable(center_px, 40)
+		center_px = _resolve_camp_center(center_px)   # 2026-08-31：可达性与避城收敛解析
 		camps_runtime.append({"def": def, "center": center_px, "alive": 0, "respawn_timer": 0.0})
-		print("[MobSpawner] 营地[%s]锚点=%s 解析到=%s" % [def["name"], str(want), str(center_px)])
+		print("[MobSpawner] 营地[%s]锚点=%s 解析到=%s 城内=%s" % [def["name"], str(want), str(center_px), str(_world_gen.is_in_settlement(center_px))])
 		_spawn_camp(camps_runtime[-1])
 	print("[MobSpawner] %d 座营地就绪 共%d只" % [camps_runtime.size(), _count_alive()])
+
+func _resolve_camp_center(px: Vector2) -> Vector2:
+	"""2026-08-31：营地中心解析——可达吸附与避城外推交替收敛。
+	旧写法先避城后大半径吸附，可达集是全图连通域，会把点又吸回城/镇里。"""
+	if _world_gen == null or not _world_gen.has_method("is_in_settlement"):
+		return _world_gen.find_nearest_reachable(px, 40) if _world_gen else px
+	px = _world_gen.find_nearest_reachable(px, 40)
+	for _i in range(8):
+		if not _world_gen.is_in_settlement(px):
+			return px
+		px = _settlement_push_out(px)
+		px = _world_gen.find_nearest_reachable(px, 10)
+	print("[MobSpawner] 警告：营地避城8轮未收敛，最后位置 %s" % str(px))
+	return px
+
+func _settlement_push_out(px: Vector2) -> Vector2:
+	"""从城/镇范围向外环形找最近的范围外点"""
+	for r in range(2, 46, 2):
+		for k in range(12):
+			var ang := TAU * float(k) / 12.0
+			var cand := px + Vector2(cos(ang), sin(ang)) * (float(r) * 16.0)
+			if not _world_gen.is_in_settlement(cand):
+				print("[MobSpawner] 营地锚点入城，外推 %.0fpx 至 %s" % [float(r) * 16.0, str(cand)])
+				return cand
+	return px
 
 func _spawn_camp(camp: Dictionary):
 	var members: Array = camp["def"]["members"]
 	for i in range(members.size()):
 		var ring: Vector2 = [Vector2(0, 0), Vector2(-20, 10), Vector2(20, -12)][i % 3]
 		var pos: Vector2 = camp["center"] + ring
-		pos = _world_gen.find_nearest_reachable(pos, 20)
+		# 2026-08-31：吸附半径20→6——大半径可达吸附会隔墙把成员吸到墙另一侧（"穿墙刷怪"观感）
+		pos = _world_gen.find_nearest_reachable(pos, 6)
 		_spawn_mob(members[i], pos, camp)
 
 func _spawn_mob(kind_id: String, pos: Vector2, camp: Dictionary):
@@ -88,7 +114,7 @@ func spawn_story_camp(camp_name: String, offset_tile: Vector2i, members: Array):
 		return
 	var want := Vector2i(int(player.global_position.x / 16), int(player.global_position.y / 16)) + offset_tile
 	var center_px := Vector2(want.x * 16.0 + 8.0, want.y * 16.0 + 8.0)
-	center_px = _world_gen.find_nearest_reachable(center_px, 40)
+	center_px = _resolve_camp_center(center_px)   # 2026-08-31：主线营地同样避城收敛
 	var def := {"name": camp_name, "offset": offset_tile, "members": members}
 	var entry := {"def": def, "center": center_px, "alive": 0, "respawn_timer": -1.0}
 	story_camps.append(entry)

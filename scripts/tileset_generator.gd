@@ -36,6 +36,8 @@ static func build_tileset() -> TileSet:
 		17: "res://sprites/tiles/bridge.png",
 		18: "res://sprites/tiles/grass_dark.png",
 		34: "res://sprites/tiles/snow.png",           # Phase G重构: 雪原真雪地（demo3）
+		41: "res://sprites/tiles/snow_farmland.png",  # 2026-08-31: 雪覆农田（雪原群系农田，无碰撞）
+		42: "res://sprites/tiles/snow_path.png",      # 2026-08-31: 雪径（雪原群系道路，无碰撞）
 		35: "res://sprites/tiles/stone.png",          # Phase G重构: 石板广场（demo1城镇）
 		36: "res://sprites/tiles/mushroom.png",       # Phase G重构: 蘑菇装饰（demo2森林地表）
 		37: "res://sprites/tiles/daisy.png",          # Phase G重构: 雏菊装饰

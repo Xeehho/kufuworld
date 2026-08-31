@@ -84,6 +84,8 @@ func generate_tiles():
 	_save_tile(_crop_tile(water_sheet, 6, 7), "water")
 	_save_tile(_crop_tile(floors, 6, 23), "sand")
 	_save_tile(_whiten_img(_crop_tile(floors, 2, 24), 1.0), "snow")
+	_save_tile(_snow_farmland_img(), "snow_farmland")   # 41 雪覆农田（群系调色板）
+	_save_tile(_snow_path_img(), "snow_path")           # 42 雪径（群系调色板）
 	_save_tile(_crop_tile(floors, 17, 1), "stone")
 	# ---- 悬崖岩壁（demo2/3 深色崖壁）----
 	_save_tile(_crop_tile(wall_sheet, 8, 2), "mountain")
@@ -110,25 +112,24 @@ func generate_tiles():
 # 城墙砖瓦片：青灰砖+错缝砖线+顶部压光，四面围墙用（tile id 40）
 func _city_wall_tile() -> Image:
 	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
-	var base := Color(0.44, 0.43, 0.42)
-	var mortar := Color(0.27, 0.26, 0.26)
-	var hi := Color(0.55, 0.53, 0.50)
-	var lo := Color(0.35, 0.34, 0.33)
+	# 2026-08-31：大城砖重砌——8px高砖行×2、错缝、细灰缝（旧4px小碎砖视觉似石子）
+	var base := Color(0.46, 0.46, 0.47)   # 青砖
+	var mortar := Color(0.30, 0.30, 0.31)
+	var hi := Color(0.56, 0.56, 0.57)
+	var lo := Color(0.37, 0.37, 0.38)
 	img.fill(base)
 	for y in range(TILE_SIZE):
-		if y % 4 == 3:
-			for x in range(TILE_SIZE):
-				img.set_pixel(x, y, mortar)   # 横缝
-	for y in range(TILE_SIZE):
-		if y % 4 == 3:
-			continue
-		var off := ((y / 4) % 2) * 4
+		var yy := y % 8
+		var off := ((y / 8) % 2) * 4   # 行间错缝半砖
 		for x in range(TILE_SIZE):
-			if (x + off) % 8 == 7:
-				img.set_pixel(x, y, mortar)   # 竖缝错砌
-	for x in range(TILE_SIZE):
-		img.set_pixel(x, 0, hi)
-		img.set_pixel(x, 15, lo)
+			if yy == 7:
+				img.set_pixel(x, y, mortar)               # 横灰缝
+			elif (x + off) % 8 == 7:
+				img.set_pixel(x, y, mortar)               # 竖灰缝
+			elif yy == 0:
+				img.set_pixel(x, y, hi)                   # 砖顶棱受光
+			elif yy == 6:
+				img.set_pixel(x, y, lo)                   # 砖底压暗
 	return img
 
 # ============ 青石城市集道具（程序化） ============
@@ -293,6 +294,41 @@ func _tile_sand():
 func _tile_snow():
 	_save_tile(_whiten_img(_crop_tile(_pack_image("Environment/Tilesets/Floors_Tiles.png"), 2, 24), 1.0), "snow")
 
+# 2026-08-31 群系调色板新瓦片：雪覆农田（41）与雪径（42）
+# 农田底图去饱和提亮成积雪覆田，隐约露出深色垄沟；雪径为踩实灰白雪面
+func _snow_farmland_img() -> Image:
+	var base := _furrow(_darken_img(_crop_tile(_pack_image("Environment/Tilesets/Floors_Tiles.png"), 6, 10), 0.62))
+	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
+	for y in range(TILE_SIZE):
+		for x in range(TILE_SIZE):
+			var c := base.get_pixel(x, y)
+			var lum: float = c.r * 0.3 + c.g * 0.6 + c.b * 0.1
+			var w: float = minf(lum * 0.38 + 0.66, 1.0)   # 高亮低对比：雪下隐约见田
+			img.set_pixel(x, y, Color(lerpf(c.r, w, 0.74), lerpf(c.g, w, 0.74), lerpf(c.b, w, 0.74), 1.0))
+	return img
+
+func _tile_snow_farmland():
+	_save_tile(_snow_farmland_img(), "snow_farmland")
+
+func _snow_path_img() -> Image:
+	var base := _crop_tile(_pack_image("Environment/Tilesets/Floors_Tiles.png"), 6, 10)
+	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
+	for y in range(TILE_SIZE):
+		for x in range(TILE_SIZE):
+			var c := base.get_pixel(x, y)
+			var lum: float = c.r * 0.3 + c.g * 0.6 + c.b * 0.1
+			var w: float = clampf(lum * 0.55 + 0.40, 0.0, 1.0)   # 比雪面暗一档：踩实雪径
+			img.set_pixel(x, y, Color(lerpf(c.r, w, 0.85), lerpf(c.g, w, 0.85), lerpf(c.b, w, 0.85), 1.0))
+	# 边缘两行轻微压暗，暗示车辙/踩踏边
+	for x in range(TILE_SIZE):
+		for yy in [0, 15]:
+			var c2 := img.get_pixel(x, yy)
+			img.set_pixel(x, yy, Color(c2.r * 0.92, c2.g * 0.92, c2.b * 0.94, 1.0))
+	return img
+
+func _tile_snow_path():
+	_save_tile(_snow_path_img(), "snow_path")
+
 func _tile_stone():
 	_save_tile(_crop_tile(_pack_image("Environment/Tilesets/Floors_Tiles.png"), 17, 1), "stone")
 
@@ -317,69 +353,96 @@ func _tile_house_temple():
 func _tile_house_cave():
 	_save_tile(_crop_tile(_pack_image("Environment/Tilesets/Wall_Tiles.png"), 1, 21), "house_cave")
 
-# ============ 16x16 mini房屋（demo1结构复刻：三角坡顶出檐+脊梁+木架灰泥墙+墙基）============
+# ============ 16x16 mini房屋（2026-08-31 中式化重制：黛瓦垄条+凹曲翘角+白墙朱柱+格扇窗）============
 func _mini_house(wall_sheet: Image, bprops: Image, kind: String) -> Image:
 	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
-	var roofs := _pack_image("Environment/Structures/Buildings/Roofs.png")
-	var shingle := _crop_tile(roofs, 2, 12) if kind == "cottage" else _crop_tile(roofs, 11, 12)
+	var edge := Color(0.18, 0.20, 0.24)
+	var red := Color(0.60, 0.17, 0.13)        # 朱红柱
+	var gold := Color(0.85, 0.70, 0.35)       # 金脊/庙宇
+	var thatch_c := Color(0.55, 0.42, 0.22)   # 茅草
+	var tile_c := Color(0.42, 0.47, 0.54)     # 黛瓦青灰（2026-08-31提亮，避免晨光下发黑）
 	var plaster := _crop_tile(wall_sheet, 22, 12)
-	var logw := _crop_tile(wall_sheet, 2, 2)
-	var door := _crop_tile(bprops, 6, 3)
-	var win := _crop_tile(bprops, 7, 4)
-	var edge := Color(0.24, 0.16, 0.10)
-	# ---- 墙体 x1..14（角柱+檐下横梁+墙基）----
+	var plaster_w := _whiten_img(plaster, 0.85)   # 白灰墙
+	# ---- 屋顶色与瓦垄条纹 ----
+	var roof_base := thatch_c if kind == "cottage" else tile_c
+	var roof_px := func(x: int, y: int) -> Color:
+		var v: float = 0.90 + 0.10 * float((x * 7 + y * 13) % 4) / 3.0
+		var stripe: float = 1.0 if (x % 4) < 2 else 0.86   # 竖向瓦垄
+		if kind == "cottage":
+			stripe = 1.0   # 茅草无瓦垄，横向质感
+			v = 0.88 + 0.12 * float((y * 5 + x * 3) % 4) / 3.0
+		return Color(minf(roof_base.r * v * stripe, 1.0), minf(roof_base.g * v * stripe, 1.0), minf(roof_base.b * v * stripe, 1.0))
+	# ---- 墙体 x1..14（白墙+朱红角柱+墙基）----
 	for x in range(1, 15):
 		for y in range(7, 16):
-			img.set_pixel(x, y, plaster.get_pixel(2 + ((x + 5) % 12), 4 + ((y + 7) % 9)))
+			img.set_pixel(x, y, plaster_w.get_pixel(2 + ((x + 5) % 12), 4 + ((y + 7) % 9)))
 	for y in range(7, 16):
-		img.set_pixel(1, y, logw.get_pixel(3, (y + 3) % 16))
-		img.set_pixel(14, y, logw.get_pixel(8, (y + 3) % 16))
+		img.set_pixel(1, y, red.darkened(0.15) if kind != "cottage" else Color(0.42, 0.28, 0.16))
+		img.set_pixel(14, y, red if kind != "cottage" else Color(0.48, 0.33, 0.19))
 	for x in range(1, 15):
-		img.set_pixel(x, 7, logw.get_pixel((x + 3) % 16, 2))
 		var cb := img.get_pixel(x, 14)
 		img.set_pixel(x, 14, Color(cb.r * 0.8, cb.g * 0.8, cb.b * 0.8, 1.0))
 		var cb2 := img.get_pixel(x, 15)
 		img.set_pixel(x, 15, Color(cb2.r * 0.55, cb2.g * 0.55, cb2.b * 0.55, 1.0))
-	# ---- 屋顶三角 rows0..6（t=1时half=9 出檐超出墙1px）----
+	# ---- 屋顶反曲轮廓 rows0..6（2026-08-31：pow(t,1.9)脊陡檐展，脊部起始half=2.5保证正脊有宽度）----
 	for y in range(7):
-		var half := float(y) / 6.0 * 8.0 + 1.0
+		var t := float(y) / 6.0
+		var half := 2.5 + 5.5 * pow(t, 1.9)   # 反曲：脊下坡陡、檐口展宽
 		var x0f := 7.5 - half
 		var x1f := 7.5 + half
-		for x in range(maxi(0, int(x0f)), mini(15, int(x1f))):
-			var c := shingle.get_pixel(x % 16, (y + 2) % 16)
+		for x in range(maxi(0, int(x0f)), mini(16, int(x1f) + 1)):
+			var c: Color = roof_px.call(x, y)
 			if float(x) < x0f + 1.0 or float(x) > x1f - 1.0:
 				c = edge
 			img.set_pixel(x, y, c)
-	# 脊梁圆木 rows0..1（demo1木脊杆）
+	# 翘角：底部两行檐端外挑1px
+	for x in [0, 15]:
+		for y in [5, 6]:
+			img.set_pixel(x, y, roof_px.call(x, y) if y == 6 else edge)
+	# ---- 正脊 rows0..1（固定宽度脊带，与屋面曲线解耦；庙宇金脊，民居黛色脊条）----
 	for x in range(4, 12):
 		for y in range(0, 2):
-			var span := float(y) / 6.0 * 8.0 + 1.0
-			if float(x) >= 7.5 - span + 1.0 and float(x) <= 7.5 + span - 1.0:
-				img.set_pixel(x, y, Color(0.85, 0.70, 0.35) if kind == "temple" else logw.get_pixel((x + 1) % 16, 2))
+			if float(x) >= 7.5 - 3.2 and float(x) <= 7.5 + 3.2:
+				if kind == "temple":
+					img.set_pixel(x, y, gold if y == 0 else gold.darkened(0.25))
+				elif kind == "cottage":
+					img.set_pixel(x, y, Color(0.45, 0.30, 0.17) if y == 0 else Color(0.34, 0.22, 0.12))
+				else:
+					img.set_pixel(x, y, Color(0.22, 0.24, 0.28) if y == 0 else Color(0.16, 0.18, 0.22))
+	# 脊端鸱吻：row0 两端1px金色小凸（庙宇）/深色小凸（民居）
+	img.set_pixel(4, 0, gold if kind == "temple" else Color(0.16, 0.18, 0.22))
+	img.set_pixel(11, 0, gold if kind == "temple" else Color(0.16, 0.18, 0.22))
 	# 檐口阴影：row6描边+row7墙投影
 	for x in range(TILE_SIZE):
-		if img.get_pixel(x, 6).a > 0.0:
+		if img.get_pixel(x, 6).a > 0.0 and x != 0 and x != 15:
 			img.set_pixel(x, 6, edge)
 		var cs := img.get_pixel(x, 7)
 		img.set_pixel(x, 7, Color(cs.r * 0.75, cs.g * 0.75, cs.b * 0.75, 1.0))
-	# ---- 中央木门 4宽+门框+楣梁（门底到墙基 y15）----
+	# ---- 中央板门 4宽（竖板+门框，门底到墙基 y15）----
+	var door_c := Color(0.30, 0.20, 0.12)
+	var door_d := Color(0.22, 0.14, 0.08)
 	for x in range(6, 10):
 		for y in range(9, 15):
-			img.set_pixel(x, y, door.get_pixel(x, y - 1))
+			img.set_pixel(x, y, door_d if (x % 2) == 0 else door_c)   # 竖板拼缝
 	for x in range(5, 11):
-		img.set_pixel(x, 8, logw.get_pixel((x + 3) % 16, 2))
+		img.set_pixel(x, 8, red.darkened(0.2) if kind != "cottage" else Color(0.34, 0.22, 0.12))
 	for y in range(9, 15):
 		img.set_pixel(5, y, edge)
 		img.set_pixel(10, y, edge)
-	img.set_pixel(6, 15, Color(0.18, 0.12, 0.08))
-	img.set_pixel(9, 15, Color(0.18, 0.12, 0.08))
-	# ---- 双侧小蓝窗 2x2+框 ----
+	# 门钉（庙宇/民居金点两列）
+	if kind != "cottage":
+		for yy in [10, 13]:
+			img.set_pixel(7, yy, gold)
+			img.set_pixel(8, yy, gold.darkened(0.2))
+	# ---- 双侧格扇窗 2x2（窗纸+十字棂），庙宇留白 ----
 	if kind != "temple":
 		for wx in [3, 11]:
 			for dx in range(2):
 				for dy in range(2):
-					img.set_pixel(wx + dx, 10 + dy, win.get_pixel(6 + dx, 5 + dy))
+					img.set_pixel(wx + dx, 10 + dy, Color(0.90, 0.86, 0.74))
+			img.set_pixel(wx, 10, Color(0.42, 0.28, 0.16))   # 棂线
+			img.set_pixel(wx + 1, 11, Color(0.42, 0.28, 0.16))
 			for i in range(-1, 3):
 				img.set_pixel(wx + i, 9, edge)
 				img.set_pixel(wx + i, 12, edge)
@@ -469,10 +532,244 @@ static func _fill_logs(img: Image, x0: int, x1: int, y0: int, h: int, logw: Imag
 		for y in range(y0, mini(y0 + h, img.get_height())):
 			img.set_pixel(x, y, logw.get_pixel((x + seed_off) % 16, (y + 3) % 16))
 
-# 大建筑整体拼装（demo1房屋结构复刻）：
-# 三角人字坡顶（出檐比墙宽+坡边描边+脊梁圆木+檐口投影）+ 木架灰泥墙（角柱/双横梁/墙基）+ 木门楣梁 + 蓝窗带框
-# accent非透明时：角柱/横梁/门框染主题色 + 右檐挂幌子（招牌），区分府衙/酒楼/药坊等功能建筑
+# ============ 大建筑中式化重制（2026-08-31） ============
+# 凹曲屋面+飞檐翘角（幂曲线轮廓）+ 竖向瓦垄 + 檐口瓦当 + 正脊鸱吻
+# + 白灰墙 + 朱红/主题色梁柱角柱 + 檐下斗拱带 + 格扇窗 + 门钉板门 + 匾额 + 石台基台阶
+# accent非透明时：梁柱/门框染主题色 + 右檐挂幌子（招牌），区分府衙/酒楼/药坊等功能建筑
+# 茅屋(thatch)保持草顶质朴风：无瓦当/斗拱/匾额/门钉，木色柱
 func _compose_big_building(W: int, H: int, thatch: bool, temple: bool, accent: Color = Color(0, 0, 0, 0)) -> Image:
+	var use_accent := accent.a > 0.0
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var edge := Color(0.16, 0.18, 0.22)
+	var red := Color(0.60, 0.17, 0.13)         # 朱红
+	var gold := Color(0.85, 0.70, 0.35)        # 金（庙脊/门钉/匾字）
+	var beam_c := accent if use_accent else red
+	var col_d := beam_c.darkened(0.3)
+	var roof_base := Color(0.55, 0.42, 0.22) if thatch else (Color(0.36, 0.44, 0.40) if temple else Color(0.43, 0.48, 0.55))
+	var roof_edge := Color(0.30, 0.22, 0.10) if thatch else edge
+	var paper := Color(0.90, 0.86, 0.74)       # 窗纸
+	var lattice := Color(0.42, 0.28, 0.16)     # 窗棂木色
+	var stone := Color(0.52, 0.50, 0.47)
+	var wall_c := Color(0.90, 0.87, 0.80)      # 白灰墙
+
+	var cxm := (W - 1) * 0.5
+	var ridge_y := 2
+	var eave_row := int(H * 0.42)              # 2026-08-31：屋顶压扁（0.46→0.42），墙身比例加大去"帽感"
+	var ridge_half := maxf(4.0, W * 0.16)      # 正脊加宽：反曲屋面脊部应有足够宽度，不再是尖顶
+	var eave_half := W * 0.5
+	var over := 6 if W >= 74 else 5            # 出檐（墙比屋顶每侧窄的像素）
+	var wx0 := over
+	var wx1 := W - 1 - over
+	var wall_top := eave_row + 2               # 檐口阴影1行 + 斗拱2行之下起算（斗拱叠画在墙上部）
+	var wall_bot := H - 4                      # 底部3行留给台基
+
+	# ---- 墙体：白灰墙（2026-08-31：哈希点噪替换线性取模噪——旧(x*7+y*13)%4产生斜向条纹，视觉似碎石席纹）----
+	for x in range(wx0, wx1 + 1):
+		for y in range(wall_top, wall_bot + 1):
+			var h := float(((x * 73856093) ^ (y * 19349663)) % 997) / 997.0   # 异或混合点噪（线性取模会产生斜条纹）
+			var grad := 1.0 - 0.05 * float(y - wall_top) / maxf(1.0, float(wall_bot - wall_top))   # 上亮下沉微渐变
+			var f := (0.965 + 0.05 * h) * grad
+			img.set_pixel(x, y, Color(minf(wall_c.r * f, 1.0), minf(wall_c.g * f, 1.0), minf(wall_c.b * f, 1.0)))
+	# 檐枋（墙上部横梁3行，主题色/朱红）
+	for y in range(wall_top, wall_top + 3):
+		for x in range(wx0, wx1 + 1):
+			img.set_pixel(x, y, beam_c if y < wall_top + 2 else col_d)
+	# 檐下斗拱带（茅屋跳过）：交错小拱块
+	if not thatch:
+		var by := wall_top + 3
+		var x := wx0 + 1
+		while x <= wx1 - 2:
+			for bx in range(x, mini(x + 2, wx1)):
+				for yy in range(by, by + 2):
+					img.set_pixel(bx, yy, beam_c.darkened(0.35))
+			for yy in range(by, by + 2):
+				img.set_pixel(mini(x + 2, wx1), yy, col_d)
+			x += 4
+	# 角柱（3px，朱红/主题色）+ 大开间中柱
+	var col_w := 3
+	for y in range(wall_top, wall_bot + 1):
+		for k in range(col_w):
+			img.set_pixel(wx0 + k, y, beam_c if k < col_w - 1 else col_d)
+			img.set_pixel(wx1 - k, y, beam_c if k < col_w - 1 else col_d)
+	if W >= 80:
+		for mx in [int(W * 0.33), int(W * 0.67)]:
+			for y in range(wall_top + 3, wall_bot + 1):
+				img.set_pixel(mx, y, beam_c)
+				img.set_pixel(mx + 1, y, col_d)
+	# ---- 台基（底部3行石作+中央台阶）----
+	for x in range(wx0, wx1 + 1):
+		for y in range(H - 3, H):
+			var sc := stone
+			if y == H - 3:
+				sc = Color(0.62, 0.60, 0.57)   # 台基压顶石
+			elif y == H - 1:
+				sc = Color(0.40, 0.38, 0.36)
+			img.set_pixel(x, y, sc)
+	var st_w := 8
+	var st_x0 := int(cxm) - st_w / 2
+	for x in range(st_x0, st_x0 + st_w):
+		for y in range(H - 3, H):
+			img.set_pixel(x, y, Color(0.68, 0.66, 0.62) if y < H - 1 else Color(0.56, 0.54, 0.52))
+		img.set_pixel(x, H - 3, Color(0.74, 0.72, 0.68))
+	for xx in [st_x0 - 1, st_x0 + st_w]:
+		if xx >= wx0 and xx <= wx1:
+			for y in range(H - 3, H):
+				img.set_pixel(xx, y, Color(0.34, 0.32, 0.30))
+
+	# ---- 屋顶：反曲屋面（2026-08-31：pow(t,2.1)脊陡檐展，替换旧1-pow(1-t,1.8)的穹顶轮廓）+ 竖向瓦垄 ----
+	for y in range(ridge_y, eave_row + 1):
+		var t := float(y - ridge_y) / maxf(1.0, float(eave_row - ridge_y))
+		var half := ridge_half + (eave_half - ridge_half) * pow(t, 2.1)
+		var x0f := cxm - half
+		var x1f := cxm + half
+		for x in range(maxi(0, int(ceil(x0f))), mini(W - 1, int(x1f)) + 1):
+			var hh := float(((x * 73856093) ^ (y * 19349663)) % 997) / 997.0   # 异或混合点噪
+			var vv := 0.95 + 0.07 * hh
+			var stripe := 1.0 if thatch or (x % 4) < 2 else 0.87
+			if thatch:
+				vv = 0.88 + 0.14 * hh
+			var c := Color(minf(roof_base.r * vv * stripe, 1.0), minf(roof_base.g * vv * stripe, 1.0), minf(roof_base.b * vv * stripe, 1.0))
+			if float(x) < x0f + 1.5 or float(x) > x1f - 1.5:
+				c = roof_edge
+			img.set_pixel(x, y, c)
+	# 瓦当：檐口一行每4px一枚浅色圆钉（茅屋省略）
+	if not thatch:
+		var dot := Color(minf(roof_base.r * 1.45, 1.0), minf(roof_base.g * 1.45, 1.0), minf(roof_base.b * 1.45, 1.0))
+		var x0e := int(cxm - eave_half) + 1
+		var x1e := int(cxm + eave_half) - 1
+		var dx2 := x0e
+		while dx2 <= x1e:
+			img.set_pixel(dx2, eave_row, dot)
+			dx2 += 4
+	# 飞檐翘角：两端外侧4列向上挑起
+	for k in range(4):
+		var lift := 4 - k
+		var xa := k
+		var xb := W - 1 - k
+		for y2 in range(maxi(ridge_y, eave_row - lift + 1), eave_row + 1):
+			var vv2 := 0.92 + 0.08 * float((xa * 7 + y2 * 13) % 4) / 3.0
+			var c2 := Color(minf(roof_base.r * vv2, 1.0), minf(roof_base.g * vv2, 1.0), minf(roof_base.b * vv2, 1.0))
+			img.set_pixel(xa, y2, c2)
+			img.set_pixel(xb, y2, c2)
+		# 翘角上缘描边
+		img.set_pixel(xa, maxi(ridge_y, eave_row - lift + 1), roof_edge)
+		img.set_pixel(xb, maxi(ridge_y, eave_row - lift + 1), roof_edge)
+	# 檐口投影（檐下一行墙面压暗）
+	for x in range(wx0, wx1 + 1):
+		var cs := img.get_pixel(x, eave_row + 1)
+		img.set_pixel(x, eave_row + 1, Color(cs.r * 0.72, cs.g * 0.72, cs.b * 0.72, 1.0))
+	# ---- 正脊 + 鸱吻 ----
+	var ridge_c := Color(0.20, 0.22, 0.26)
+	if temple:
+		ridge_c = gold
+	elif thatch:
+		ridge_c = Color(0.42, 0.28, 0.14)
+	var r_half := int(ridge_half) + 1
+	for x in range(maxi(0, int(cxm) - r_half), mini(W - 1, int(cxm) + r_half) + 1):
+		img.set_pixel(x, 0, ridge_c.lightened(0.12))
+		img.set_pixel(x, 1, ridge_c)
+	var cw_x0 := clampi(int(cxm) - r_half - 1, 0, W - 1)
+	var cw_x1 := clampi(int(cxm) + r_half + 1, 0, W - 1)
+	for y2 in range(0, 3):
+		img.set_pixel(cw_x0, y2, ridge_c if y2 > 0 else ridge_c.lightened(0.2))
+		img.set_pixel(cw_x1, y2, ridge_c if y2 > 0 else ridge_c.lightened(0.2))
+
+	# ---- 中央板门（竖板拼缝+门钉+石门槛）----
+	var dw := 14 if W >= 74 else 12
+	var dh := clampi(wall_bot - (wall_top + 9), 12, 26)
+	var dx0 := int(cxm) - int(dw / 2.0)
+	var door_top := wall_bot - dh
+	var door_c := Color(0.30, 0.20, 0.12)
+	var door_d := Color(0.22, 0.14, 0.08)
+	for x in range(dx0, dx0 + dw):
+		for y in range(door_top, wall_bot + 1):
+			img.set_pixel(x, y, door_d if (x % 2) == 0 else door_c)
+	for y in range(door_top + 2, wall_bot - 1, 4):      # 门钉两列
+		img.set_pixel(dx0 + int(dw * 0.3), y, gold)
+		img.set_pixel(dx0 + int(dw * 0.7), y, gold.darkened(0.2))
+	for xx in [dx0 - 1, dx0 + dw]:                      # 门框
+		if xx >= wx0 and xx <= wx1:
+			for y in range(door_top - 1, wall_bot + 1):
+				img.set_pixel(xx, y, beam_c)
+	for x in range(dx0, dx0 + dw):                      # 石门槛
+		img.set_pixel(x, wall_bot, Color(0.44, 0.42, 0.40))
+
+	# ---- 匾额（茅屋无）：门上方深底金边+金字块 ----
+	if not thatch:
+		var bw := dw + 4
+		var bh := 6
+		var bx := int(cxm) - int(bw / 2.0)
+		var by := door_top - 8
+		for x in range(maxi(wx0, bx), mini(wx1 + 1, bx + bw)):
+			for y in range(maxi(wall_top, by), mini(wall_bot, by + bh)):
+				var border := x == bx or x == bx + bw - 1 or y == by or y == by + bh - 1
+				img.set_pixel(x, y, gold.darkened(0.15) if border else Color(0.10, 0.09, 0.14))
+		# 金字块（3块示意题字）
+		var n_blob := 3 if bw >= 18 else 2
+		for i in range(n_blob):
+			var blx := bx + int(bw * (0.5 + (i - (n_blob - 1) * 0.5) * 0.28)) - 1
+			for gx in range(3):
+				for gy in range(4):
+					if (gx == 1 and gy == 1) or (gx == 1 and gy == 2):
+						continue   # 字口留白
+					img.set_pixel(blx + gx, by + 2 + gy, gold)
+
+	# ---- 格扇窗（茅屋无）：木框+窗纸+棂格 ----
+	if not thatch:
+		var ww := 10
+		var wh := 8
+		var wyy := wall_top + int((wall_bot - wall_top) * 0.45)
+		var slots: Array = []
+		if W >= 100:
+			slots = [int(W * 0.16), int(W * 0.74)]
+		elif W >= 74:
+			slots = [int(W * 0.14), int(W * 0.76)]
+		else:
+			slots = [int(W * 0.10)]
+		for sx in slots:
+			if sx < wx0 + col_w + 3 or sx + ww > wx1 - col_w - 2:
+				continue
+			# 外框1px + 木边框
+			for i in range(-1, ww + 1):
+				img.set_pixel(sx + i, wyy - 1, edge)
+				img.set_pixel(sx + i, wyy + wh, edge)
+			for y3 in range(-1, wh + 1):
+				img.set_pixel(sx - 1, wyy + y3, edge)
+				img.set_pixel(sx + ww, wyy + y3, edge)
+			for x in range(ww):
+				for y in range(wh):
+					var inner := x == 0 or y == 0 or x == ww - 1 or y == wh - 1
+					img.set_pixel(sx + x, wyy + y, beam_c.darkened(0.15) if inner else paper)
+			# 棂格：竖3横3
+			for x in range(3, ww - 1, 3):
+				for y in range(1, wh - 1):
+					img.set_pixel(sx + x, wyy + y, lattice)
+			for y in range(3, wh - 1, 3):
+				for x in range(1, ww - 1):
+					img.set_pixel(sx + x, wyy + y, lattice)
+			# 窗台
+			for x in range(ww):
+				img.set_pixel(sx + x, wyy + wh + 1, beam_c)
+
+	# ---- 幌子（招牌）：右檐下挂竖幅，accent亮底+米白滚边+挂杆 ----
+	if use_accent:
+		var bfx := wx1 - 9
+		var bfy := eave_row + 1
+		var bfw := 10
+		var bfh := clampi(int((H - eave_row) * 0.42), 14, 28)
+		var fill := accent.lightened(0.18)
+		for y2 in range(bfy - 4, bfy):                          # 挂杆
+			if bfx + 1 < W:
+				img.set_pixel(bfx + 1, y2, Color(0.24, 0.16, 0.10))
+		for y2 in range(bfy, mini(H - 4, bfy + bfh)):
+			for x2 in range(bfx, mini(W - 1, bfx + bfw)):
+				var c := fill if x2 > bfx and x2 < bfx + bfw - 1 else Color(0.95, 0.90, 0.75)
+				img.set_pixel(x2, y2, c)
+	return img
+
+# ============ 旧版大建筑拼装（demo1西式风，已被中式化重制取代，保留作回退参考） ============
+func _compose_big_building_legacy(W: int, H: int, thatch: bool, temple: bool, accent: Color = Color(0, 0, 0, 0)) -> Image:
 	var use_accent := accent.a > 0.0
 	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
@@ -658,11 +955,12 @@ static func _compose_castle(W: int, H: int) -> Image:
 			for x in range(tx0 + 1, tx1):
 				var cb := img.get_pixel(x, y)
 				img.set_pixel(x, y, Color(cb.r * 0.8, cb.g * 0.8, cb.b * 0.8, 1.0))
-		# 窄蓝窗（每塔2扇竖窗）
+		# 箭窗（每塔2扇竖窗：深色窗洞+木棂条，2026-08-31中式化）
 		for wx in [tx0 + 9, tx1 - 13]:
 			for x in range(wx, wx + 5):
 				for y in range(tower_top + 16, tower_top + 30):
-					img.set_pixel(x, y, win.get_pixel(4 + (x - wx) % 10, 5 + (y - tower_top - 16) % 8))
+					var cwl := Color(0.42, 0.28, 0.16) if (x - wx) % 2 == 1 else Color(0.16, 0.13, 0.11)
+					img.set_pixel(x, y, cwl)
 			for i in range(-1, 6):
 				img.set_pixel(wx + i, tower_top + 15, dark_edge)
 				img.set_pixel(wx + i, tower_top + 30, dark_edge)
@@ -693,32 +991,53 @@ static func _compose_castle(W: int, H: int) -> Image:
 				img.set_pixel(x, fy, flag_red)
 		for x in range(fcx + 2, fcx + 12):           # 旗底描边
 			img.set_pixel(x, 12, Color(0.45, 0.13, 0.10))
-	# ---- 中央主楼：三角绿瓦坡顶（檐口铺到两塔之间全宽）----
+	# ---- 中央主楼：凹曲黛瓦坡顶（2026-08-31中式化，檐口铺到两塔之间全宽）----
 	var apex := (W - 1) * 0.5
+	var cn_roof := Color(0.34, 0.38, 0.44)
+	var cn_edge := Color(0.16, 0.18, 0.22)
+	var roof_span := float(keep_x1 - keep_x0 + 4) * 0.5
 	for y in range(keep_roof_h):
 		var t := float(y) / maxf(1.0, float(keep_roof_h - 1))
-		var half := t * (keep_x1 - keep_x0 + 4) * 0.5
+		var half := roof_span * (1.0 - pow(1.0 - t, 1.8))
 		var x0f := apex - half
 		var x1f := apex + half
 		for x in range(maxi(keep_x0 - 4, int(ceil(x0f))), mini(keep_x1 + 4, int(x1f)) + 1):
-			var c := shingle.get_pixel(x % 16, (y + 2) % 16)
+			var vv := 0.90 + 0.10 * float((x * 7 + y * 13) % 4) / 3.0
+			var stripe := 1.0 if (x % 4) < 2 else 0.87
+			var c := Color(minf(cn_roof.r * vv * stripe, 1.0), minf(cn_roof.g * vv * stripe, 1.0), minf(cn_roof.b * vv * stripe, 1.0))
 			if float(x) < x0f + 2.0 or float(x) > x1f - 2.0:
-				c = edge
+				c = cn_edge
 			img.set_pixel(x, y + tower_top, c)
-	# 主楼脊梁
-	for y in range(3):
-		var rhalf := float(y) / maxf(1.0, float(keep_roof_h - 1)) * (keep_x1 - keep_x0 + 4) * 0.5
-		for x in range(maxi(keep_x0, int(ceil(apex - rhalf)) + 1), mini(keep_x1, int(apex + rhalf) - 1) + 1):
-			img.set_pixel(x, y + tower_top, logw.get_pixel((x + 1) % 16, 2))
+	# 瓦当（檐口每4px浅色圆钉）
+	for x in range(int(apex - roof_span) + 1, int(apex + roof_span), 4):
+		if x >= keep_x0 - 3 and x <= keep_x1 + 3:
+			img.set_pixel(x, tower_top + keep_roof_h - 1, Color(0.49, 0.55, 0.64))
+	# 飞檐翘角（两端外挑）
+	for k in range(4):
+		var lift := 3 - k
+		var xa := int(apex - roof_span) + k
+		var xb := int(apex + roof_span) - k
+		for y2 in range(maxi(0, keep_roof_h - lift), keep_roof_h):
+			img.set_pixel(xa, y2 + tower_top, cn_roof)
+			img.set_pixel(xb, y2 + tower_top, cn_roof)
+	# 主楼正脊+鸱吻（金吻）
+	var ridge_half := int(roof_span * 0.22)
+	for x in range(int(apex) - ridge_half, int(apex) + ridge_half + 1):
+		img.set_pixel(x, tower_top, Color(0.20, 0.22, 0.26).lightened(0.12))
+		img.set_pixel(x, tower_top + 1, Color(0.20, 0.22, 0.26))
+	for xx in [int(apex) - ridge_half - 1, int(apex) + ridge_half + 1]:
+		for y2 in range(tower_top, mini(tower_top + 3, tower_top + keep_roof_h)):
+			img.set_pixel(xx, y2, Color(0.85, 0.70, 0.35))
 	# 主楼檐口描边+墙面投影
 	for x in range(keep_x0 - 2, keep_x1 + 3):
 		if img.get_pixel(x, tower_top + keep_roof_h - 1).a > 0.0:
 			img.set_pixel(x, tower_top + keep_roof_h - 1, edge)
-	# ---- 主楼墙：木架灰泥 ----
+	# ---- 主楼墙：白灰墙+朱红角柱（2026-08-31中式化）----
+	var cn_plaster := _whiten_img(plaster, 0.85)
+	var cn_red := Color(0.60, 0.17, 0.13)
 	for x in range(keep_x0, keep_x1 + 1):
 		for y in range(keep_wy0, H):
-			img.set_pixel(x, y, plaster.get_pixel(2 + ((x - keep_x0 + 5) % 12), 4 + ((y - keep_wy0 + 7) % 9)))
-	_fill_logs(img, keep_x0, keep_x1, keep_wy0, 3, logw, 3)
+			img.set_pixel(x, y, cn_plaster.get_pixel(2 + ((x - keep_x0 + 5) % 12), 4 + ((y - keep_wy0 + 7) % 9)))
 	for y in range(H - 3, H):
 		for x in range(keep_x0, keep_x1 + 1):
 			var f := 0.55 if y >= H - 2 else 0.8
@@ -726,8 +1045,9 @@ static func _compose_castle(W: int, H: int) -> Image:
 			img.set_pixel(x, y, Color(cb.r * f, cb.g * f, cb.b * f, 1.0))
 	for y in range(keep_wy0, H):
 		for k in range(3):
-			img.set_pixel(keep_x0 + k, y, logw.get_pixel((k * 5 + 2) % 16, (y + 5) % 16))
-			img.set_pixel(keep_x1 - k, y, logw.get_pixel((k * 5 + 6) % 16, (y + 5) % 16))
+			var cc := cn_red if k < 2 else cn_red.darkened(0.3)
+			img.set_pixel(keep_x0 + k, y, cc)
+			img.set_pixel(keep_x1 - k, y, cc)
 	# ---- 拱形大门（石框+双开木门）----
 	var dw := 18
 	var dh := clampi(H - keep_wy0 - 4, 18, 34)
@@ -747,14 +1067,21 @@ static func _compose_castle(W: int, H: int) -> Image:
 			img.set_pixel(dx0 - 1, y, dark_edge)
 		if dx0 + dw < W:
 			img.set_pixel(dx0 + dw, y, dark_edge)
-	# ---- 主楼双蓝窗（门两侧）----
+	# ---- 主楼双格扇窗（2026-08-31中式化，门两侧）----
 	var ww := 10
 	var wh := 8
 	var wyy := keep_wy0 + 10
 	for sx in [int(W * 0.34), int(W * 0.58)]:
 		for x in range(ww):
 			for y in range(wh):
-				img.set_pixel(sx + x, wyy + y, win.get_pixel(3 + x, 4 + y))
+				var inner := x == 0 or y == 0 or x == ww - 1 or y == wh - 1
+				img.set_pixel(sx + x, wyy + y, cn_red.darkened(0.15) if inner else Color(0.90, 0.86, 0.74))
+		for x in range(3, ww - 1, 3):
+			for y in range(1, wh - 1):
+				img.set_pixel(sx + x, wyy + y, Color(0.42, 0.28, 0.16))
+		for y in range(3, wh - 1, 3):
+			for x in range(1, ww - 1):
+				img.set_pixel(sx + x, wyy + y, Color(0.42, 0.28, 0.16))
 		for i in range(-1, ww + 1):
 			img.set_pixel(sx + i, wyy - 1, edge)
 			img.set_pixel(sx + i, wyy + wh, edge)
