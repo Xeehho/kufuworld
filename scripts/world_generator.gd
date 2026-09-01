@@ -293,9 +293,31 @@ func _palette_at(x: int, y: int) -> Dictionary:
 	return BIOME_PALETTES.get(_biome_kind(x, y), BIOME_PALETTES["plains"])
 
 func _ground_of(x: int, y: int) -> int:
-	"""群系过渡感知的基础地面：判定时 temp 加噪声抖动→阈值边界天然锯齿 dither，消除硬切边"""
+	"""群系过渡感知的基础地面：判定时 temp 加噪声抖动→阈值边界天然锯齿 dither，消除硬切边。
+	画面改造P1.2：自然地面按细节噪声混入像素变体/深色斑块，消灭纯色平铺（override铺装不经此处，不受影响）"""
 	var k := _climate_kind(x, y, detail_noise.get_noise_2d(x * 1.7, y * 2.3) * 0.045)
-	return BIOME_PALETTES.get(k, BIOME_PALETTES["plains"])["ground"]
+	var base: int = BIOME_PALETTES.get(k, BIOME_PALETTES["plains"])["ground"]
+	return _ground_variant(base, x, y)
+
+func _ground_variant(base: int, x: int, y: int) -> int:
+	"""画面改造P1.2：地面变体抖动——像素变体打散重复纹理，深色斑制造斑驳地表（阈值与树木装饰噪声域隔离）"""
+	var r := fposmod(detail_noise.get_noise_2d(x * 5.3 + 37.7, y * 7.7 + 11.3) + 1.0, 1.0)
+	match base:
+		0:   # 草地：像素变体A/B打散 + 深绿色斑（斑驳草原）
+			if r > 0.93: return 47
+			elif r > 0.80: return 45
+			elif r > 0.67: return 46
+		18:  # 竹林深草
+			if r > 0.86: return 48
+			elif r > 0.72: return 49
+		6:   # 沙地：像素变体 + 深棕干土斑
+			if r > 0.92: return 54
+			elif r > 0.80: return 52
+			elif r > 0.68: return 53
+		34:  # 雪地
+			if r > 0.86: return 50
+			elif r > 0.72: return 51
+	return base
 
 func _load_tileset():
 	# 每次启动在内存中构建TileSet：纹理直接从PNG解码，不依赖import系统与陈旧.tres
@@ -2367,25 +2389,38 @@ func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 	match kind:
 		"forest":
 			# demo2风：针叶林+蘑菇地表+紫花（基面走过渡带混铺）
+			# 画面改造P1.3：林下碎屑层（草丛/落叶/枯枝）——花卉带随湿度缩放（固定阈值在低湿时会膨胀到20%+）
 			if r > 1.0 - dens * 0.14: return 4
 			elif r > 1.0 - dens * 0.30: return 8
-			elif r > 0.64: return 13
-			elif r > 0.60: return 36
+			elif r > 1.0 - dens * 0.36: return 13
+			elif r > 1.0 - dens * 0.42: return 36
+			elif r > 0.54: return 55
+			elif r > 0.47: return 60
+			elif r > 0.43: return 61
+			elif r > 0.405: return 58
 			return _ground_of(x, y)
 		"bamboo":
 			if r > 1.0 - dens * 0.28: return 9
-			return 18 if r > 0.35 else _ground_of(x, y)
+			elif r > 0.35: return 18
+			elif r > 0.30: return 56
+			return _ground_of(x, y)
 		"mountain":
 			# demo2风：深色崖壁成势(r高→山体)，谷地土路走廊(r<=0.40)天然可穿行
+			# 画面改造P1.3：谷地散落枯枝/干草
 			if r > 0.80: return 3
 			elif r > 0.70: return 14
 			elif r > 0.62: return 3
 			elif r > 0.40: return 14
+			elif r > 0.36: return 61
+			elif r > 0.31: return 62
 			return _ground_of(x, y)
 		"desert":
 			# W1 自然规律：沙漠零树；W6 岩石改 WILD 贴山聚簇表（不再全图 singles）
+			# 画面改造P1.3：沙漠干枯植被点缀
 			if r > 0.94:
 				return 14 if _rock_cells.has(Vector2i(x, y)) else _ground_of(x, y)
+			elif r > 0.90: return 62
+			elif r > 0.865: return 63
 			return _ground_of(x, y)
 		"snow":
 			# demo3风：白雪地面+稀疏雪松+雪线崖壁点缀（崖用7=积雪崖，避免深色秃崖突兀）
@@ -2396,13 +2431,21 @@ func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 			return _ground_of(x, y)
 		"lake":
 			# W1：湖面为 override 显式水（_generate_lakes 已铺），此处只留湖缘装饰
-			return 13 if r > 0.90 else _ground_of(x, y)
+			if r > 0.90: return 13
+			elif r > 0.84: return 55
+			return _ground_of(x, y)
 		_:
 			# plains：橡/松疏林+紫花+雏菊（密度随湿度）
+			# 画面改造P1.3：碎屑层固定小额（草丛8%+双叶草7%+黄草丛5%+野花5%），花卉带随湿度缩放
 			if r > 1.0 - dens * 0.07: return 8
 			elif r > 1.0 - dens * 0.10: return 4
-			elif r > 0.87: return 13
-			elif r > 0.845: return 37
+			elif r > 1.0 - dens * 0.15: return 13
+			elif r > 1.0 - dens * 0.20: return 37
+			elif r > 0.78: return 55
+			elif r > 0.71: return 56
+			elif r > 0.66: return 57
+			elif r > 0.635: return 58
+			elif r > 0.61: return 59
 			return _ground_of(x, y)
 	return 0
 
@@ -2460,7 +2503,8 @@ func _load_chunk(chunk: Vector2i):
 
 	# 装饰瓦片ID（有透明区域，需要地面底层）
 	# 注意：碰撞瓦片(3=山崖, 7=雪崖, 5=水)不在此列表，始终在layer 0
-	var decor_tiles = [2, 10, 11, 12, 13, 14, 15, 36, 37, 44]
+	# 画面改造P1.3：新增碎屑装饰 55-63（草丛/野花/落叶/枯枝/干草）
+	var decor_tiles = [2, 10, 11, 12, 13, 14, 15, 36, 37, 44, 55, 56, 57, 58, 59, 60, 61, 62, 63]
 
 	var start_x = chunk.x * CHUNK_SIZE
 	var start_y = chunk.y * CHUNK_SIZE
@@ -2476,23 +2520,30 @@ func _load_chunk(chunk: Vector2i):
 					# 大树改用素材包道具（星露谷式冠幅），只铺地面层
 					# Phase G2：水邻/城镇净空被拒的格子只铺地面——不再回退画16px小树瓦片
 					if TREE_SHEETS.has(tid):
-						tm.set_cell(0, cell, _get_ground_tile(wx, wy), Vector2i(0, 0))
+						tm.set_cell(0, cell, _paint_ground(_get_ground_tile(wx, wy), wx, wy), Vector2i(0, 0))
 						if _should_spawn_tree_prop(wx, wy, tid):
 							_spawn_tree_prop(wx, wy, tid)
 					elif tid == TILE_BUILDING_RESERVE:
 						# Phase F5 大建筑footprint：只铺地面（视觉与碰撞由道具节点承担）
-						tm.set_cell(0, cell, _get_ground_tile(wx, wy), Vector2i(0, 0))
+						tm.set_cell(0, cell, _paint_ground(_get_ground_tile(wx, wy), wx, wy), Vector2i(0, 0))
 					# 装饰瓦片放在layer 1，地面放在layer 0
 					elif tid in decor_tiles:
 						# 先铺地面底层
-						var ground_id = _get_ground_tile(wx, wy)
+						var ground_id = _paint_ground(_get_ground_tile(wx, wy), wx, wy)
 						tm.set_cell(0, cell, ground_id, Vector2i(0, 0))
 						tm.set_cell(1, cell, tid, Vector2i(0, 0))
 					else:
-						tm.set_cell(0, cell, tid, Vector2i(0, 0))
+						tm.set_cell(0, cell, _paint_ground(tid, wx, wy), Vector2i(0, 0))
 			world_cells[cell] = get_tile_id(wx, wy)
 
 	loaded_chunks[chunk] = true
+
+func _paint_ground(tid: int, x: int, y: int) -> int:
+	"""画面改造P1.2：上漆口统一变体——城内/净空区等 override 直铺的自然地面(0/6/18/34)
+	在绘制层混入像素变体与深色斑（仅改视觉，get_tile_id/world_cells 语义保持基值，零碰撞/选址影响）"""
+	if tid == 0 or tid == 6 or tid == 18 or tid == 34:
+		return _ground_variant(tid, x, y)
+	return tid
 
 func _get_ground_tile(x: int, y: int) -> int:
 	"""获取指定位置的地面瓦片ID（不含装饰物）"""

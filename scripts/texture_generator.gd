@@ -78,8 +78,20 @@ func generate_tiles():
 	var rocks := _pack_image("Environment/Props/Static/Rocks.png")
 	var bprops := _pack_image("Environment/Structures/Buildings/Props.png")
 	# ---- 地表（素材包原版裁切，色调与demo三图一致）----
-	_save_tile(_crop_tile(floors, 2, 10), "grass")
-	_save_tile(_crop_tile(floors, 1, 11), "grass_dark")
+	# 画面改造P1.1：草系乘法暖化（51,119,4→约79,138,36 暖黄绿）
+	_save_tile(_tint_img(_crop_tile(floors, 2, 10), 1.55, 1.16, 9.0), "grass")
+	_save_tile(_tint_img(_crop_tile(floors, 1, 11), 1.55, 1.16, 9.0), "grass_dark")
+	# 画面改造P1.2 地面变体：同色系像素变体（打破重复平铺）+ 色调深斑（草地斑驳感）
+	_save_tile(_tint_img(_crop_tile(floors, 1, 10), 1.55, 1.16, 9.0), "grass_a")      # 45 草地像素变体A
+	_save_tile(_tint_img(_crop_tile(floors, 3, 10), 1.55, 1.16, 9.0), "grass_b")      # 46 草地像素变体B
+	_save_tile(_tint_img(_crop_tile(floors, 3, 11), 1.55, 1.16, 9.0), "grass_patch")  # 47 深绿色斑（草原斑驳）
+	_save_tile(_tint_img(_crop_tile(floors, 2, 11), 1.55, 1.16, 9.0), "dark_a")       # 48 竹林深草变体A
+	_save_tile(_tint_img(_crop_tile(floors, 3, 11), 1.55, 1.16, 9.0), "dark_b")       # 49 竹林深草变体B
+	_save_tile(_crop_tile(floors, 7, 23), "sand_a")    # 52 沙地像素变体A
+	_save_tile(_crop_tile(floors, 9, 23), "sand_b")    # 53 沙地像素变体B
+	_save_tile(_crop_tile(floors, 13, 11), "dirt_patch")  # 54 深棕干土斑（沙漠斑驳）
+	_save_tile(_whiten_img(_crop_tile(floors, 1, 23), 1.0), "snow_a")   # 50 雪地像素变体A
+	_save_tile(_whiten_img(_crop_tile(floors, 3, 22), 1.0), "snow_b")   # 51 雪地像素变体B
 	_save_tile(_crop_tile(floors, 6, 10), "path")
 	_save_tile(_crop_tile(water_sheet, 6, 7), "water")
 	_save_tile(_crop_tile(floors, 6, 23), "sand")
@@ -99,6 +111,16 @@ func generate_tiles():
 	_save_tile(_crop_tile(veg, 7, 21), "mushroom")
 	_save_tile(_crop_tile(rocks, 8, 2), "rock")
 	_save_tile(_crop_tile(bprops, 1, 9), "fence")
+	# 画面改造P1.3 碎屑装饰：草丛/野花/落叶/枯枝/干草（星露谷式地表密度，Vegetation原版裁切）
+	_save_tile(_crop_tile(veg, 2, 9), "tuft_a")          # 55 绿草丛
+	_save_tile(_crop_tile(veg, 1, 11), "tuft_b")         # 56 双叶草
+	_save_tile(_crop_tile(veg, 2, 13), "tuft_c")         # 57 黄绿草丛（色相点缀）
+	_save_tile(_crop_tile(veg, 4, 24), "flower_white")   # 58 白色小野花
+	_save_tile(_crop_tile(veg, 4, 26), "flower_yellow")  # 59 黄色小野花
+	_save_tile(_crop_tile(veg, 4, 22), "leaf_litter")    # 60 橙色落叶簇（森林秋意）
+	_save_tile(_crop_tile(veg, 17, 0), "twig")           # 61 枯枝（林间/山地散落）
+	_save_tile(_crop_tile(veg, 2, 15), "dry_tuft")       # 62 干枯草丛（沙漠/山地）
+	_save_tile(_crop_tile(veg, 0, 16), "dry_small")      # 63 干枯小苗
 	# ---- 建筑瓦片 ----
 	_save_tile(_crop_tile(wall_sheet, 1, 21), "house_cave")
 	_save_tile(_pack_bridge(wall_sheet), "bridge")
@@ -281,6 +303,18 @@ static func _whiten_img(src: Image, strength: float) -> Image:
 				lerpf(c.r, w, strength),
 				lerpf(c.g, w, strength),
 				lerpf(c.b, minf(w * 1.04, 1.0), strength), c.a))
+	return out
+
+# 画面改造P1.1 草地暖化：乘法调色（R抬升+B补光→星露谷式暖黄绿，低蓝去除"冷纯绿"感）
+static func _tint_img(src: Image, r_mul: float, g_mul: float, b_mul: float) -> Image:
+	var out := Image.create(src.get_width(), src.get_height(), false, Image.FORMAT_RGBA8)
+	for y in range(out.get_height()):
+		for x in range(out.get_width()):
+			var c := src.get_pixel(x, y)
+			out.set_pixel(x, y, Color(
+				minf(c.r * r_mul, 1.0),
+				minf(c.g * g_mul, 1.0),
+				minf(c.b * b_mul, 1.0), c.a))
 	return out
 
 func _save_tile(img: Image, tile_name: String):

@@ -44,6 +44,27 @@ static func build_tileset() -> TileSet:
 		40: "res://sprites/tiles/city_wall.png",      # 青石城城墙砖（四面围墙，有碰撞）
 		43: "res://sprites/tiles/ward_wall.png",      # W2 唐制坊墙（白灰淡砖，里坊围合，有碰撞）
 		44: "res://sprites/tiles/boundary_stone.png", # W3 界碑（门派领地边界标记，无碰撞装饰）
+		# ---- 画面改造P1.2 地面变体（无碰撞，layer 0，由 _ground_variant 噪声抖动选入）----
+		45: "res://sprites/tiles/grass_a.png",        # 草地像素变体A
+		46: "res://sprites/tiles/grass_b.png",        # 草地像素变体B
+		47: "res://sprites/tiles/grass_patch.png",    # 深绿色斑（草原斑驳）
+		48: "res://sprites/tiles/dark_a.png",         # 竹林深草变体A
+		49: "res://sprites/tiles/dark_b.png",         # 竹林深草变体B
+		50: "res://sprites/tiles/snow_a.png",         # 雪地像素变体A
+		51: "res://sprites/tiles/snow_b.png",         # 雪地像素变体B
+		52: "res://sprites/tiles/sand_a.png",         # 沙地像素变体A
+		53: "res://sprites/tiles/sand_b.png",         # 沙地像素变体B
+		54: "res://sprites/tiles/dirt_patch.png",     # 深棕干土斑（沙漠斑驳）
+		# ---- 画面改造P1.3 碎屑装饰（无碰撞，layer 1，decor_tiles 白名单）----
+		55: "res://sprites/tiles/tuft_a.png",         # 绿草丛
+		56: "res://sprites/tiles/tuft_b.png",         # 双叶草
+		57: "res://sprites/tiles/tuft_c.png",         # 黄绿草丛
+		58: "res://sprites/tiles/flower_white.png",   # 白色小野花
+		59: "res://sprites/tiles/flower_yellow.png",  # 黄色小野花
+		60: "res://sprites/tiles/leaf_litter.png",    # 橙色落叶簇
+		61: "res://sprites/tiles/twig.png",           # 枯枝
+		62: "res://sprites/tiles/dry_tuft.png",       # 干枯草丛
+		63: "res://sprites/tiles/dry_small.png",      # 干枯小苗
 	}
 
 	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙

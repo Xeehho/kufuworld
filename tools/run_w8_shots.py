@@ -30,6 +30,7 @@ finally:
         cur = f.read()
     cur = cur.replace("\n" + marker, "").replace(marker, "")
     cur = cur.replace("[autoload]\n\n\n\n", "[autoload]\n\n")
+    cur = cur.replace("[autoload]\n\n\n", "[autoload]\n\n")  # 补丁残留3连换行也清掉（此前遗留2空行脏diff）
     with open(pg, "w", encoding="utf-8") as f:
         f.write(cur)
     print("project.godot restored:", marker not in cur)
