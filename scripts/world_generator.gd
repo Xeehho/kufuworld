@@ -202,37 +202,61 @@ func _setup_noise():
 	detail_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	detail_noise.frequency = 0.05
 
-# ---- Phase F6: 饥荒式生物群系区域 ----
-const BIOME_KINDS := ["plains", "forest", "bamboo", "mountain", "desert", "snow", "lake"]
-var biome_seeds: Array = []   # [{"pos":Vector2i, "kind":String}]
+# ---- W1: 气候驱动的群系分布（替换 Voronoi 首府撒点，docs/武侠世界重构规划 §2.1）----
+# 温度场=纬度基线+海拔修正+噪声扰动；湿度场=湿度噪声+临水加湿；群系判定唯一入口 _climate_kind。
+# biome_seeds 语义变更：只存湖泊种子 [{"pos":Vector2i, "kind":"lake", "r":float}]，由 _generate_rivers 登记。
+var biome_seeds: Array = []
+var _water_humid_boost: Dictionary = {}   # 临水加湿标记（河/湖12格内），_generate_rivers 末尾构建
 
 func _setup_biomes():
-	"""环形撒群系首府（两轮全群系=14个）+中央固定平原；瓦片归属=最近首府(带噪声抖动边界)"""
-	var rng = RandomNumberGenerator.new()
-	rng.seed = WORLD_SEED + 777
-	biome_seeds.clear()
-	var count := BIOME_KINDS.size() * 2
-	for i in range(count):
-		var ang := TAU * i / count + rng.randf_range(-0.3, 0.3)
-		var rad := rng.randf_range(30.0, WORLD_RADIUS - 24.0)
-		var pos := Vector2i(int(cos(ang) * rad), int(sin(ang) * rad))
-		var kind: String = BIOME_KINDS[i % BIOME_KINDS.size()]
-		biome_seeds.append({"pos": pos, "kind": kind})
-	biome_seeds.append({"pos": Vector2i.ZERO, "kind": "plains"})	# 出生区必为平原
+	biome_seeds.clear()   # 湖泊种子在 _generate_rivers 生成湖时 append
+
+func _climate_temp(x: int, y: int) -> float:
+	"""温度场：北冷南暖（y越大越暖）+海拔越高越冷+噪声扰动+出生区温和修正"""
+	var lat := (float(y) + float(WORLD_RADIUS)) / (2.0 * float(WORLD_RADIUS))
+	var t := 0.04 + lat * 0.92
+	t -= maxf(get_height(x, y), 0.0) * 0.38
+	t += detail_noise.get_noise_2d(x * 0.9, y * 0.9) * 0.07
+	var d0 := Vector2(x, y).length()
+	if d0 < 26.0:
+		t = lerpf(t, 0.55, clampf(1.2 - d0 / 22.0, 0.0, 0.7))
+	return t
+
+func _climate_hum(x: int, y: int) -> float:
+	"""湿度场：湿度噪声归一 + 临水加湿（河谷竹林/湖畔沃野的自然来源）"""
+	var h: float = get_humidity(x, y) * 0.5 + 0.5
+	if _water_humid_boost.has(Vector2i(x, y)):
+		h = minf(h + 0.2, 1.0)
+	return h
+
+func _climate_kind(x: int, y: int, jitter: float = 0.0) -> String:
+	"""群系判定唯一入口。jitter 供 _ground_of 在阈值边界做锯齿过渡（替代 Voronoi dither）"""
+	for b in biome_seeds:
+		if b["kind"] == "lake":
+			var dist := float(Vector2(b["pos"].x - x, b["pos"].y - y).length())
+			if dist < float(b["r"]) + detail_noise.get_noise_2d(x, y) * 3.0:
+				return "lake"
+	var t := _climate_temp(x, y) + jitter
+	var h := _climate_hum(x, y)
+	if t < 0.25:
+		return "snow"
+	if t < 0.45:
+		return "mountain"
+	if t < 0.7:
+		if h >= 0.62:
+			return "bamboo"
+		if h > 0.45:
+			return "forest"
+		return "plains"
+	# 热带蒸发干旱：起点 t≥0.79（与 forest 上界 0.7 间留 plains 缓冲带，隔断干湿突变咬合）；
+	# 温度越高有效湿度越低（自然规律驱动沙漠分布）
+	if t >= 0.79 and h - maxf(0.0, t - 0.62) * 1.6 < 0.30:
+		return "desert"
+	return "plains"
 
 func _biome_kind(x: int, y: int) -> String:
-	if biome_seeds.is_empty():
-		return "plains"
-	var jitter: float = detail_noise.get_noise_2d(x * 1.7, y * 2.3) * 14.0
-	var best_d := 1e12
-	var best_kind := "plains"
-	for b in biome_seeds:
-		var p: Vector2i = b["pos"]
-		var d := Vector2(p.x - x, p.y - y).length_squared() + jitter * jitter * 0.01
-		if d < best_d:
-			best_d = d
-			best_kind = b["kind"]
-	return best_kind
+	"""全项目群系查询口（W1 起转调气候场，接口不变）"""
+	return _climate_kind(x, y)
 
 func _lake_surface_dist(x: int, y: int, seed_pos: Vector2i) -> float:
 	return Vector2(seed_pos.x - x, seed_pos.y - y).length()
@@ -255,43 +279,10 @@ func _palette_at(x: int, y: int) -> Dictionary:
 	"""取指定坐标所属群系的铺设调色板"""
 	return BIOME_PALETTES.get(_biome_kind(x, y), BIOME_PALETTES["plains"])
 
-func _biome_nearest_two(x: int, y: int) -> Array:
-	"""与 _biome_kind 同一抖动算法，一次线性扫描返回 [最近群系, 次近群系, 最近距离², 次近距离²]"""
-	if biome_seeds.is_empty():
-		return ["plains", "plains", 0.0, 0.0]
-	var jitter: float = detail_noise.get_noise_2d(x * 1.7, y * 2.3) * 14.0
-	var d1 := 1e12
-	var d2 := 1e12
-	var k1 := "plains"
-	var k2 := "plains"
-	for b in biome_seeds:
-		var p: Vector2i = b["pos"]
-		var d := Vector2(p.x - x, p.y - y).length_squared() + jitter * jitter * 0.01
-		if d < d1:
-			d2 = d1
-			k2 = k1
-			d1 = d
-			k1 = b["kind"]
-		elif d < d2:
-			d2 = d
-			k2 = b["kind"]
-	return [k1, k2, d1, d2]
-
-const BIOME_BLEND_BAND := 3.0   # 过渡带宽度（格）：次近首府距最近首府不足此值时 dither 混铺
-
 func _ground_of(x: int, y: int) -> int:
-	"""群系过渡带感知的基础地面：边界带内按细节噪声在两侧群系地面间 dither，
-	其余区域返回最近群系的调色板 ground——消除群系硬切边"""
-	var two := _biome_nearest_two(x, y)
-	var g1: int = BIOME_PALETTES.get(two[0], BIOME_PALETTES["plains"])["ground"]
-	var g2: int = BIOME_PALETTES.get(two[1], BIOME_PALETTES["plains"])["ground"]
-	if g1 == g2:
-		return g1
-	if sqrt(two[3]) - sqrt(two[2]) >= BIOME_BLEND_BAND:
-		return g1
-	var d = detail_noise.get_noise_2d(x, y)
-	var r = fposmod(d + 1.0, 1.0)
-	return g1 if r > 0.5 else g2
+	"""群系过渡感知的基础地面：判定时 temp 加噪声抖动→阈值边界天然锯齿 dither，消除硬切边"""
+	var k := _climate_kind(x, y, detail_noise.get_noise_2d(x * 1.7, y * 2.3) * 0.045)
+	return BIOME_PALETTES.get(k, BIOME_PALETTES["plains"])["ground"]
 
 func _load_tileset():
 	# 每次启动在内存中构建TileSet：纹理直接从PNG解码，不依赖import系统与陈旧.tres
@@ -338,76 +329,237 @@ func _get_world_border_tile(x: int, y: int) -> int:
 			return 6  # 沙
 	return -1  # 不覆盖
 
-# ============ 河流系统 ============
+# ============ 河流系统（W1 重写：源—流—汇，docs/武侠世界重构规划 §5.1） ============
+# 河源固定在高山群系内高处，沿 get_height 下坡游走（噪声摆动），汇入湖泊或边界深水；
+# 城市斥力保证河不进城；旧"正弦横穿+等距桥"废弃——桥位由官道接驳(W2)/连通修补/W5 规则化。
+var river_paths: Array = []    # [{"path":Array[Vector2i], "main":bool}]，供回归断言采样
+var lake_centers: Array = []   # [{"pos":Vector2i, "r":float}]
 
 func _generate_rivers():
-	"""使用正弦曲线生成2-3条河流"""
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 3000
+	_generate_lakes(rng)
+	# 干流 2~3 条：源=高山，下坡游走终湖/海
+	var mains := _find_river_sources(rng, 3, 60.0, [])
+	for src in mains:
+		var path := _walk_river(src, rng, true)
+		if path.size() < 40:
+			continue
+		_stamp_river(path, 4)
+		_bridge_along(path, 4, 36)
+		river_paths.append({"path": path, "main": true})
+	# 支流 1~2 条：源=另一处高山，触碰干流/湖即并入
+	var used: Array = mains.duplicate()
+	var tribs := _find_river_sources(rng, 2, 70.0, used)
+	for src in tribs:
+		var path := _walk_river(src, rng, false)
+		if path.size() < 30:
+			continue
+		_stamp_river(path, 2)
+		_bridge_along(path, 2, 40)
+		river_paths.append({"path": path, "main": false})
+	_build_water_humid_boost()
+	print("[WorldGen] Rivers: mains=%d tribs=%d lakes=%d" % [mains.size(), tribs.size(), lake_centers.size()])
 
-	var river_count = rng.randi_range(3, 4)
-	for i in range(river_count):
-		var amplitude = rng.randf_range(10.0, 25.0)
-		var frequency = rng.randf_range(0.03, 0.08)
-		var phase = rng.randf_range(0.0, TAU)
-		var offset_y = rng.randi_range(-40, 40)
-		var width = rng.randi_range(3, 5)
-		var horizontal = rng.randf() > 0.5  # 水平或垂直河流
+func _generate_lakes(rng):
+	"""1~2 个显式湖：洼地+暖带+避城/出生区/互距；湖面 override=5+湖缘沙6，登记湖种子"""
+	var placed := 0
+	for _attempt in range(80):
+		if placed >= 2:
+			break
+		var x: int = rng.randi_range(-int(WORLD_RADIUS) + 40, int(WORLD_RADIUS) - 40)
+		var y: int = rng.randi_range(-int(WORLD_RADIUS) + 40, int(WORLD_RADIUS) - 40)
+		if get_height(x, y) > -0.2 or _climate_temp(x, y) < 0.4:
+			continue
+		if Vector2(x, y).length() < 30.0:
+			continue
+		if Vector2(x - CITY_POS.x, y - CITY_POS.y).length() < 45.0:
+			continue
+		var ok := true
+		for l in lake_centers:
+			if Vector2(x - l["pos"].x, y - l["pos"].y).length() < 60.0:
+				ok = false
+				break
+		if not ok:
+			continue
+		var r: int = rng.randi_range(9, 13)
+		for dx in range(-r - 4, r + 5):
+			for dy in range(-r - 4, r + 5):
+				var d := Vector2(dx, dy).length()
+				var edge := float(r) + detail_noise.get_noise_2d(x + dx, y + dy) * 3.0
+				var cell := Vector2i(x + dx, y + dy)
+				if d < edge:
+					override_cells[cell] = 5
+				elif d < edge + 4.0 and not override_cells.has(cell):
+					override_cells[cell] = 6
+		lake_centers.append({"pos": Vector2i(x, y), "r": float(r)})
+		biome_seeds.append({"pos": Vector2i(x, y), "kind": "lake", "r": float(r)})
+		placed += 1
 
-		# 河流路径
-		for t in range(-WORLD_RADIUS, WORLD_RADIUS):
-			var curve_val = offset_y + amplitude * sin(frequency * t + phase)
-			var center: int
-			if horizontal:
-				center = int(round(curve_val))
-			else:
-				center = int(round(curve_val))
+func _find_river_sources(rng, want: int, min_apart: float, exclude: Array) -> Array:
+	"""在高山群系内找高处源点；候选不足时放宽海拔阈值"""
+	var picked: Array = []
+	for h_min in [0.3, 0.15]:
+		var cands: Array = []
+		for y in range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30, 6):
+			for x in range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30, 6):
+				if _climate_kind(x, y) != "mountain" or get_height(x, y) < h_min:
+					continue
+				var p := Vector2i(x, y)
+				var bad := false
+				for e in exclude:
+					if Vector2(p - e).length() < 40.0:
+						bad = true
+						break
+				if bad:
+					continue
+				cands.append(p)
+		while cands.size() > 0 and picked.size() < want:
+			var idx: int = rng.randi_range(0, cands.size() - 1)
+			var p2: Vector2i = cands[idx]
+			cands.remove_at(idx)
+			var ok := true
+			for q in picked:
+				if Vector2(p2 - q).length() < min_apart:
+					ok = false
+					break
+			if ok:
+				picked.append(p2)
+		if picked.size() >= want:
+			break
+	return picked
 
-			for w in range(-width / 2, width / 2 + 1):
-				var rx: int
-				var ry: int
-				if horizontal:
-					rx = t
-					ry = center + w
-				else:
-					rx = center + w
-					ry = t
+func _walk_river(src: Vector2i, rng, is_main: bool) -> Array:
+	"""下坡游走：8邻域选 height 最低+噪声摆动；边界引导出海；城市斥力绕城；支流触碰水即并入"""
+	var path: Array = []
+	var cur := src
+	var visited := {src: true}
+	for _guard in range(1000):
+		path.append(cur)
+		var merged := false
+		for l in lake_centers:
+			if Vector2(cur.x - l["pos"].x, cur.y - l["pos"].y).length() < float(l["r"]):
+				merged = true
+				break
+		if merged:
+			return path
+		if Vector2(cur.x, cur.y).length() > WORLD_RADIUS - 8:
+			return path
+		if not is_main and _touches_water(cur):
+			return path
+		# 保底：干流 400 步后未终湖/海 → 径向 d4 冲海（无视 visited：水面自相交无害）
+		var force_out := is_main and path.size() > 400
+		var best := cur
+		if not force_out:
+			var best_score := 1e12
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					if dx == 0 and dy == 0:
+						continue
+					var n := cur + Vector2i(dx, dy)
+					if visited.has(n) or Vector2(n.x, n.y).length() > WORLD_RADIUS - 6:
+						continue
+					var score: float = get_height(n.x, n.y) * 8.0 + rng.randf() * 2.5
+					# 边界引导出海；步数越深权重越大（防河困死内陆）
+					score += Vector2(n.x, n.y).length() * (0.012 + path.size() * 0.00008)
+					# 城市斥力改方形判定：仅当 x、y 同时落城圈邻域内才罚——河可贴城墙南北绕行
+					if absi(n.x - CITY_POS.x) < CITY_HALF + 6 and absi(n.y - CITY_POS.y) < CITY_HALF + 6:
+						score += (CITY_HALF + 6 - maxi(absi(n.x - CITY_POS.x), absi(n.y - CITY_POS.y))) * 3.0
+					if is_main:
+						for l in lake_centers:
+							var dl := Vector2(n.x - l["pos"].x, n.y - l["pos"].y).length()
+							if dl < float(l["r"]) + 14.0:
+								score -= (float(l["r"]) + 14.0 - dl) * 1.5
+					if score < best_score:
+						best_score = score
+						best = n
+		if best == cur:
+			# 洼地/冲海兜底：径向 d4 外推（禁止回头；无视 visited 防自锁，600 步上限防死循环）
+			var outward := Vector2(cur.x, cur.y)
+			if outward.length() < 1.0:
+				outward = Vector2(1, 0)
+			var cand := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+			cand.sort_custom(func(a, b): return Vector2(a.x, a.y).dot(outward) > Vector2(b.x, b.y).dot(outward))
+			var nc: Vector2i = cur + cand[0]
+			if path.size() >= 2 and nc == Vector2i(path[path.size() - 2]):
+				nc = cur + cand[1]
+			cur = nc
+		else:
+			cur = best
+		visited[cur] = true
+	return path
 
-				var cell = Vector2i(rx, ry)
-				# 河流中心是水，边缘是沙
-				if abs(w) <= 1:
-					override_cells[cell] = 5  # 水
-				else:
-					if not override_cells.has(cell):
-						override_cells[cell] = 6  # 沙
+func _touches_water(c: Vector2i) -> bool:
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			var v = override_cells.get(Vector2i(c.x + dx, c.y + dy), -1)
+			if v != null and int(v) == 5:
+				return true
+	return false
 
-		# 在河流上放置桥（每隔一定距离）
-		for t in range(-WORLD_RADIUS + 10, WORLD_RADIUS - 10, 15):
-			var curve_val = offset_y + amplitude * sin(frequency * t + phase)
-			var center: int
-			if horizontal:
-				center = int(round(curve_val))
-			else:
-				center = int(round(curve_val))
+func _bridge_along(path: Array, water_w: int, period: int):
+	"""沿河稀疏架基本桥（tile 17）保世界基本连通：W2 官道桥/W5 石拱桥再规则化"""
+	var half: int = water_w / 2
+	for i in range(period / 2, path.size() - 1, period):
+		var c: Vector2i = path[i]
+		var dirv := Vector2i(1, 0)
+		if i + 1 < path.size():
+			dirv = path[i + 1] - c
+		elif i > 0:
+			dirv = c - path[i - 1]
+		var perp := Vector2i(signi(-dirv.y), signi(dirv.x))
+		if perp == Vector2i.ZERO:
+			perp = Vector2i(0, 1)
+		for w in range(-half, water_w - half):
+			override_cells[c + perp * w] = 17
+		override_cells[c + perp * (-half - 1)] = 1   # 两岸接路
+		override_cells[c + perp * (water_w - half)] = 1
 
-			# 桥横跨河流水面部分（水面固定3格宽：w=-1,0,1）
-			for w in range(-1, 2):
-				var bridge_cell: Vector2i
-				if horizontal:
-					bridge_cell = Vector2i(t, center + w)
-				else:
-					bridge_cell = Vector2i(center + w, t)
-				override_cells[bridge_cell] = 17  # 桥
+func _stamp_river(path: Array, water_w: int):
+	"""沿中心线垂直流向铺水（干流4格/支流2格），岸沙1格只写空格；先水后沙"""
+	var sands: Array = []
+	for i in range(path.size()):
+		var c: Vector2i = path[i]
+		var dirv := Vector2i(1, 0)
+		if i + 1 < path.size():
+			dirv = path[i + 1] - c
+		elif i > 0:
+			dirv = c - path[i - 1]
+		var perp := Vector2i(absi(dirv.y) if dirv.x != 0 else 0, absi(dirv.x) if dirv.y != 0 else 0)
+		if dirv.x != 0 and dirv.y != 0:
+			perp = Vector2i(-dirv.y, dirv.x)   # 斜向步取正交
+		perp = Vector2i(signi(perp.x), signi(perp.y))
+		var offs: Array = []
+		if water_w >= 4:
+			offs = [-2, -1, 0, 1]
+		else:
+			offs = [0, 1]
+		for w in offs:
+			var cell := c + perp * int(w)
+			override_cells[cell] = 5
+			for dd in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var s: Vector2i = cell + dd
+				if not override_cells.has(s):
+					sands.append(s)
+	for s in sands:
+		if not override_cells.has(s):
+			override_cells[s] = 6
 
-			# 桥两端连接河岸铺路
-			if horizontal:
-				override_cells[Vector2i(t, center - 2)] = 1  # 上岸路
-				override_cells[Vector2i(t, center + 2)] = 1  # 下岸路
-			else:
-				override_cells[Vector2i(center - 2, t)] = 1  # 左岸路
-				override_cells[Vector2i(center + 2, t)] = 1  # 右岸路
-
-	print("[WorldGen] Generated " + str(river_count) + " rivers")
+func _build_water_humid_boost():
+	"""临水加湿表：河中心线/湖心向外扩12格（O(中心线)构建，运行期O(1)查询）"""
+	_water_humid_boost.clear()
+	var centers: Array = []
+	for l in lake_centers:
+		centers.append({"pos": l["pos"], "r": int(l["r"]) + 12})
+	for rp in river_paths:
+		for c in rp["path"]:
+			centers.append({"pos": c, "r": 13})
+	for c in centers:
+		var p: Vector2i = c["pos"]
+		var r: int = c["r"]
+		for dx in range(-r, r + 1):
+			for dy in range(-r, r + 1):
+				_water_humid_boost[Vector2i(p.x + dx, p.y + dy)] = true
 
 # ============ 青石城（主城）============
 # 玩法锚点城池：围墙圈+四门+十字主街+中央广场+功能建筑（府衙/酒楼/药坊/铁匠铺/布庄/杂货铺/民居）
@@ -1058,19 +1210,70 @@ func _attach_building_sprite(kind: String, a: Vector2i):
 	get_parent().add_child(root)
 
 # ---- Phase F6: 连通性保障（饥荒式：所有可走孤岛自动开路接回主大陆） ----
+# W1 算法升级：逐 pocket "最近点对暴力搜索"（183 pocket × reach 8.6万 → 卡死）改为
+# 一次性全图"施工成本场"（multi-source BFS，种子=reach，可穿透碰撞计数），
+# 每 pocket 取场值最小格沿梯度开路——O(全图) 替代 O(pocket×reach)。
 func _ensure_connectivity():
 	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 	var total_carved := 0
-	for pass_i in range(6):
+	for pass_i in range(4):
+		var t0 := Time.get_ticks_msec()
 		var reach := _bfs_reachable_from_spawn(dirs)
 		var pockets := _find_pockets(reach, dirs)
 		if pockets.is_empty():
-			if pass_i > 0:
-				print("[WorldGen] Connectivity OK after ", pass_i, " repair pass(es), carved=", total_carved)
+			print("[WorldGen] Connectivity OK after %d pass(es), carved=%d" % [pass_i, total_carved])
 			break
+		var dist := {}
+		var q: Array = []
+		for c in reach.keys():
+			dist[c] = 0
+			q.append(c)
+		var head := 0
+		while head < q.size():
+			var c: Vector2i = q[head]
+			head += 1
+			var dc: int = dist[c]
+			for d in dirs:
+				var n: Vector2i = c + d
+				if dist.has(n) or absi(n.x) > WORLD_RADIUS or absi(n.y) > WORLD_RADIUS:
+					continue
+				dist[n] = dc + 1
+				q.append(n)
+		print("[WorldGen] conn pass=%d reach=%d pockets=%d field=%dms" % [pass_i, reach.size(), pockets.size(), Time.get_ticks_msec() - t0])
+		var t1 := Time.get_ticks_msec()
 		for pocket in pockets:
-			total_carved += _carve_connection(pocket, reach)
+			total_carved += _carve_via_field(pocket, dist, dirs)
+		print("[WorldGen]   carved %d pockets in %dms (total=%d)" % [pockets.size(), Time.get_ticks_msec() - t1, total_carved])
 	print("[WorldGen] Connectivity passes done, carved cells=", total_carved)
+
+func _carve_via_field(pocket: Array, dist: Dictionary, dirs: Array) -> int:
+	"""pocket 内取成本场最小格，沿梯度下降开路到 reach：水→桥17、碰撞→群系channel"""
+	var best_a := Vector2i.ZERO
+	var best_d := 1 << 30
+	for c in pocket:
+		var dv: int = dist.get(c, 1 << 30)
+		if dv < best_d:
+			best_d = dv
+			best_a = c
+	if best_d >= (1 << 30):
+		return 0
+	var carved := 0
+	var c := best_a
+	for _guard in range(2000):
+		carved += _carve_cell(c)
+		var dc: int = dist.get(c, 0)
+		if dc <= 0:
+			break
+		var next := c
+		for d in dirs:
+			var n: Vector2i = c + d
+			if dist.has(n) and int(dist[n]) < dc:
+				next = n
+				break
+		if next == c:
+			break
+		c = next
+	return carved
 
 func _bfs_reachable_from_spawn(dirs: Array) -> Dictionary:
 	var reach: Dictionary = {}
@@ -1096,7 +1299,9 @@ func _bfs_reachable_from_spawn(dirs: Array) -> Dictionary:
 	return reach
 
 func _find_pockets(reach: Dictionary, dirs: Array) -> Array:
-	"""找未连通的可走pocket（>=6格才算，避免为2-3格凹缝开路浪费）"""
+	"""找未连通的可走pocket（>=6格才算）。
+	W1修复：完整洪泛——旧版BFS在4000格截断，巨pocket被重复报告几十次（每次都是同一区域的新样本），
+	每个样本又触发一次6秒级carve，connectivity直接卡死。"""
 	var pockets: Array = []
 	var visited := {}
 	for wy in range(-WORLD_RADIUS + 8, WORLD_RADIUS - 8, 1):
@@ -1109,7 +1314,7 @@ func _find_pockets(reach: Dictionary, dirs: Array) -> Array:
 			var cells: Dictionary = {p: true}
 			var q: Array = [p]
 			var h2 := 0
-			while h2 < q.size() and cells.size() < 4000:
+			while h2 < q.size():
 				var cc: Vector2i = q[h2]
 				h2 += 1
 				for d in dirs:
@@ -1121,52 +1326,12 @@ func _find_pockets(reach: Dictionary, dirs: Array) -> Array:
 					if get_tile_id(nn.x, nn.y) in collision_tiles:
 						continue
 					cells[nn] = true
-					q.append(nn)
 					visited[nn] = true
+					q.append(nn)
 			visited[p] = true
-			if cells.size() >= 6 and cells.size() < 4000:
-				pockets.append(cells.keys())
-			elif cells.size() >= 4000:
+			if cells.size() >= 6:
 				pockets.append(cells.keys())
 	return pockets
-
-func _carve_connection(pocket: Array, reach: Dictionary) -> int:
-	"""最近点对L形开路：水架桥、山石沙化、栅栏拆除"""
-	var best_a := Vector2i.ZERO
-	var best_b := Vector2i.ZERO
-	var best_d := 1e12
-	var step := 2 if pocket.size() > 400 else 1
-	var i := 0
-	for a in pocket:
-		i += 1
-		if step > 1 and i % step != 0:
-			continue
-		var b_step := 3
-		var j := 0
-		for b in reach.keys():
-			j += 1
-			if b_step > 1 and j % b_step != 0:
-				continue
-			var dd: float = abs(a.x - b.x) + abs(a.y - b.y)
-			if dd < best_d:
-				best_d = dd
-				best_a = a
-				best_b = b
-	var carved := 0
-	var c := best_a
-	var guard := 0
-	while guard < 600:
-		guard += 1
-		carved += _carve_cell(c)
-		if c == best_b:
-			break
-		if abs(best_b.x - c.x) >= abs(best_b.y - c.y) and c.x != best_b.x:
-			c.x += signi(best_b.x - c.x)
-		elif c.y != best_b.y:
-			c.y += signi(best_b.y - c.y)
-		else:
-			c.x += signi(best_b.x - c.x)
-	return carved
 
 func _carve_cell(c: Vector2i) -> int:
 	var tid = get_tile_id(c.x, c.y)
@@ -1194,7 +1359,7 @@ func get_terrain(x: int, y: int) -> Terrain:
 			return Terrain.SAND
 		"lake":
 			for b in biome_seeds:
-				if b["kind"] == "lake" and _lake_surface_dist(x, y, b["pos"]) < 12.0:
+				if b["kind"] == "lake" and _lake_surface_dist(x, y, b["pos"]) < float(b["r"]) + 2.0:
 					return Terrain.WATER
 			return Terrain.GRASS
 		"mountain":
@@ -1235,16 +1400,19 @@ func get_tile_id(x: int, y: int) -> int:
 	return tid
 
 func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
+	# W1：树密度=f(湿度)——dens∈[0.35,1.0]，阈值随 dens 调制（沙漠0树/雪原稀雪松/竹林需湿>0.6由气候判定保证）
+	var hum := _climate_hum(x, y)
+	var dens := clampf(hum * 1.2, 0.35, 1.0)
 	match kind:
 		"forest":
 			# demo2风：针叶林+蘑菇地表+紫花（基面走过渡带混铺）
-			if r > 0.86: return 4
-			elif r > 0.70: return 8
+			if r > 1.0 - dens * 0.14: return 4
+			elif r > 1.0 - dens * 0.30: return 8
 			elif r > 0.64: return 13
 			elif r > 0.60: return 36
 			return _ground_of(x, y)
 		"bamboo":
-			if r > 0.72: return 9
+			if r > 1.0 - dens * 0.28: return 9
 			return 18 if r > 0.35 else _ground_of(x, y)
 		"mountain":
 			# demo2风：深色崖壁成势(r高→山体)，谷地土路走廊(r<=0.40)天然可穿行
@@ -1254,25 +1422,22 @@ func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 			elif r > 0.40: return 14
 			return _ground_of(x, y)
 		"desert":
+			# W1 自然规律：沙漠零树（岩石保留）
 			if r > 0.94: return 14
 			return _ground_of(x, y)
 		"snow":
-			# demo3风：白雪地面+雪松+雪线崖壁点缀（崖用7=积雪崖，避免深色秃崖突兀）
+			# demo3风：白雪地面+稀疏雪松+雪线崖壁点缀（崖用7=积雪崖，避免深色秃崖突兀）
 			if r > 0.94: return 7
-			elif r > 0.88: return 4
+			elif r > 1.0 - dens * 0.12: return 4
 			elif r > 0.83: return 14
 			return _ground_of(x, y)
 		"lake":
-			for b in biome_seeds:
-				if b["kind"] == "lake":
-					var dist: float = _lake_surface_dist(x, y, b["pos"])
-					if dist < 11.0 + d * 3.0: return 5
-					elif dist < 15.0: return 6
+			# W1：湖面为 override 显式水（_generate_lakes 已铺），此处只留湖缘装饰
 			return 13 if r > 0.90 else _ground_of(x, y)
 		_:
-			# plains：橡/松疏林+紫花+雏菊
-			if r > 0.93: return 8
-			elif r > 0.90: return 4
+			# plains：橡/松疏林+紫花+雏菊（密度随湿度）
+			if r > 1.0 - dens * 0.07: return 8
+			elif r > 1.0 - dens * 0.10: return 4
 			elif r > 0.87: return 13
 			elif r > 0.845: return 37
 			return _ground_of(x, y)

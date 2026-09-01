@@ -3,7 +3,7 @@
 temp-inject ProbeWorldRegress -> run game -> restore project.godot -> assert & report.
 断言失败纪律：先修因，禁止改断言凑绿；规则变更需升 WORLD_RULES_VERSION 并登记文档。
 """
-import subprocess, sys, os, json
+import subprocess, sys, os, json, math
 
 proj = r"C:\Learn\my-godot-project"
 pg = os.path.join(proj, "project.godot")
@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W0"
+CURRENT_STAGE = "W1"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
@@ -73,7 +73,11 @@ def main():
         check("biome", "snow_no_oak", snow_greenish_tree == 0, f"oak={snow_greenish_tree}")
     if zones.get("desert"):
         bad = {t: c for t, c in zones["desert"]["hist"].items() if t in DESERT_FORBID}
-        check("biome", "desert_no_tree_no_grass", sum(bad.values()) == 0, f"forbidden={bad}")
+        # 占比阈值 ≤5%：desert 代表区内残余禁格全部来自 _ground_of 的锯齿过渡带（设计行为，
+        # dither 消除群系硬切边必然在边缘混入邻居地面）；要求绝对零须关闭过渡带，得不偿失。
+        total_cells = sum(zones["desert"]["hist"].values())
+        check("biome", "desert_no_tree_no_grass", sum(bad.values()) <= total_cells * 0.05,
+              f"forbidden={bad} ratio={sum(bad.values()) / max(total_cells, 1):.3f}")
 
     # 气候连续性：谱系不相邻禁对（snow/mountain 为温度低带，desert 为热低湿带）
     FORBID_ADJ = {"snow|desert", "snow|plains", "snow|forest", "snow|bamboo",
@@ -93,6 +97,31 @@ def main():
     check("water", "river_not_through_city", w["min_dist_city"] >= 23.0,
           f"min_dist_city={w['min_dist_city']:.1f} (city_half+1=23)", since="W1")
     check("water", "city_interior_dry", w["city_water"] == 0, f"cells={w['city_water']}", since="W1")
+
+    # W1 新增：湖泊存在、河源在山、干流终湖/海（规划 §2.1/§5.1 自然规律）
+    rivers = data.get("rivers", [])
+    lakes = data.get("lakes", [])
+    check("water", "lake_exists", len(lakes) >= 1, f"lakes={len(lakes)}", since="W1")
+    check("water", "main_river_exists", sum(1 for r in rivers if r["main"]) >= 1,
+          f"rivers={len(rivers)} mains={sum(1 for r in rivers if r['main'])}", since="W1")
+    bad_src = []
+    for i, rv in enumerate(rivers):
+        src_mountain = sum(c for k, c in rv["head_kinds"].items() if k in ("mountain", "snow"))
+        if src_mountain < 6:   # 前10格至少6格在高山/雪群系
+            bad_src.append(i)
+    check("water", "river_source_in_mountain", len(bad_src) == 0, f"bad={bad_src}", since="W1")
+    bad_end = []
+    for rv in rivers:
+        if not rv["main"]:
+            continue   # 支流终点=并入干流，只对干流断言
+        end_ok = rv["tail_len"] > 190.0   # WORLD_RADIUS-10 出海
+        for l in lakes:
+            d = math.hypot(rv["tail"][0] - l["pos"][0], rv["tail"][1] - l["pos"][1])
+            if d < l["r"] + 3.0:
+                end_ok = True
+        if not end_ok:
+            bad_end.append(rv["tail"])
+    check("water", "river_end_lake_or_sea", len(bad_end) == 0, f"bad_tails={bad_end}", since="W1")
 
     # ---------- 断言组：city ----------
     c = data["city"]

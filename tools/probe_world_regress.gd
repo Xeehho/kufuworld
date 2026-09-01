@@ -31,29 +31,42 @@ func _ready():
 		return
 	var data := {}
 
-	# ---- 1) 群系代表区直方图：扫网格找每群系首见格为中心，49x49 采样 ----
+	# ---- 1) 群系代表区直方图：中心=群系"最深点"（±18格邻域内异类最少的采样格）。
+	# 首见格在边缘、质心在月牙形群系的弧内凹处——两者都会让直方图混入邻居群系。
 	var R: int = wg.WORLD_RADIUS
-	var kind_first := {}
-	var total := {}
+	var kind_cells := {}
+	var kind_at := {}
 	for y in range(-R + 16, R - 16, 6):
 		for x in range(-R + 16, R - 16, 6):
 			var k: String = wg._biome_kind(x, y)
-			total[k] = int(total.get(k, 0)) + 1
-			if not kind_first.has(k):
-				kind_first[k] = Vector2i(x, y)
+			if not kind_cells.has(k):
+				kind_cells[k] = []
+			kind_cells[k].append(Vector2i(x, y))
+			kind_at[Vector2i(x, y)] = k
 	var zones := {}
 	for k in ["snow", "desert", "lake", "bamboo", "forest", "plains", "mountain"]:
-		if not kind_first.has(k):
+		var cells: Array = kind_cells.get(k, [])
+		if cells.is_empty():
 			zones[k] = null
 			continue
-		var c: Vector2i = kind_first[k]
+		var c0: Vector2i = cells[0]
+		var best_foreign := 1 << 30
+		for c in cells:
+			var foreign := 0
+			for dx in range(-3, 4):
+				for dy in range(-3, 4):
+					if kind_at.get(c + Vector2i(dx * 6, dy * 6), "?") != k:
+						foreign += 1
+			if foreign < best_foreign:
+				best_foreign = foreign
+				c0 = c
 		var hist := {}
 		for dx in range(-24, 25):
 			for dy in range(-24, 25):
-				var id = wg.get_tile_id(c.x + dx, c.y + dy)
+				var id = wg.get_tile_id(c0.x + dx, c0.y + dy)
 				var key := str(id)
 				hist[key] = int(hist.get(key, 0)) + 1
-		zones[k] = {"center": [c.x, c.y], "hist": hist, "samples": int(total.get(k, 0))}
+		zones[k] = {"center": [c0.x, c0.y], "hist": hist, "samples": cells.size()}
 	data["zones"] = zones
 
 	# ---- 2) 气候连续性：步长2相邻群系对计数（禁对判定在 python 侧） ----
@@ -159,6 +172,23 @@ func _ready():
 	# ---- 5) 连通性：出生点可达区规模 ----
 	var spawn_reach: Dictionary = wg._bfs_reachable_from_spawn(dirs)
 	data["reach_count"] = spawn_reach.size()
+
+	# ---- 6) 河流/湖泊采样（W1）：河源群系/河终位置/湖心表 ----
+	var rivers: Array = []
+	for rp in wg.river_paths:
+		var p: Array = rp["path"]
+		var head_kinds := {}
+		for i in range(mini(10, p.size())):
+			var k: String = wg._biome_kind(p[i].x, p[i].y)
+			head_kinds[k] = int(head_kinds.get(k, 0)) + 1
+		var tail: Vector2i = p[p.size() - 1]
+		rivers.append({"main": rp["main"], "len": p.size(), "head_kinds": head_kinds,
+			"tail": [tail.x, tail.y], "tail_len": Vector2(tail.x, tail.y).length()})
+	data["rivers"] = rivers
+	var lakes: Array = []
+	for l in wg.lake_centers:
+		lakes.append({"pos": [l["pos"].x, l["pos"].y], "r": l["r"]})
+	data["lakes"] = lakes
 
 	_write(data)
 	_log("[RegressProbe] data written: zones=%d adj_pairs=%d reach=%d" % [zones.size(), adj.size(), spawn_reach.size()])
