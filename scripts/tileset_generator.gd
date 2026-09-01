@@ -43,6 +43,7 @@ static func build_tileset() -> TileSet:
 		37: "res://sprites/tiles/daisy.png",          # Phase G重构: 雏菊装饰
 		40: "res://sprites/tiles/city_wall.png",      # 青石城城墙砖（四面围墙，有碰撞）
 		43: "res://sprites/tiles/ward_wall.png",      # W2 唐制坊墙（白灰淡砖，里坊围合，有碰撞）
+		44: "res://sprites/tiles/boundary_stone.png", # W3 界碑（门派领地边界标记，无碰撞装饰）
 	}
 
 	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙

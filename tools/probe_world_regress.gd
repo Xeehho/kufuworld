@@ -206,6 +206,56 @@ func _ready():
 	data["city"]["room_spacing_ok"] = spacing_ok
 	data["city"]["spacing_detail"] = spacing_detail
 
+	# ---- 4c) W3 门派领地：在位/主殿/界碑环闭合（8 采样点=四角+四边中点）----
+	var sects: Array = []
+	for sname in wg.sect_info:
+		var s: Dictionary = wg.sect_info[sname]
+		var sc: Vector2i = s["center"]
+		var r: int = int(s["radius"])
+		var hall: Vector2i = s["hall"]
+		var hall_ok: bool = wg.get_tile_id(hall.x, hall.y) == 39
+		var stele_ok := true
+		var stele_n := 0
+		for p in [Vector2i(-r, -r), Vector2i(0, -r), Vector2i(r, -r), Vector2i(r, 0),
+				Vector2i(r, r), Vector2i(0, r), Vector2i(-r, r), Vector2i(-r, 0)]:
+			# 语义：环上任意点沿边 ±5 格内必有界碑（=每 6 格一座，环闭合）
+			var dirs2: Array = []
+			if absi(p.x) == r and absi(p.y) == r:
+				dirs2 = [Vector2i(signi(p.x), 0), Vector2i(0, signi(p.y))]   # 角：两个切向
+			elif absi(p.x) == r:
+				dirs2 = [Vector2i(0, 1), Vector2i(0, -1)]   # 竖边：y 切向
+			else:
+				dirs2 = [Vector2i(1, 0), Vector2i(-1, 0)]   # 横边：x 切向
+			var okp := false
+			for dvec in dirs2:
+				for d in range(-5, 6):
+					var sq: Vector2i = sc + p + dvec * d
+					if wg.get_tile_id(sq.x, sq.y) == 44:
+						okp = true
+						break
+				if okp:
+					break
+			if okp:
+				stele_n += 1
+			else:
+				stele_ok = false
+		sects.append({"name": sname, "center": [sc.x, sc.y], "radius": r,
+			"hall_ok": hall_ok, "stele_ok": stele_ok, "stele_samples": stele_n})
+		if sname == "铁砂帮" or sname == "幽冥教":
+			var ring_hist := {}
+			var non44 := []
+			for dx in range(-r, r + 1):
+				for dy in range(-r, r + 1):
+					if maxi(absi(dx), absi(dy)) != r:
+						continue
+					var tid2 = wg.get_tile_id(sc.x + dx, sc.y + dy)
+					var k3 := str(tid2)
+					ring_hist[k3] = int(ring_hist.get(k3, 0)) + 1
+					if tid2 != 44 and non44.size() < 8:
+						non44.append([dx, dy, k3])
+			data["ring_" + sname] = {"hist": ring_hist, "non44": non44}
+	data["sects"] = sects
+
 	# ---- 5) 连通性：出生点可达区规模 ----
 	var spawn_reach: Dictionary = wg._bfs_reachable_from_spawn(dirs)
 	data["reach_count"] = spawn_reach.size()

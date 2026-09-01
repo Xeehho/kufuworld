@@ -60,6 +60,12 @@ const SECT_TERRITORIES := {
 	},
 }
 
+## ============ 门派主殿 kind 映射（W3） ============
+const SECT_HALL_KIND := {
+	"青峰剑宗": "hall_qf", "铁砂帮": "hall_ts", "古刹禅宗": "hall_gc",
+	"药王谷": "hall_yw", "幽冥教": "hall_ym",
+}
+
 ## ============ 村镇模板 v2（W4） ============
 ## 一圈一团一水聚落逻辑：农耕村（环状农带靠水）/ 市镇（主街行肆）/ 渡口村（临河渡亭）。
 const TOWN_TEMPLATES_V2 := {

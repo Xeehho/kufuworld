@@ -87,7 +87,7 @@ func _ensure_textures():
 		"house_town", "house_cottage", "house_temple", "house_cave",
 		"flower", "daisy", "mushroom", "rock", "fence", "bridge", "city_wall",
 		"snow_farmland", "snow_path",
-		"ward_wall",
+		"ward_wall", "boundary_stone",
 	]
 	var need_textures = false
 	for t in tile_files:
@@ -107,7 +107,8 @@ func _ensure_textures():
 	var big_missing := false
 	for kind in ["hut", "house", "manor", "temple", "castle",
 			"yamen", "tavern", "apothecary", "shop_a", "shop_b",
-			"stall_red", "stall_teal", "well", "gate_tower"]:
+			"stall_red", "stall_teal", "well", "gate_tower",
+			"hall_qf", "hall_ts", "hall_gc", "hall_yw", "hall_ym"]:
 		if not FileAccess.file_exists("res://sprites/buildings/%s.png" % kind):
 			big_missing = true
 			break

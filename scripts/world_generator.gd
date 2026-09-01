@@ -45,6 +45,12 @@ const BUILDING_PROPS := {
 	"stall_red":  {"png": "res://sprites/buildings/stall_red.png",  "fp": Vector2i(1, 1)},   # 市摊（红棚）
 	"stall_teal": {"png": "res://sprites/buildings/stall_teal.png", "fp": Vector2i(1, 1)},   # 市摊（青棚）
 	"well":       {"png": "res://sprites/buildings/well.png",       "fp": Vector2i(1, 1)},   # 水井
+	# ---- W3 门派主殿（accent=门派主色，hall_xx 见 BIG_BUILDING_DEFS）----
+	"hall_qf": {"png": "res://sprites/buildings/hall_qf.png", "fp": Vector2i(7, 5)},
+	"hall_ts": {"png": "res://sprites/buildings/hall_ts.png", "fp": Vector2i(6, 4)},
+	"hall_gc": {"png": "res://sprites/buildings/hall_gc.png", "fp": Vector2i(7, 5)},
+	"hall_yw": {"png": "res://sprites/buildings/hall_yw.png", "fp": Vector2i(6, 4)},
+	"hall_ym": {"png": "res://sprites/buildings/hall_ym.png", "fp": Vector2i(7, 5)},
 }
 # 虚拟占位tile id：footprint格子写入override_cells，参与碰撞/可达性但不在TileMap绘制
 const TILE_BUILDING_RESERVE := 39
@@ -172,6 +178,8 @@ func _ready():
 	_relocate_player_to_safe_spawn()
 	_compute_reachable_region()
 	_generate_towns()
+	if WorldFeatures.FLAG["sect_territories"]:
+		_generate_sect_territories()
 	_scatter_pois()
 	_apply_poi_terrain()
 	_ensure_connectivity()	# Phase F6: 打通所有封闭区域（石中沙地等孤岛开路）
@@ -1030,11 +1038,190 @@ func _area_has_water(cx: int, cy: int, r: int) -> bool:
 				return true
 	return false
 
+# ============ W3 门派领地（docs/武侠世界重构规划 §2.2） ============
+# 选址硬规则：气候位匹配 + 距城/镇/领地切比雪夫缘距 + 核心区少水；
+# 建设组：核心清场 + 主殿(accent=门派主色) + 弟子舍×2 + 演武场 + 界碑环(tile 14 每6格) + 后山禁地。
+var sect_info: Dictionary = {}   # {name: {center, radius, hall, fp, style, clan}}
+
+func _generate_sect_territories():
+	var rng = RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 5000
+	var placed: Array = []   # [{name, center(Vector2i), radius}]
+	for sname in WorldData.SECT_TERRITORIES:
+		var def: Dictionary = WorldData.SECT_TERRITORIES[sname]
+		var r: int = def["radius"]
+		var site := Vector2i.ZERO
+		var found := false
+		var dbg := {"climate": 0, "ring": 0, "city": 0, "town": 0, "gap": 0, "wet": 0, "bound": 0}
+		for _attempt in range(1200):
+			var x: int
+			var y: int
+			if def["climate"] == "lakeside_bamboo" and lake_centers.size() > 0 and _attempt % 3 != 2:
+				# 湖锚定搜索（朝世界中心定向 ±90°：两湖偏居东西缘，向外锚必越界）
+				var l: Dictionary = lake_centers[_attempt % lake_centers.size()]
+				var to_center: float = (Vector2.ZERO - Vector2(l["pos"])).angle()
+				var ang: float = to_center + rng.randf_range(-PI / 2, PI / 2)
+				var dist := rng.randf_range(float(l["r"]) + 6.0, float(l["r"]) + 14.0)
+				x = l["pos"].x + int(cos(ang) * dist)
+				y = l["pos"].y + int(sin(ang) * dist)
+				if absi(x) > int(WORLD_RADIUS) - 30 or absi(y) > int(WORLD_RADIUS) - 30:
+					dbg["bound"] += 1
+					continue
+			elif def["climate"] == "desert_oasis":
+				# 沙漠纬度带定向（desert 判定 t≥0.79 → y≥113；界内可用至 y≈160）
+				x = rng.randi_range(-150, 150)
+				y = rng.randi_range(110, int(WORLD_RADIUS) - 40)
+			else:
+				x = rng.randi_range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30)
+				y = rng.randi_range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30)
+			if not _sect_climate_match(def["climate"], x, y):
+				dbg["climate"] += 1
+				continue
+			# 界碑环断言采样点（4 角+4 边中点）必须落在世界边界内（边界带从 R-5 起覆盖；
+			# 曾有领地角越界被边界水覆盖界碑）——非采样碑位越界则铺设时跳过
+			var ring_out := false
+			for p in [Vector2i(-r, -r), Vector2i(0, -r), Vector2i(r, -r), Vector2i(r, 0),
+					Vector2i(r, r), Vector2i(0, r), Vector2i(-r, r), Vector2i(-r, 0)]:
+				if Vector2(x + p.x, y + p.y).length() > WORLD_RADIUS - 6:
+					ring_out = true
+					break
+			if ring_out:
+				dbg["ring"] += 1
+				continue
+			# 距城（切比雪夫，城缘到领地缘 ≥4）
+			if maxi(absi(x - CITY_POS.x), absi(y - CITY_POS.y)) < city_half + 4 + r:
+				dbg["city"] += 1
+				continue
+			var too_close := false
+			# 距镇（镇 half 9+净空 → 缘距 ≥1）
+			for tc in town_centers:
+				if maxi(absi(x - int(tc.x)), absi(y - int(tc.y))) < r + 13:
+					too_close = true
+					break
+			# 领地间距（缘距 ≥8）
+			if not too_close:
+				for p in placed:
+					if maxi(absi(x - p["center"].x), absi(y - p["center"].y)) < r + int(p["radius"]) + 8:
+						too_close = true
+						break
+			if too_close:
+				dbg["town"] += 1
+				continue
+			# 核心 21x21 内水格 ≤4
+			var wet := 0
+			for dx in range(-10, 11):
+				for dy in range(-10, 11):
+					if get_tile_id(x + dx, y + dy) == 5:
+						wet += 1
+			if wet > 4:
+				dbg["wet"] += 1
+				continue
+			site = Vector2i(x, y)
+			found = true
+			break
+		if not found:
+			print("[WorldGen] Sect[", sname, "] no site found! attempts_dbg=", dbg)
+			continue
+		placed.append({"name": sname, "center": site, "radius": r})
+		_build_sect_territory(sname, def, site, r)
+	print("[WorldGen] Sect territories: ", placed.size())
+
+func _sect_climate_match(key: String, x: int, y: int) -> bool:
+	"""气候位匹配（规划 §2.2 驻地气候位 → 气候场判定）"""
+	match key:
+		"temperate_mountain":
+			return _climate_kind(x, y) == "mountain" and _climate_temp(x, y) > 0.28
+		"desert_oasis":
+			# 绿洲语义=沙漠核心+领地自建水井/药圃（河畔带实测过于稀有：沙漠河段少）
+			return _climate_kind(x, y) == "desert"
+		"bamboo_edge":
+			return _climate_kind(x, y) == "bamboo"
+		"lakeside_bamboo":
+			var near_lake := false
+			for l in lake_centers:
+				if Vector2(x - l["pos"].x, y - l["pos"].y).length() < float(l["r"]) + 24.0:
+					near_lake = true
+					break
+			return near_lake and _climate_kind(x, y) in ["bamboo", "forest", "plains"]
+		"snow_black_rock":
+			return _climate_kind(x, y) == "snow"
+	return false
+
+## 河畔带判定：cheby 6~20 格内有水（沙漠绿洲=依河而不压河）
+func _near_river_band(x: int, y: int) -> bool:
+	for dx in range(-20, 21):
+		for dy in range(-20, 21):
+			var d := maxi(absi(dx), absi(dy))
+			if d >= 6 and d <= 20 and get_tile_id(x + dx, y + dy) == 5:
+				return true
+	return false
+
+func _build_sect_territory(sname: String, def: Dictionary, c: Vector2i, r: int):
+	var pal: Dictionary = _palette_at(c.x, c.y)
+	# 1) 核心清场 25x25（覆盖崖/石/树tag；避水格跳过）
+	for dx in range(-12, 13):
+		for dy in range(-12, 13):
+			var cc := c + Vector2i(dx, dy)
+			if get_tile_id(cc.x, cc.y) == 5:
+				continue
+			override_cells[cc] = pal["ground"]
+	# 2) 主殿（accent=门派主色）
+	var hk: String = WorldData.SECT_HALL_KIND[sname]
+	var ha := c + Vector2i(-3, -6)
+	_force_place_building_prop(hk, ha)
+	var hfp: Vector2i = BUILDING_PROPS[hk]["fp"]
+	# 3) 弟子舍 ×2
+	_force_place_building_prop("hut", c + Vector2i(-10, -1))
+	_force_place_building_prop("hut", c + Vector2i(7, -1))
+	# 4) 演武场（石板 7x4 @ 南侧）
+	for dx in range(-3, 4):
+		for dy in range(3, 7):
+			var tc := c + Vector2i(dx, dy)
+			if get_tile_id(tc.x, tc.y) != 5:
+				override_cells[tc] = 35
+	# 药王谷药圃（农田 6x3 @ 西侧）
+	if sname == "药王谷":
+		for dx in range(-11, -5):
+			for dy in range(2, 5):
+				var fc := c + Vector2i(dx, dy)
+				if get_tile_id(fc.x, fc.y) != 5:
+					override_cells[fc] = 16
+	# 5) 界碑环：方形 cheby=r，四角必放 + 每边中段每 6 格一座（tile 44 界碑，无碰撞标记——
+	# 碰撞环会挡路被连通性修补切开；南门语义由无碰撞标记天然满足）
+	for corner in [Vector2i(-r, -r), Vector2i(r, -r), Vector2i(r, r), Vector2i(-r, r)]:
+		override_cells[c + corner] = 44
+	for t in range(3, 2 * r - 3, 6):
+		for bp in [Vector2i(-r + t, -r), Vector2i(r, -r + t), Vector2i(r - t, r), Vector2i(-r, r - t)]:
+			var bp_abs: Vector2i = c + bp
+			if Vector2(bp_abs.x, bp_abs.y).length() > WORLD_RADIUS - 6:
+				continue   # 越界碑跳过（边界水会覆盖）
+			override_cells[bp_abs] = 44
+	# 回读验证（诊断：区分铺设端失败 vs 事后覆盖）
+	var ring_bad := 0
+	for corner in [Vector2i(-r, -r), Vector2i(r, -r), Vector2i(r, r), Vector2i(-r, r)]:
+		if get_tile_id(c.x + corner.x, c.y + corner.y) != 44:
+			ring_bad += 1
+	# 6) 后山禁地：北侧崖带（cheby 带 y ∈ [-r+2, -r+7]，雪原派用雪崖 7）
+	var cliff := 7 if _biome_kind(c.x, c.y) == "snow" else 3
+	for dx in range(-r + 3, r - 2):
+		for dy in range(-r + 2, -r + 8):
+			override_cells[c + Vector2i(dx, dy)] = cliff
+	# 7) 净空（抑树）+ 登记
+	_register_town_clearance(c.x, c.y, r)
+	sect_info[sname] = {"center": c, "radius": r, "hall": ha, "fp": hfp,
+		"style": def["style"], "clan": sname, "ring_bad_at_build": ring_bad}
+	print("[WorldGen] Sect[", sname, "] @", c, " r=", r, " ring_bad_at_build=", ring_bad)
+
+
 func is_in_settlement(p: Vector2) -> bool:
 	"""2026-08-31：判定某像素点是否落在青石城/城镇范围内（MobSpawner营地避让用）"""
 	var t := Vector2i(int(p.x / 16.0), int(p.y / 16.0))
 	if absi(t.x - CITY_POS.x) <= city_half + 2 and absi(t.y - CITY_POS.y) <= city_half + 2:
 		return true
+	# W3 门派领地（界碑环内=聚落）
+	for s in sect_info.values():
+		if maxi(absi(t.x - s["center"].x), absi(t.y - s["center"].y)) <= int(s["radius"]):
+			return true
 	for tc in town_centers:
 		if Vector2(t.x, t.y).distance_to(tc) < 13.0:
 			return true
@@ -1763,7 +1950,7 @@ func _load_chunk(chunk: Vector2i):
 
 	# 装饰瓦片ID（有透明区域，需要地面底层）
 	# 注意：碰撞瓦片(3=山崖, 7=雪崖, 5=水)不在此列表，始终在layer 0
-	var decor_tiles = [2, 10, 11, 12, 13, 14, 15, 36, 37]
+	var decor_tiles = [2, 10, 11, 12, 13, 14, 15, 36, 37, 44]
 
 	var start_x = chunk.x * CHUNK_SIZE
 	var start_y = chunk.y * CHUNK_SIZE
@@ -1857,6 +2044,16 @@ func _load_poi_chunks():
 			var c2 = city_chunk + Vector2i(dx, dy)
 			if not loaded_chunks.has(c2):
 				_load_chunk(c2)
+	# W3 门派领地chunk强制加载（界碑环 cheby=r → ±(r/16)+2 chunk）
+	for s in sect_info.values():
+		var sc: Vector2i = s["center"]
+		var sect_chunk := world_to_chunk(Vector2(sc.x * TILE_SIZE_PX, sc.y * TILE_SIZE_PX))
+		var sr: int = int(s["radius"]) / 16 + 2
+		for dx in range(-sr, sr + 1):
+			for dy in range(-sr, sr + 1):
+				var c3 = sect_chunk + Vector2i(dx, dy)
+				if not loaded_chunks.has(c3):
+					_load_chunk(c3)
 	print("[WorldGen] POI chunks loaded")
 
 func _apply_poi_terrain():
@@ -2201,6 +2398,14 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 		# 避让青石城（v2 城圈61x61+余量）
 		if Vector2(wx, wy).distance_to(Vector2(CITY_POS)) < 46:
 			continue
+		# W3 避让门派领地（cheby 缘距 ≥6）
+		var sect_block := false
+		for s in sect_info.values():
+			if maxi(absi(wx - s["center"].x), absi(wy - s["center"].y)) < int(s["radius"]) + 6:
+				sect_block = true
+				break
+		if sect_block:
+			continue
 		# 检查是否在世界边界内
 		if sqrt(wx * wx + wy * wy) > WORLD_RADIUS - 10:
 			continue
@@ -2209,6 +2414,13 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 			continue
 		_create_poi_marker(tpl, pos)
 		return true
+	return false
+
+## W3：门派领地避让（cheby 缘距 ≥ margin；POI 铺地半径可达 15，margin 须 ≥16）
+func _near_sect_territory(wx: int, wy: int, margin: int = 16) -> bool:
+	for s in sect_info.values():
+		if maxi(absi(wx - int(s["center"].x)), absi(wy - int(s["center"].y))) < int(s["radius"]) + margin:
+			return true
 	return false
 
 func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
@@ -2227,6 +2439,8 @@ func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
 			if w < tpl.min_humidity or w > tpl.max_humidity:
 				continue
 			if not _is_reachable_cell(wx, wy):
+				continue
+			if _near_sect_territory(wx, wy):
 				continue
 			var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 			if _too_close_to_other_poi(pos, tpl.min_distance):
@@ -2247,6 +2461,8 @@ func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
 		if w < tpl.min_humidity or w > tpl.max_humidity:
 			continue
 		if get_tile_id(wx, wy) in collision_tiles:
+			continue
+		if _near_sect_territory(wx, wy):
 			continue
 		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 		if _too_close_to_other_poi(pos, tpl.min_distance):

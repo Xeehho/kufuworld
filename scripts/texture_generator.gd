@@ -108,6 +108,7 @@ func generate_tiles():
 	# ---- 青石城：城墙砖（程序化，素材包无城墙）----
 	_save_tile(_city_wall_tile(), "city_wall")
 	_save_tile(_ward_wall_tile(), "ward_wall")   # 43 唐制坊墙（城砖淡色版，W2；41/42已被雪田/雪径占用）
+	_save_tile(_boundary_stone_img(), "boundary_stone")   # 44 界碑（W3 门派领地边界标记，无碰撞）
 	print("[TextureGen] Tiles generated (Pixel Crawler pack crops)")
 
 # 城墙砖瓦片：青灰砖+错缝砖线+顶部压光，四面围墙用（tile id 40）
@@ -131,6 +132,26 @@ func _city_wall_tile() -> Image:
 				img.set_pixel(x, y, hi)                   # 砖顶棱受光
 			elif yy == 6:
 				img.set_pixel(x, y, lo)                   # 砖底压暗
+	return img
+
+# 界碑瓦片：灰白石碑（无碰撞边界标记；tile id 44，W3 门派领地）
+func _boundary_stone_img() -> Image:
+	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var stone := Color(0.72, 0.71, 0.68)
+	var dark := Color(0.50, 0.49, 0.47)
+	var base := Color(0.40, 0.39, 0.37)
+	for y in range(TILE_SIZE):
+		for x in range(TILE_SIZE):
+			# 底座（底部 3px 全宽）
+			if y >= 13:
+				img.set_pixel(x, y, base if y >= 14 else dark)
+			# 碑身（上窄下宽梯形 3..12）
+			elif y >= 3 and y <= 12:
+				var inset := 4 if y < 6 else 3
+				if x >= inset and x <= TILE_SIZE - 1 - inset:
+					var edge := x == inset or x == TILE_SIZE - 1 - inset or y == 3
+					img.set_pixel(x, y, dark if edge else stone)
 	return img
 
 # 坊墙瓦片：城砖淡色版（白灰坊墙，唐制里坊围合；tile id 43，W2）
@@ -517,6 +538,12 @@ const BIG_BUILDING_DEFS := {
 	"apothecary": {"size": Vector2i(84, 70),  "thatch": false, "temple": false, "accent": Color(0.20, 0.45, 0.48)},  # 药坊：药青
 	"shop_a":     {"size": Vector2i(64, 54),  "thatch": false, "temple": false, "accent": Color(0.45, 0.30, 0.16)},  # 铁匠铺：铁木棕
 	"shop_b":     {"size": Vector2i(64, 54),  "thatch": false, "temple": false, "accent": Color(0.36, 0.26, 0.48)},  # 布庄：紫
+	# ---- W3 门派主殿（accent=门派主旗色；殿堂用 temple 结构，厅堂用 manor 结构）----
+	"hall_qf": {"size": Vector2i(122, 100), "thatch": false, "temple": true,  "accent": Color(0.25, 0.42, 0.70)},  # 青峰剑宗：蓝
+	"hall_ts": {"size": Vector2i(100, 84),  "thatch": false, "temple": false, "accent": Color(0.70, 0.16, 0.12)},  # 铁砂帮：红
+	"hall_gc": {"size": Vector2i(122, 100), "thatch": false, "temple": true,  "accent": Color(0.82, 0.66, 0.14)},  # 古刹禅宗：金
+	"hall_yw": {"size": Vector2i(100, 84),  "thatch": false, "temple": false, "accent": Color(0.36, 0.62, 0.40)},  # 药王谷：药绿
+	"hall_ym": {"size": Vector2i(122, 100), "thatch": false, "temple": true,  "accent": Color(0.14, 0.10, 0.12)},  # 幽冥教：黑
 }
 
 func generate_big_buildings():

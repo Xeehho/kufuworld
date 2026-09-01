@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W2"
+CURRENT_STAGE = "W3"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
@@ -139,6 +139,25 @@ def main():
         check("city", f"ward_{wname}_connected", ok, "", since="W2")
     check("city", "room_spacing_ge2", c.get("room_spacing_ok", False),
           f"detail={c.get('spacing_detail', {})}", since="W2")
+
+    # ---------- 断言组：sect（W3 门派领地） ----------
+    sects = data.get("sects", [])
+    check("sect", "sect_count_5", len(sects) == 5, f"sects={len(sects)}", since="W3")
+    city_half = 30
+    for s in sects:
+        n = s["name"]
+        dc = max(abs(s["center"][0] - 75), abs(s["center"][1] - 0))
+        check("sect", f"sect_{n}_dist_city", dc >= city_half + 4 + s["radius"],
+              f"cheby={dc} need>={city_half + 4 + s['radius']}", since="W3")
+        check("sect", f"sect_{n}_hall_placed", s["hall_ok"], "", since="W3")
+        check("sect", f"sect_{n}_stele_ring", s["stele_ok"],
+              f"samples={s['stele_samples']}/8", since="W3")
+    for i in range(len(sects)):
+        for j in range(i + 1, len(sects)):
+            a, b = sects[i], sects[j]
+            dd = max(abs(a["center"][0] - b["center"][0]), abs(a["center"][1] - b["center"][1]))
+            check("sect", f"sect_gap_{a['name']}_{b['name']}", dd >= a["radius"] + b["radius"] + 8,
+                  f"cheby={dd} need>={a['radius'] + b['radius'] + 8}", since="W3")
 
     # ---------- 断言组：connectivity ----------
     check("walk", "spawn_reach_large", data["reach_count"] >= 8000,
