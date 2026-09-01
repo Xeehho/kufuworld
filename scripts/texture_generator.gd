@@ -107,7 +107,21 @@ func generate_tiles():
 	_save_tile(_snow_path_img(), "snow_path")           # 42 雪径（群系调色板）
 	_save_tile(_crop_tile(floors, 17, 1), "stone")
 	# ---- 悬崖岩壁（demo2/3 深色崖壁）----
-	_save_tile(_crop_tile(wall_sheet, 8, 2), "mountain")
+	# 画面改造P4b：山崖三变体（原图/翻转/压暗）+ 崖缘明暗（顶亮1px/底暗2px）——
+	# 旧版单张贴图整片平铺，山体读成"灰色平板"
+	var m0 := _crop_tile(wall_sheet, 8, 2)
+	var m1 := m0.duplicate()
+	m1.flip_x()
+	var m2 := m0.duplicate()
+	m2.flip_y()
+	for mi in [m0, m1, m2]:
+		for xx in range(mi.get_width()):
+			mi.set_pixel(xx, 0, mi.get_pixel(xx, 0) * Color(1.10, 1.10, 1.10, 1.0))
+			mi.set_pixel(xx, mi.get_height() - 1, mi.get_pixel(xx, mi.get_height() - 1) * Color(0.82, 0.82, 0.82, 1.0))
+			mi.set_pixel(xx, mi.get_height() - 2, mi.get_pixel(xx, mi.get_height() - 2) * Color(0.90, 0.90, 0.90, 1.0))
+	_save_tile(m0, "mountain")
+	_save_tile(m1, "mountain_b")                                   # 65 崖壁变体B（镜像）
+	_save_tile(_darken_img(m2, 0.90), "mountain_c")                # 66 崖壁变体C（翻转+压暗）
 	_save_tile(_snow_capped_cliff(wall_sheet, floors), "mountain_snow")
 	# ---- 农田（泥土压暗+垄沟）----
 	_save_tile(_furrow(_darken_img(_crop_tile(floors, 6, 10), 0.62)), "farmland")
@@ -520,7 +534,7 @@ func _mini_house(wall_sheet: Image, bprops: Image, kind: String) -> Image:
 	var thatch_c := Color(0.55, 0.42, 0.22)   # 茅草
 	var tile_c := Color(0.42, 0.47, 0.54)     # 黛瓦青灰（2026-08-31提亮，避免晨光下发黑）
 	# W6 plaster 净化（规划 §8）：素材包裁切灰泥 → 纯色+点噪（消除最后的材质杂味）
-	var plaster_w := _plaster_plain(12, 12, Color(0.90, 0.87, 0.80))   # 白灰墙
+	var plaster_w := _plaster_plain(13, 13, Color(0.90, 0.87, 0.80))   # 白灰墙（13x13：旧12x12采样越界p=13,12）
 	# ---- 屋顶色与瓦垄条纹 ----
 	var roof_base := thatch_c if kind == "cottage" else tile_c
 	var roof_px := func(x: int, y: int) -> Color:

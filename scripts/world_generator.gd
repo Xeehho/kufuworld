@@ -209,6 +209,7 @@ func _ready():
 	_ensure_connectivity()	# Phase F6: 打通所有封闭区域（石中沙地等孤岛开路）
 	_ensure_corridor_width()	# W6：走廊宽度感知（窄喉口袋 2 宽开路，限量）
 	_place_bridge_props()	# W5：连通性收尾后统一扫描17段→石拱桥prop（纯视觉z1）
+	_dress_farm_bands()	# 画面改造P4b：全局农田装点（作物+栅栏+稻草人，纯视觉零语义）
 	_compute_reachable_region()	# 刷新对外可达查询（NPC/营地选址用最新数据）
 	# 初始加载玩家周围的chunk
 	_initial_load()
@@ -331,10 +332,11 @@ func _ground_variant(base: int, x: int, y: int) -> int:
 		18:  # 竹林深草
 			if r > 0.86: return 48
 			elif r > 0.72: return 49
-		6:   # 沙地：像素变体 + 深棕干土斑
-			if r > 0.92: return 54
-			elif r > 0.80: return 52
-			elif r > 0.68: return 53
+		6:   # 沙地：像素变体 + 干土斑（P4b：低频斑块噪声聚簇，治单格"泼墨"散点）
+			var pn := fposmod(detail_noise.get_noise_2d(x * 0.31 + 91.0, y * 0.27 + 17.0) + 1.0, 1.0)
+			if pn > 0.66 and r > 0.45: return 54
+			elif r > 0.88: return 52
+			elif r > 0.76: return 53
 		34:  # 雪地
 			if r > 0.86: return 50
 			elif r > 0.72: return 51
@@ -729,22 +731,25 @@ func _place_bridge_props():
 					comp[n2] = true
 					visited[n2] = true
 					q.append(n2)
-			# 桥水侧不变量（观感修复）：任一 cell 4 邻无 override=5 的连通块=陆上裸桥
-			# （POI/修补铺装与水缘交错的残留，出现"桥侧无水"审计 FAIL 与贴沙裸桥瓦观感）
-			# ——整段降级为群系 path（跨水语义的 17 不受影响）
-			var touches_water := false
-			for cc in comp:
-				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
-					if int(override_cells.get(cc + d, -1)) == 5:
-						touches_water = true
+			# 桥水侧不变量（观感修复）：**逐格**校验——8 邻无 override=5 的 17 格=陆上残留
+			# （旧版按"整段任一格邻水"放行，长桥跨陆地时陆上部分照样架桥 → "草地上的桥"）
+			# ——逐格降级为群系 path 后，剩余格才进 prop 铺装
+			for cc in comp.keys():
+				var near_water := false
+				for dx2 in range(-1, 2):
+					for dy2 in range(-1, 2):
+						if int(override_cells.get(cc + Vector2i(dx2, dy2), -1)) == 5:
+							near_water = true
+							break
+					if near_water:
 						break
-				if touches_water:
-					break
-			if not touches_water:
-				for cc in comp:
-					if int(override_cells.get(cc, -1)) == 17:
-						override_cells[cc] = _palette_at(cc.x, cc.y)["path"]
-						demoted += 1
+				if not near_water and int(override_cells.get(cc, -1)) == 17:
+					override_cells[cc] = _palette_at(cc.x, cc.y)["path"]
+					demoted += 1
+					comp.erase(cc)
+			if demoted > 0:
+				print("[WorldGen] bridge demote: 陆上残留17累计降级 %d 格" % demoted)
+			if comp.is_empty():
 				continue
 			var cells: Array = comp.keys()
 			if cells.size() < 2:
@@ -1276,7 +1281,7 @@ func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, rng: RandomNumb
 			for dy in range(half - 2, half):
 				for dx in range(-half + 1, half):
 					_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
-			_place_farm_dressing(cx, cy, half)   # 画面改造P4.3：稻草人+栅栏段
+			# 农带装点由 _dress_farm_bands 全局统一处理（P4b）
 		"market":
 			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
 				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
@@ -1313,7 +1318,10 @@ func _stamp_farm_cell(cell: Vector2i):
 
 func _place_town_building(cx: int, cy: int, half: int, key: String, kind: String, job: String,
 		rng: RandomNumberGenerator, info: Dictionary) -> bool:
-	"""四象限轮转选址摆放（每象限 16 次尝试），成功后登记 town_info + 门前小径"""
+	"""四象限轮转选址摆放（每象限 16 次尝试），成功后登记 town_info + 门前小径。
+	注：画面改造P4b 曾试"贴路优先选址"，实测挪动建筑锚点会挤占门派候选位（sect_count_5→4）
+	并让门径撞上山环（settlement_road_no_collide FAIL）——镇/门派空间契约脆弱，已回退。
+	密度提升改由 _dress_farm_bands（作物/栅栏/稻草人）承担。"""
 	var quads := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
 	var qi := rng.randi() % 4
 	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
@@ -2063,22 +2071,67 @@ func _place_city_dressing(cx: int, cy: int):
 	for c in [Vector2i(-1, -2), Vector2i(1, -2), Vector2i(-1, 2), Vector2i(1, 2)]:
 		_place_decor_prop("res://sprites/buildings/lantern.png", Vector2i(cx + c.x, cy + c.y))
 
-func _place_farm_dressing(cx: int, cy: int, half: int):
-	"""farm 模板农带装点：稻草人 1 座 + 农带外缘栅栏段（3 格 1 段，只落在农田格上）"""
-	var farm_tids := [16, 41]
-	var scare_cells := [Vector2i(cx - half + 3, cy - half + 5), Vector2i(cx - half + 2, cy - half + 8)]
-	for sc in scare_cells:
-		if get_tile_id(sc.x, sc.y) in farm_tids:
-			_place_decor_prop("res://sprites/buildings/scarecrow.png", sc, "farm_prop")
-			break
-	for dy in range(cy - half + 2, cy + half - 1, 3):
-		var c := Vector2i(cx - half + 1, dy)
-		if get_tile_id(c.x, c.y) in farm_tids:
-			_place_decor_prop("res://sprites/buildings/fence_seg.png", c, "farm_prop")
-	for dx in range(cx - half + 3, cx + half - 1, 3):
-		var c := Vector2i(dx, cy + half - 1)
-		if get_tile_id(c.x, c.y) in farm_tids:
-			_place_decor_prop("res://sprites/buildings/fence_seg.png", c, "farm_prop")
+func _dress_farm_bands():
+	"""画面改造P4b 全局农田装点：扫描全部 farm(16/41) 连通片（≥6格）——
+	内部撒作物精灵(~40%)、外缘每2格栅栏段、大片(≥30格)加稻草人。纯视觉零语义。
+	治"裸棕板"观感（旧农场带无作物无围栏，读成随机木板堆）。在全部地形 stamped 后调用一次。"""
+	var visited := {}
+	var R := int(WORLD_RADIUS)
+	var crop_pngs := [
+		"res://sprites/farm/crop_1.png",
+		"res://sprites/farm/crop_2.png",
+		"res://sprites/farm/crop_3.png",
+	]
+	for y in range(-R, R + 1):
+		for x in range(-R, R + 1):
+			var c0 := Vector2i(x, y)
+			var t0 := get_tile_id(x, y)
+			if visited.has(c0) or (t0 != 16 and t0 != 41):
+				continue
+			# BFS 4邻连通片
+			var comp: Array = [c0]
+			visited[c0] = true
+			var head := 0
+			while head < comp.size():
+				var cur: Vector2i = comp[head]
+				head += 1
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var n2: Vector2i = cur + d
+					if visited.has(n2):
+						continue
+					var nt := get_tile_id(n2.x, n2.y)
+					if nt != 16 and nt != 41:
+						continue
+					visited[n2] = true
+					comp.append(n2)
+			if comp.size() < 6:
+				continue
+			# 内部/外缘分类
+			var interior: Array = []
+			var edge: Array = []
+			for cc in comp:
+				var is_edge := false
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var nt2 := get_tile_id(cc.x + d.x, cc.y + d.y)
+					if nt2 != 16 and nt2 != 41:
+						is_edge = true
+						break
+				if is_edge:
+					edge.append(cc)
+				else:
+					interior.append(cc)
+			# 内部撒作物 ~40%
+			for cc in interior:
+				var cr := fposmod(detail_noise.get_noise_2d(cc.x * 3.7 + 5.1, cc.y * 4.3 + 9.9) + 1.0, 1.0)
+				if cr > 0.60:
+					_place_decor_prop(crop_pngs[int(cr * 100.0) % crop_pngs.size()], cc, "farm_crop")
+			# 外缘每 2 格栅栏段
+			for i in range(edge.size()):
+				if i % 2 == 0:
+					_place_decor_prop("res://sprites/buildings/fence_seg.png", edge[i], "farm_prop")
+			# 大片加稻草人
+			if comp.size() >= 30 and not interior.is_empty():
+				_place_decor_prop("res://sprites/buildings/scarecrow.png", interior[interior.size() / 2], "farm_prop")
 
 # ---- Phase F6: 连通性保障（饥荒式：所有可走孤岛自动开路接回主大陆） ----
 # W1 算法升级：逐 pocket "最近点对暴力搜索"（183 pocket × reach 8.6万 → 卡死）改为
@@ -2625,9 +2678,14 @@ func _load_chunk(chunk: Vector2i):
 
 func _paint_ground(tid: int, x: int, y: int) -> int:
 	"""画面改造P1.2：上漆口统一变体——城内/净空区等 override 直铺的自然地面(0/6/18/34)
-	在绘制层混入像素变体与深色斑（仅改视觉，get_tile_id/world_cells 语义保持基值，零碰撞/选址影响）"""
+	在绘制层混入像素变体与深色斑；P4b 扩展：山崖(3)三变体打散"灰色平板"。
+	仅改视觉，get_tile_id/world_cells 语义保持基值，零碰撞/选址影响"""
 	if tid == 0 or tid == 6 or tid == 18 or tid == 34:
 		return _ground_variant(tid, x, y)
+	if tid == 3:
+		var mr := fposmod(detail_noise.get_noise_2d(x * 4.3 + 61.0, y * 5.9 + 29.0) + 1.0, 1.0)
+		if mr > 0.72: return 65
+		elif mr > 0.44: return 66
 	return tid
 
 # ============ 画面改造P3.2 水岸过渡 ============

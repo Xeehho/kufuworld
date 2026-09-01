@@ -65,10 +65,13 @@ static func build_tileset() -> TileSet:
 		61: "res://sprites/tiles/twig.png",           # 枯枝
 		62: "res://sprites/tiles/dry_tuft.png",       # 干枯草丛
 		63: "res://sprites/tiles/dry_small.png",      # 干枯小苗
+		# ---- 画面改造P4b 山崖变体（碰撞同3，_paint_ground 噪声抖动选入）----
+		65: "res://sprites/tiles/mountain_b.png",     # 崖壁变体B（镜像）
+		66: "res://sprites/tiles/mountain_c.png",     # 崖壁变体C（翻转+压暗）
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43]
+	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
