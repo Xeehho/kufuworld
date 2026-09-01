@@ -104,6 +104,10 @@ func _ready():
 
 func refresh_available_quests():
 	available_quests.clear()
+	# W4 任务冻结（WorldFeatures.quests_disabled）：不发布任何可接取委托（日志面板空态"江湖暂无委托"）
+	if WorldFeatures.FLAG["quests_disabled"]:
+		print("[Quest] 任务冻结中（quests_disabled=true），告示板零发布")
+		return
 	var rng = RandomNumberGenerator.new()
 	for rule in quest_rules:
 		if not _check_condition(rule["condition"]):

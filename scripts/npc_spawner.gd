@@ -58,13 +58,41 @@ var city_npc_configs = [
 	{"id":"npc_c11","name":"江南沈万","personality":"精明","npc_type":"merchant",
 	 "home":["house_ne",Vector2(1,1)],
 	 "legs":[["work","stall_e1",8,12,Vector2(0,1)],["leisure","tavern",12,14,Vector2(-1,1)],["work","stall_e1",14,18,Vector2(0,1)],["leisure","tavern",18,21,Vector2(0,1)]]},   # 大商人：东市摆摊，午晚酒楼应酬
+	# ---- W4 四门守卫（驻留制：门前站岗；npc_static=false 时夜间回家） ----
+	{"id":"npc_c12","name":"拱辰卫","personality":"刚正","npc_type":"guard",
+	 "home":["gate:n",Vector2(1,0)],
+	 "legs":[["idle","gate:n",6,22,Vector2(1,0)]]},
+	{"id":"npc_c13","name":"明德卫","personality":"刚正","npc_type":"guard",
+	 "home":["gate:s",Vector2(-1,0)],
+	 "legs":[["idle","gate:s",6,22,Vector2(-1,0)]]},
+	{"id":"npc_c14","name":"西成卫","personality":"沉稳","npc_type":"guard",
+	 "home":["gate:w",Vector2(0,-1)],
+	 "legs":[["idle","gate:w",6,22,Vector2(0,-1)]]},
+	{"id":"npc_c15","name":"东作卫","personality":"沉稳","npc_type":"guard",
+	 "home":["gate:e",Vector2(0,1)],
+	 "legs":[["idle","gate:e",6,22,Vector2(0,1)]]},
 ]
+
+# W4 村镇 NPC 名池（按岗位轮转取名，确定性）
+const TOWN_NPC_NAMES := {
+	"村正": ["柳里正", "陈老丈", "赵老爹", "周乡绅", "何老倌", "孙里长", "吴老爹", "郑乡老", "冯里正", "石老爹"],
+	"农人": ["麦大伯", "秧婶", "谷雨", "犁二", "豆婆婆", "田老汉", "苗嫂", "穗儿", "仓叔", "陇上翁"],
+	"铁匠": ["锤叔", "铁蛋", "炉头张", "铁砧李", "火头王", "铁牛"],
+	"货郎": ["货郎李", "杂货王", "走贩陈", "拨浪鼓赵", "挑担孙"],
+	"渡夫": ["艄公老何", "渡娘", "摆渡人", "老艄公", "渡口陈"],
+}
+const TOWN_NPC_MOODS := ["本分", "豪爽", "慈悲", "精明", "市侩", "沉稳"]
 
 func _ready():
 	y_sort_enabled = true   # Phase G4：NPC并入World递归Y-sort
 	_spawn_npcs()
 	_spawn_city_npcs()
+	_spawn_town_npcs()
+	_spawn_sect_npcs()
 	_init_interaction_ui()
+
+func _static_mode() -> bool:
+	return WorldFeatures.FLAG["npc_static"]
 
 func _spawn_npcs():
 	# NPC出生点校验：硬编码坐标可能落在水面/山体/河对岸孤岛，
@@ -99,12 +127,18 @@ func _spawn_city_npcs():
 	var blds: Dictionary = info.get("buildings", {})
 	var gates: Dictionary = info.get("gate_px", {})
 	var center_px: Vector2 = info.get("center_px", Vector2.ZERO)
+	var static_mode := _static_mode()
 	for cfg in city_npc_configs:
 		var home_ref: Array = cfg["home"]
 		var home_pos: Vector2 = _resolve_ref(home_ref[0], home_ref[1], blds, gates, center_px)
 		var legs: Array = []
 		var work_pos: Vector2 = home_pos
-		for L in cfg.get("legs", []):
+		var cfg_legs: Array = cfg.get("legs", [])
+		if static_mode and not cfg_legs.is_empty():
+			# W4 NPC 驻留制：全天 idle 驻守首段岗位（原 legs 配置保留，开关切回即恢复巡游）
+			var first: Array = cfg_legs[0]
+			cfg_legs = [["idle", first[1], 0, 24, first[4]]]
+		for L in cfg_legs:
 			var p: Vector2 = _resolve_ref(str(L[1]), L[4], blds, gates, center_px)
 			if legs.is_empty():
 				work_pos = p
@@ -118,9 +152,12 @@ func _spawn_city_npcs():
 		npc.name = cfg["name"]
 		npc.npc_type = cfg.get("npc_type", "warrior")
 		npc.npc_data = _create_npc_data(cfg, home_pos, work_pos, legs)
+		if static_mode:
+			npc.set_meta("anchor_px", work_pos)   # 回归探针：落位锚（door_px/gate_px 系）
+			npc.set_meta("anchor_ref", str(cfg_legs[0][1]) if not cfg_legs.is_empty() else str(home_ref[0]))
 		add_child(npc)
 		npc_list.append(npc)
-	print("[NPCSpawner] 城内NPC生成: " + str(city_npc_configs.size()) + " 人（青石城）")
+	print("[NPCSpawner] 城内NPC生成: " + str(city_npc_configs.size()) + " 人（青石城，static=%s）" % str(static_mode))
 
 func _resolve_ref(ref: String, off: Vector2, blds: Dictionary, gates: Dictionary, center_px: Vector2) -> Vector2:
 	"""日程锚点解析：建筑key→门前格，gate:x→城门口，plaza→广场中心；off为格偏移"""
@@ -132,6 +169,104 @@ func _resolve_ref(ref: String, off: Vector2, blds: Dictionary, gates: Dictionary
 	elif ref.begins_with("gate:"):
 		base = gates.get(ref.substr(5), center_px)
 	return base + off * 16.0
+
+# ============ W4 NPC 驻留制：村镇 + 门派领地（door_px 落位，全天 idle 驻留） ============
+
+func _spawn_town_npcs():
+	if not _static_mode():
+		return
+	var wg = get_node_or_null("../WorldGenerator")
+	if wg == null:
+		return
+	var tinfo: Dictionary = wg.get("town_info") if wg.get("town_info") != null else {}
+	if tinfo.is_empty():
+		print("[NPCSpawner] town_info 为空（town_v2 未启用），跳过村镇NPC")
+		return
+	var name_idx := {}
+	var ti := 0
+	for center_v in tinfo:
+		var town: Dictionary = tinfo[center_v]
+		var tname := str(town.get("template", "?")) + str(ti)
+		for bkey in town["buildings"]:
+			var b: Dictionary = town["buildings"][bkey]
+			var job: String = str(b.get("job", ""))
+			if job == "":
+				continue
+			var jd: Dictionary = WorldData.NPC_JOBS.get(job, {})
+			if jd.is_empty():
+				print("[NPCSpawner] 未知岗位[", job, "]，跳过（镇", tname, "）")
+				continue
+			# 落位唯一来源：建筑 door_px + NPC_JOBS.offset（禁止自算坐标）；
+			# 特例：world gen 显式登记 job_anchor_px（渡亭临水侧不可站人）时优先读它
+			var anchor: Vector2
+			if b.has("job_anchor_px"):
+				anchor = b["job_anchor_px"]
+			else:
+				anchor = b["door_px"] + Vector2(jd["offset"]) * 16.0
+			var pool: Array = TOWN_NPC_NAMES.get(job, ["乡人"])
+			var ni: int = int(name_idx.get(job, 0))
+			name_idx[job] = ni + 1
+			var disp: String = str(pool[ni % pool.size()])
+			var id := "npc_t%02d_%s" % [ti, bkey]
+			var npc := _spawn_static_npc(id, disp, str(jd["look"]), anchor,
+				"%s:%s" % [str(center_v), bkey])
+			if npc != null:
+				npc.npc_data.personality = TOWN_NPC_MOODS[abs(hash(id)) % TOWN_NPC_MOODS.size()]
+		ti += 1
+	print("[NPCSpawner] 村镇NPC生成完成（镇数=%d）" % ti)
+
+func _spawn_sect_npcs():
+	if not _static_mode():
+		return
+	var wg = get_node_or_null("../WorldGenerator")
+	if wg == null:
+		return
+	var sinfo: Dictionary = wg.get("sect_info") if wg.get("sect_info") != null else {}
+	for sname in sinfo:
+		var s: Dictionary = sinfo[sname]
+		var anchors: Dictionary = s.get("npc_anchors", {})
+		if anchors.is_empty():
+			continue
+		var short := str(sname).substr(0, 2)
+		# 岗位表 WorldData.NPC_JOBS：长老@主殿门 / 弟子@主殿门+演武场（plan §7.2 + W3 接线备忘）
+		var j_e: Dictionary = WorldData.NPC_JOBS["长老"]
+		var j_d: Dictionary = WorldData.NPC_JOBS["弟子"]
+		_spawn_static_npc("npc_se%s_e" % short, short + "长老", str(j_e["look"]),
+			anchors["hall"] + Vector2(j_e["offset"]) * 16.0, str(sname) + ":hall")
+		_spawn_static_npc("npc_se%s_d1" % short, short + "弟子·甲", str(j_d["look"]),
+			anchors["hall"] + Vector2(j_d["offset"]) * 16.0, str(sname) + ":hall")
+		_spawn_static_npc("npc_se%s_d2" % short, short + "弟子·乙", str(j_d["look"]),
+			anchors["arena"], str(sname) + ":arena")
+	print("[NPCSpawner] 门派领地NPC生成完成（领地数=%d）" % sinfo.size())
+
+func _spawn_static_npc(id: String, disp: String, look: String, anchor: Vector2, anchor_ref: String) -> Node2D:
+	"""驻留制落位：door_px 锚点 + 全天 idle 腿；不可达防御性搬迁（回归断言会暴露异常搬迁）"""
+	var wg = get_node_or_null("../WorldGenerator")
+	var pos: Vector2 = anchor
+	if wg and wg.has_method("is_world_pos_reachable") and not wg.is_world_pos_reachable(pos):
+		var np: Vector2 = wg.find_nearest_reachable(pos)
+		print("[NPCSpawner] ", disp, " 岗位落位不可达，搬迁 ", pos, " -> ", np, " ref=", anchor_ref)
+		pos = np
+	var npc = NPC_SCENE.instantiate()
+	npc.global_position = pos
+	npc.name = disp
+	npc.npc_type = look
+	var nd = NPCData.new()
+	nd.npc_id = id
+	nd.npc_name = disp
+	nd.personality = "本分"
+	var all_likes = ["茶", "酒", "剑", "书", "花", "棋", "武学", "美食", "金钱", "山水"]
+	nd.likes = [all_likes[abs(hash(id)) % all_likes.size()]]
+	nd.dislikes = [all_likes[(abs(hash(id)) + 3) % all_likes.size()]]
+	nd.home_position = anchor
+	nd.work_position = anchor
+	nd.custom_schedule = [{"start": 0, "end": 24, "state": "idle", "pos": pos}]
+	npc.npc_data = nd
+	npc.set_meta("anchor_px", anchor)   # 回归探针：所属建筑 door_px 系锚点
+	npc.set_meta("anchor_ref", anchor_ref)
+	add_child(npc)
+	npc_list.append(npc)
+	return npc
 
 func _create_npc_data(cfg: Dictionary, home_pos: Vector2, work_pos: Vector2, schedule: Array) -> NPCData:
 	var nd = NPCData.new()

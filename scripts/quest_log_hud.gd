@@ -216,7 +216,11 @@ func refresh():
 			var avail: Array = qs.get_available_quests()
 			count_lbl.text = "主线待接取：%d   告示板委托：%d" % [story.size(), avail.size()]
 			if story.is_empty() and avail.is_empty():
-				_empty_hint("暂无可接取的委托\n按 N 刷新告示板")
+				# W4 任务冻结期：空态文案改为"江湖暂无委托"
+				if WorldFeatures.FLAG["quests_disabled"]:
+					_empty_hint("江湖暂无委托")
+				else:
+					_empty_hint("暂无可接取的委托\n按 N 刷新告示板")
 			# 主线待接取卡置顶展示（mode 3：金色主线样式 + 接取按钮）
 			for i in range(story.size()):
 				list_box.add_child(_make_card(story[i], 3, i))

@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W3"
+CURRENT_STAGE = "W4"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
@@ -162,6 +162,45 @@ def main():
     # ---------- 断言组：connectivity ----------
     check("walk", "spawn_reach_large", data["reach_count"] >= 8000,
           f"reach={data['reach_count']}")
+
+    # ---------- 断言组：town（W4 村镇 v2 一圈一团一水） ----------
+    towns = data.get("towns", [])
+    check("town", "towns_count_ge6", len(towns) >= 6, f"towns={len(towns)}", since="W4")
+    tpl_seen = set()
+    for t in towns:
+        cx, cy = t["center"]
+        tag = f"{t['template']}@{cx},{cy}"
+        tpl_seen.add(t["template"])
+        bad_doors = [k for k, ok in t["doors"].items() if not ok]
+        check("town", f"town_{tag}_doors", len(bad_doors) == 0, f"failed={bad_doors}", since="W4")
+        check("town", f"town_{tag}_chief", "村正" in t["jobs"], f"jobs={t['jobs']}", since="W4")
+        check("town", f"town_{tag}_shrine", t["has_shrine"], "", since="W4")
+        if t["template"] == "ferry":
+            check("town", f"town_{tag}_ferry_pavilion", t["has_ferry"], "", since="W4")
+    check("town", "town_templates_variety", len(tpl_seen) >= 2,
+          f"seen={sorted(tpl_seen)}", since="W4")
+
+    # ---------- 断言组：npc（W4 驻留制落位） ----------
+    npc = data.get("npc", {})
+    check("npc", "npc_total_in_budget", 40 <= npc.get("total", 0) <= 90,
+          f"total={npc.get('total', 0)}（城15+村镇+领地15，规划≤45为笔误见进度日志deviation）", since="W4")
+    check("npc", "npc_static_populated", npc.get("static_n", 0) >= 40,
+          f"static={npc.get('static_n', 0)}", since="W4")
+    check("npc", "npc_anchor_dist_le3", len(npc.get("bad_anchors", [])) == 0,
+          f"bad={npc.get('bad_anchors', [])}", since="W4")
+
+    # ---------- 断言组：quest（W4 冻结期零发布） ----------
+    q = data.get("quest", {})
+    for k in ["available", "active", "pending_story", "completed"]:
+        check("quest", f"quest_{k}_zero", q.get(k, -1) == 0, f"{k}={q.get(k, -1)}", since="W4")
+
+    # ---------- 断言组：mob（营地避城回归） ----------
+    m = data.get("mob", {})
+    check("mob", "story_camps_zero", m.get("story_camps", -1) == 0,
+          f"story_camps={m.get('story_camps', -1)}", since="W4")
+    for c in m.get("camps", []):
+        check("mob", f"camp_{c['name']}_wild", c["in_settlement"] is False,
+              f"in_settlement={c['in_settlement']}", since="W4")
 
     # ---------- 报告 ----------
     STAGE_ORDER = ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"]

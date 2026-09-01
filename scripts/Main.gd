@@ -107,7 +107,7 @@ func _ensure_textures():
 	var big_missing := false
 	for kind in ["hut", "house", "manor", "temple", "castle",
 			"yamen", "tavern", "apothecary", "shop_a", "shop_b",
-			"stall_red", "stall_teal", "well", "gate_tower",
+			"stall_red", "stall_teal", "well", "gate_tower", "ferry",
 			"hall_qf", "hall_ts", "hall_gc", "hall_yw", "hall_ym"]:
 		if not FileAccess.file_exists("res://sprites/buildings/%s.png" % kind):
 			big_missing = true

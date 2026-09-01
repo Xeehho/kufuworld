@@ -570,6 +570,7 @@ func generate_city_props():
 		"stall_teal": _market_stall(Color(0.18, 0.48, 0.45)),
 		"well": _city_well(),
 		"gate_tower": _gate_tower_img(),
+		"ferry": _ferry_pavilion_img(),   # W4 渡口村渡亭（开放式小筑）
 	}
 	for pname in outs:
 		var path := "res://sprites/buildings/%s.png" % pname
@@ -631,6 +632,44 @@ func _gate_tower_img() -> Image:
 					else:
 						var sh := (int(x) % 3 == 0)
 						img.set_pixel(x, y, roof.darkened(0.15 if sh else 0.0))
+	return img
+
+# W4 渡亭：36x40 开放式小筑（石台基+四木柱+茅草攒尖顶+檐下横枋），footprint 2x2
+func _ferry_pavilion_img() -> Image:
+	var W := 36
+	var H := 40
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var stone := Color(0.58, 0.56, 0.52)
+	var stone_d := Color(0.46, 0.44, 0.41)
+	var wood := Color(0.45, 0.32, 0.20)
+	var wood_d := Color(0.34, 0.24, 0.15)
+	var thatch := Color(0.72, 0.58, 0.30)
+	var thatch_d := Color(0.58, 0.46, 0.24)
+	for y in range(H):
+		for x in range(W):
+			# ---- 石台基（底部 6px，出檐一圈）----
+			if y >= H - 6:
+				var t := (x / 6 + (y / 3) % 2) % 2
+				img.set_pixel(x, y, stone if t == 0 else stone_d)
+			# ---- 四柱（x=4/31，底部 6px 以上到檐下）----
+			elif y >= H - 30 and (x <= 5 or x >= W - 6):
+				img.set_pixel(x, y, wood if (y % 5) < 4 else wood_d)
+			# ---- 檐下横枋（顶部柱区上沿 3px）----
+			elif y >= H - 33 and y < H - 30:
+				img.set_pixel(x, y, wood_d)
+			# ---- 茅草攒尖顶（顶部 10px，幂曲线展宽+瓦垄纹）----
+			elif y < H - 30:
+				var tt := float(H - 31 - y)   # 0=顶尖
+				var half := 2.0 + tt * 2.9
+				if absf(x - (W - 1) / 2.0) <= half:
+					var sh := (int(x) % 3 == 0)
+					var c := thatch_d if sh else thatch
+					if tt < 1.0:
+						c = thatch_d.darkened(0.25)   # 顶结
+					elif tt > 7.5:
+						c = thatch.lightened(0.12)    # 檐口受光
+					img.set_pixel(x, y, c)
 	return img
 
 # 原木条填充（横梁/角柱/脊梁共用；logw=横原木墙瓦片）

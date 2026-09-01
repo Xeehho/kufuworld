@@ -14,6 +14,9 @@ var max_qi: float = 100.0
 # 主线剧情进度（完成主N后=N；0=序章未开始）。定义见 docs/主线剧情设计.md §四
 var story_stage: int = 0
 
+# W4：特性开关镜像（读 WorldFeatures.FLAG，任务冻结等系统统一经此查询）
+var feature_flags: Dictionary = WorldFeatures.FLAG
+
 var active_inner_skill: InnerSkill = null
 var inner_skill_progress: float = 0.0
 var current_environment: String = ""

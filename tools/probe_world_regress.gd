@@ -116,7 +116,9 @@ func _ready():
 		var fp: Vector2i = b["fp"]
 		rects.append(Rect2i(a, fp))
 	for tc in wg.town_centers:
-		var tb: Dictionary = wg.town_buildings.get(tc, {}) if wg.get("town_buildings") != null else {}
+		# town_info 键为 Vector2i，town_centers 存 Vector2——取键需显式转换
+		var tci := Vector2i(int(tc.x), int(tc.y))
+		var tb: Dictionary = wg.town_info.get(tci, {}).get("buildings", {}) if wg.get("town_info") != null else {}
 		for key in tb:
 			var b2: Dictionary = tb[key]
 			var a2: Vector2i = b2["anchor"]
@@ -256,6 +258,43 @@ func _ready():
 			data["ring_" + sname] = {"hist": ring_hist, "non44": non44}
 	data["sects"] = sects
 
+	# ---- 4d) W4 村镇 v2：town_info 登记/模板/岗位/door 可达/渡亭在位 ----
+	var towns: Array = []
+	for tkey in wg.town_info:
+		var t: Dictionary = wg.town_info[tkey]
+		var tc2: Vector2i = t["center"]
+		var half2: int = int(t["half"])
+		# 从镇心 BFS（cheby 界 half+24，覆盖渡亭外环），验证全部 door_px 可达
+		var treach := {tc2: true}
+		var tq: Array = [tc2]
+		var th := 0
+		var tbound: int = half2 + 24
+		while th < tq.size():
+			var cur: Vector2i = tq[th]
+			th += 1
+			for d in dirs:
+				var n2: Vector2i = cur + d
+				if treach.has(n2):
+					continue
+				if absi(n2.x - tc2.x) > tbound or absi(n2.y - tc2.y) > tbound:
+					continue
+				if wg.get_tile_id(n2.x, n2.y) in wg.collision_tiles:
+					continue
+				treach[n2] = true
+				tq.append(n2)
+		var tdoors_ok := {}
+		var tjobs: Array = []
+		for bkey2 in t["buildings"]:
+			var b3: Dictionary = t["buildings"][bkey2]
+			var dp2: Vector2 = b3["door_px"]
+			tdoors_ok[str(bkey2)] = treach.has(Vector2i(int(floor(dp2.x / 16.0)), int(floor(dp2.y / 16.0))))
+			if str(b3.get("job", "")) != "":
+				tjobs.append(str(b3["job"]))
+		towns.append({"center": [tc2.x, tc2.y], "template": str(t["template"]), "half": half2,
+			"buildings": t["buildings"].size(), "jobs": tjobs, "doors": tdoors_ok,
+			"has_ferry": t["buildings"].has("ferry1"), "has_shrine": t["buildings"].has("shrine")})
+	data["towns"] = towns
+
 	# ---- 5) 连通性：出生点可达区规模 ----
 	var spawn_reach: Dictionary = wg._bfs_reachable_from_spawn(dirs)
 	data["reach_count"] = spawn_reach.size()
@@ -276,6 +315,45 @@ func _ready():
 	for l in wg.lake_centers:
 		lakes.append({"pos": [l["pos"].x, l["pos"].y], "r": l["r"]})
 	data["lakes"] = lakes
+
+	# ---- 7) W4 NPC 驻留：落位锚距（meta anchor_px）+ 总量 ----
+	var spawner := get_node_or_null("/root/Main/World/NPCSpawner")
+	var npc_total := 0
+	var npc_static_n := 0
+	var npc_bad: Array = []
+	if spawner != null:
+		for npc in spawner.npc_list:
+			npc_total += 1
+			if npc.has_meta("anchor_px"):
+				npc_static_n += 1
+				var ap: Vector2 = npc.get_meta("anchor_px")
+				var dist_t: float = npc.global_position.distance_to(ap) / 16.0
+				if dist_t > 3.0:
+					var nm := str(npc.name)
+					if npc.npc_data != null:
+						nm = str(npc.npc_data.npc_name)
+					npc_bad.append({"name": nm, "dist": dist_t, "ref": str(npc.get_meta("anchor_ref"))})
+	data["npc"] = {"total": npc_total, "static_n": npc_static_n, "bad_anchors": npc_bad}
+
+	# ---- 8) W4 任务冻结：全口径委托计数（冻结期应全为 0） ----
+	var qs := get_node_or_null("/root/Main/QuestSystem")
+	var quest_data := {"available": -1, "active": -1, "pending_story": -1, "completed": -1, "frozen": false}
+	if qs != null:
+		quest_data = {"available": qs.available_quests.size(), "active": qs.get_active_quests().size(),
+			"pending_story": qs.get_pending_story_quests().size(), "completed": qs.completed_quests.size(),
+			"frozen": bool(WorldFeatures.FLAG["quests_disabled"])}
+	data["quest"] = quest_data
+
+	# ---- 9) W4 营地避城回归：常规营地 in_settlement=false；故事营地=0 ----
+	var ms := get_node_or_null("/root/Main/World/MobSpawner")
+	var camps: Array = []
+	var story_camps_n := -1
+	if ms != null:
+		story_camps_n = ms.story_camps.size()
+		for camp in ms.camps_runtime:
+			camps.append({"name": str(camp["def"]["name"]),
+				"in_settlement": wg.is_in_settlement(camp["center"])})
+	data["mob"] = {"camps": camps, "story_camps": story_camps_n}
 
 	_write(data)
 	_log("[RegressProbe] data written: zones=%d adj_pairs=%d reach=%d" % [zones.size(), adj.size(), spawn_reach.size()])

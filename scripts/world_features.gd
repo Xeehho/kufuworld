@@ -8,9 +8,9 @@ class_name WorldFeatures
 const FLAG := {
 	"tang_city": true,           # W2 唐制城池蓝图（坊/市/四门/官署/寺观）✅ 2026-09-01 开启
 	"sect_territories": true,    # W3 门派领地 + 主殿 accent ✅ 2026-09-01 开启
-	"town_v2": false,            # W4 村镇模板 v2（一圈一团一水）
-	"npc_static": false,         # W4 NPC 驻留制（岗job + 驻留，读 door_px 落位）
-	"quests_disabled": true,     # W4 起冻结任务系统（W8 重启时逐项改回 false）
+	"town_v2": true,             # W4 村镇模板 v2（一圈一团一水）✅ 2026-09-01 开启
+	"npc_static": true,          # W4 NPC 驻留制（岗job + 驻留，读 door_px 落位）✅ 2026-09-01 开启
+	"quests_disabled": true,     # W4 起冻结任务系统（W8 重启时逐项改回 false）✅ 2026-09-01 接线
 	"bridge_prop": false,        # W5 石拱桥 prop（可通行语义与外观分离）
 	"walkability_policy": false, # W6 可行域政策（SETTLEMENT/ROAD 零碰撞物+走廊连通）
 }

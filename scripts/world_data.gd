@@ -81,6 +81,7 @@ const NPC_JOBS := {
 	"药师":   {"building": "apothecary", "look": "herbalist_f",  "offset": Vector2i(2, 1)},
 	"布庄":   {"building": "cloth",      "look": "seamstress_f", "offset": Vector2i(2, 1)},
 	"杂货":   {"building": "grocery",    "look": "merchant",     "offset": Vector2i(2, 1)},
+	"货郎":   {"building": "grocer",     "look": "merchant",     "offset": Vector2i(2, 1)},
 	"酒楼":   {"building": "tavern",     "look": "tavern_f",     "offset": Vector2i(2, 1)},
 	"捕头":   {"building": "yamen",      "look": "guard",        "offset": Vector2i(2, 1)},
 	"村正":   {"building": "shrine",     "look": "elder",        "offset": Vector2i(1, 1)},

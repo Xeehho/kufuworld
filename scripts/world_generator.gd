@@ -45,6 +45,7 @@ const BUILDING_PROPS := {
 	"stall_red":  {"png": "res://sprites/buildings/stall_red.png",  "fp": Vector2i(1, 1)},   # 市摊（红棚）
 	"stall_teal": {"png": "res://sprites/buildings/stall_teal.png", "fp": Vector2i(1, 1)},   # 市摊（青棚）
 	"well":       {"png": "res://sprites/buildings/well.png",       "fp": Vector2i(1, 1)},   # 水井
+	"ferry":      {"png": "res://sprites/buildings/ferry.png",      "fp": Vector2i(2, 2)},   # W4 渡亭（渡口村）
 	# ---- W3 门派主殿（accent=门派主色，hall_xx 见 BIG_BUILDING_DEFS）----
 	"hall_qf": {"png": "res://sprites/buildings/hall_qf.png", "fp": Vector2i(7, 5)},
 	"hall_ts": {"png": "res://sprites/buildings/hall_ts.png", "fp": Vector2i(6, 4)},
@@ -964,6 +965,9 @@ func _register_town_clearance(cx: int, cy: int, half: int):
 
 func _generate_towns():
 	"""在合适位置生成3-5个城镇区域"""
+	if WorldFeatures.FLAG["town_v2"]:
+		_generate_towns_v2()
+		return
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 4000
 
@@ -1030,11 +1034,289 @@ func _generate_towns():
 
 	print("[WorldGen] Generated " + str(town_positions.size()) + " towns")
 
+# ============ W4 村镇模板 v2（WorldData.TOWN_TEMPLATES_V2，docs/武侠世界重构规划 §4） ============
+# 一圈一团一水：农耕村（环状农带）/ 市镇（主街行肆）/ 渡口村（临河渡亭）。
+# town_info[中心格] = {template, center, half, buildings{key:{kind,anchor,fp,door_px,job}}, ferry_axis?}
+# buildings.key 与 WorldData.NPC_JOBS.building 对齐——NPC 落位唯一来源（禁止 npc_spawner 自算坐标）。
+var town_info: Dictionary = {}
+
+func _generate_towns_v2():
+	var rng = RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 4000
+	var town_count := rng.randi_range(6, 9)
+	town_centers.clear()
+	town_info.clear()
+	var placed := 0
+	for i in range(town_count):
+		var roll := rng.randf()
+		var tpl_key := "farm"
+		if roll < 0.30:
+			tpl_key = "market"
+		elif roll < 0.58:
+			tpl_key = "ferry"
+		# ferry 选址受水带约束，50 次未果退回 farm（保证城镇数量优先）
+		var tries: Array = [["ferry", 50]] if tpl_key == "ferry" else [[tpl_key, 50]]
+		if tpl_key == "ferry":
+			tries.append(["farm", 50])
+		var done := false
+		for t in tries:
+			var k: String = t[0]
+			for _attempt in range(int(t[1])):
+				var tx := rng.randi_range(-155, 155)
+				var ty := rng.randi_range(-145, 145)
+				var h := get_height(tx, ty)
+				var w := get_humidity(tx, ty)
+				if h < -0.15 or h > 0.2 or w < -0.3 or w > 0.6:
+					continue
+				var bk := _biome_kind(tx, ty)
+				# 竹林排除（deviation：规划允许镇落竹林，但竹林带稀缺且为古刹禅宗
+				# 指定气候位——8 镇铺开会挤占选址，竹林让位领地）
+				if bk == "snow" or bk == "desert" or bk == "lake" or bk == "bamboo":
+					continue
+				var too_close := false
+				for tp in town_centers:
+					if Vector2(tx, ty).distance_to(tp) < 24:
+						too_close = true
+						break
+				if too_close:
+					continue
+				if Vector2(tx, ty).distance_to(Vector2(CITY_POS)) < 46:
+					continue
+				if Vector2(tx, ty).length() > WORLD_RADIUS - 10:
+					continue
+				if Vector2(tx, ty).distance_to(_spawn_tile()) < 15:
+					continue
+				if not _is_reachable_cell(tx, ty):
+					continue
+				# 水规则：建成区 cheby≤13 无水（严于回归断言 13 欧氏）；渡口村需外带 cheby 14~22 有水
+				if _area_has_water(tx, ty, 13):
+					continue
+				if k == "ferry" and not _water_in_band(tx, ty, 14, 22):
+					continue
+				# 崖带排除：cheby≤10 内有山体/雪崖 → 建筑无成片干地（曾产出 1 建筑空镇）
+				if _area_has_cliff(tx, ty, 10):
+					continue
+				town_centers.append(Vector2(tx, ty))
+				_generate_single_town_v2(tx, ty, k, rng)
+				placed += 1
+				done = true
+				break
+			if done:
+				break
+	print("[WorldGen] Generated %d towns (v2 templates)" % placed)
+
+func _water_in_band(cx: int, cy: int, r0: int, r1: int) -> bool:
+	"""cheby 环带 [r0,r1] 内是否存在水面（渡口村选址：临河而不压河）"""
+	for d in range(r0, r1 + 1):
+		for t in range(-d, d + 1):
+			for p in [Vector2i(cx + t, cy - d), Vector2i(cx + t, cy + d),
+					Vector2i(cx - d, cy + t), Vector2i(cx + d, cy + t)]:
+				if get_tile_id(p.x, p.y) == 5:
+					return true
+	return false
+
+func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, rng: RandomNumberGenerator):
+	var tpl: Dictionary = WorldData.TOWN_TEMPLATES_V2[tpl_key]
+	var half := 9 if tpl_key == "market" else 8
+	# 十字土路（逐格避水，同 legacy）
+	for dx in range(-half, half + 1):
+		var rc := Vector2i(cx + dx, cy)
+		if get_tile_id(rc.x, rc.y) != 5:
+			override_cells[rc] = _palette_at(rc.x, rc.y)["path"]
+	for dy in range(-half, half + 1):
+		var rc2 := Vector2i(cx, cy + dy)
+		if get_tile_id(rc2.x, rc2.y) != 5:
+			override_cells[rc2] = _palette_at(rc2.x, rc2.y)["path"]
+	var info := {"template": tpl_key, "center": Vector2i(cx, cy), "half": half, "buildings": {}}
+	town_info[Vector2i(cx, cy)] = info
+	# 市镇中央石板广场
+	if tpl_key == "market":
+		for dx in range(-2, 3):
+			for dy in range(-2, 3):
+				var pc := Vector2i(cx + dx, cy + dy)
+				if get_tile_id(pc.x, pc.y) != 5:
+					override_cells[pc] = 35
+	# 模板建筑组（key 与 NPC_JOBS.building 对齐；job 空串=无岗位纯民居/功能）
+	# 祠堂：首选 temple；山缘镇 7x5 摆不下时回退 hut 小筑祠堂（村正岗位必须落位）
+	match tpl_key:
+		"farm":
+			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
+				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
+			_place_town_building(cx, cy, half, "farm1", "hut", "农人", rng, info)
+			_place_town_building(cx, cy, half, "farm2", "hut", "农人", rng, info)
+			if rng.randf() < 0.5:
+				_place_town_building(cx, cy, half, "smithy", "shop_a", "铁匠", rng, info)
+			else:
+				_place_town_building(cx, cy, half, "grocer", "shop_b", "货郎", rng, info)
+			# 环状农带（L 形两邻边各 2 宽；避路/避水/避建筑）
+			for dx in range(-half + 1, -half + 3):
+				for dy in range(-half + 1, half):
+					_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
+			for dy in range(half - 2, half):
+				for dx in range(-half + 1, half):
+					_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
+		"market":
+			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
+				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
+			_place_town_building(cx, cy, half, "smithy", "shop_a", "铁匠", rng, info)
+			_place_town_building(cx, cy, half, "grocer", "shop_b", "货郎", rng, info)
+			_place_town_building(cx, cy, half, "inn", "tavern", "", rng, info)   # 骡马店
+		"ferry":
+			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
+				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
+			_place_town_building(cx, cy, half, "farm1", "hut", "农人", rng, info)
+			_place_town_building(cx, cy, half, "farm2", "hut", "农人", rng, info)
+			_place_town_building(cx, cy, half, "grocer", "shop_b", "货郎", rng, info)
+			_place_ferry(cx, cy, half, info)
+	# 补足民居（hut/house 混合，无 job）
+	var lo: int = int(tpl["houses"][0])
+	var hi: int = int(tpl["houses"][1])
+	var want := rng.randi_range(lo, hi)
+	for i in range(want):
+		var kind := "house" if rng.randf() < 0.4 else "hut"
+		_place_town_building(cx, cy, half, "house%d" % i, kind, "", rng, info)
+	# 登记净空区
+	_register_town_clearance(cx, cy, half)
+	var jobs: Array = []
+	for key in info["buildings"]:
+		if str(info["buildings"][key]["job"]) != "":
+			jobs.append(str(info["buildings"][key]["job"]))
+	print("[WorldGen] TownV2[%s] @(%d,%d) half=%d buildings=%d jobs=%s" % [tpl_key, cx, cy, half, info["buildings"].size(), str(jobs)])
+
+func _stamp_farm_cell(cell: Vector2i):
+	"""农带单格：不覆已有铺设（路/广场/建筑占格）与水面"""
+	if override_cells.has(cell) or get_tile_id(cell.x, cell.y) == 5:
+		return
+	override_cells[cell] = _palette_at(cell.x, cell.y)["farm"]
+
+func _place_town_building(cx: int, cy: int, half: int, key: String, kind: String, job: String,
+		rng: RandomNumberGenerator, info: Dictionary) -> bool:
+	"""四象限轮转选址摆放（每象限 16 次尝试），成功后登记 town_info + 门前小径"""
+	var quads := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
+	var qi := rng.randi() % 4
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+	for i in range(4):
+		var quad: Vector2i = quads[(qi + i) % 4]
+		var lo_x: int = (cx + 2) if quad.x > 0 else (cx - half)
+		var hi_x: int = (cx + half - fp.x) if quad.x > 0 else (cx - 2 - fp.x + 1)
+		var lo_y: int = (cy + 2) if quad.y > 0 else (cy - half)
+		var hi_y: int = (cy + half - fp.y) if quad.y > 0 else (cy - 2 - fp.y + 1)
+		if hi_x < lo_x or hi_y < lo_y:
+			continue
+		for _a in range(16):
+			var a := Vector2i(rng.randi_range(lo_x, hi_x), rng.randi_range(lo_y, hi_y))
+			if not _town_anchor_ok(a, fp, cy):
+				continue
+			if not _place_building_prop(kind, a):
+				continue
+			var door := Vector2i(a.x + int(fp.x / 2.0), a.y + fp.y)
+			_carve_door_path(a, fp, cy)
+			info["buildings"][key] = {"kind": kind, "anchor": a, "fp": fp,
+				"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": job}
+			return true
+	print("[WorldGen] TownV2 building[%s %s] placement failed @%s" % [key, kind, str(info["center"])])
+	return false
+
+func _town_anchor_ok(a: Vector2i, fp: Vector2i, road_y: int) -> bool:
+	"""门前小径预检：door 列（door 行→主路）不得穿越建筑占格(39)/水/崖——
+	dense 摆放时后放建筑的占格会打断先放建筑的 _carve_door_path，door 与路之间留断点
+	（W4 回归 9 FAIL 根因：house/smithy door 不可达）"""
+	var dx := a.x + int(fp.x / 2.0)
+	var y := a.y + fp.y
+	var guard := 0
+	while y != road_y and guard < 64:
+		guard += 1
+		var c := Vector2i(dx, y)
+		if int(override_cells.get(c, -1)) == 39:
+			return false
+		if get_tile_id(c.x, c.y) in [5, 3, 7]:
+			return false
+		y += signi(road_y - y)
+	return true
+
+func _place_ferry(cx: int, cy: int, half: int, info: Dictionary):
+	"""渡口：环带找贴水干格放渡亭 + 官道接驳（W5 石拱桥读 ferry_axis）"""
+	var bank := _find_bank_spot(cx, cy, half)
+	if bank.x == 9999:
+		print("[WorldGen] TownV2[ferry] no bank spot @", info["center"])
+		return
+	var fp: Vector2i = BUILDING_PROPS["ferry"]["fp"]
+	if not _place_building_prop("ferry", bank):
+		return
+	var door := Vector2i(bank.x + int(fp.x / 2.0), bank.y + fp.y)
+	info["buildings"]["ferry1"] = {"kind": "ferry", "anchor": bank, "fp": fp,
+		"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": "渡夫"}
+	# 官道：主街 → 渡亭门（X 段 + Y 段，逐格避水即停；河曲阻挡由 _ensure_connectivity 兜底架桥）
+	var road_end := Vector2i(cx, cy)   # 起点=镇心（十字路已铺，必干燥）
+	var x := cx
+	while x != door.x:
+		x += signi(door.x - x)
+		var c := Vector2i(x, cy)
+		if get_tile_id(c.x, c.y) == 5:
+			break
+		override_cells[c] = _palette_at(c.x, c.y)["path"]
+		road_end = c
+	var y := cy
+	while y != door.y:
+		y += signi(door.y - y)
+		var c2 := Vector2i(door.x, y)
+		if get_tile_id(c2.x, c2.y) == 5:
+			break
+		override_cells[c2] = _palette_at(c2.x, c2.y)["path"]
+		road_end = c2
+	# 官道终点朝水方向登记（W5 渡口配桥规则）
+	var end_dir := Vector2i.ZERO
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if get_tile_id(road_end.x + d.x, road_end.y + d.y) == 5:
+			end_dir = d
+			break
+	info["ferry_axis"] = {"road_end": road_end, "dir": end_dir}
+	# 渡夫岗位锚=官道终点干格（door_px 语义沿用了南门惯例，但亭外临水侧不可站人——
+	# world gen 显式登记 job_anchor_px，npc_spawner 优先读它，仍是"登记制"非自算）
+	info["buildings"]["ferry1"]["job_anchor_px"] = Vector2(road_end.x * 16.0 + 8.0, road_end.y * 16.0 + 8.0)
+
+func _find_bank_spot(cx: int, cy: int, half: int) -> Vector2i:
+	"""从 cheby half+2 起逐环外扫：2x2 干置放渡亭 + 外邻 1 格贴水 + 亭门行（footprint 正南）干燥
+	（渡亭惯例门朝镇侧/南，门格落水会断 BFS 可达与岗位落位）"""
+	var fp := Vector2i(2, 2)
+	for r in range(half + 2, half + 12):
+		for t in range(-r, r + 1):
+			for p in [Vector2i(cx + t, cy - r), Vector2i(cx + t, cy + r),
+					Vector2i(cx - r, cy + t), Vector2i(cx + r, cy + t)]:
+				if not _can_place_footprint(p, fp) or not _footprint_near_water(p, fp):
+					continue
+				var door_row_dry := true
+				for dx in range(fp.x):
+					if get_tile_id(p.x + dx, p.y + fp.y) == 5:
+						door_row_dry = false
+						break
+				if door_row_dry:
+					return p
+	return Vector2i(9999, 9999)
+
+func _footprint_near_water(a: Vector2i, fp: Vector2i) -> bool:
+	"""footprint 外圈 1 格是否存在水面（贴岸判定）"""
+	for dx in range(-1, fp.x + 1):
+		for dy in range(-1, fp.y + 1):
+			if dx >= 0 and dx < fp.x and dy >= 0 and dy < fp.y:
+				continue
+			if get_tile_id(a.x + dx, a.y + dy) == 5:
+				return true
+	return false
+
 func _area_has_water(cx: int, cy: int, r: int) -> bool:
 	"""检查以(cx,cy)为中心半径r的方形区域内是否有水面瓦片（河流）"""
 	for dx in range(-r, r + 1):
 		for dy in range(-r, r + 1):
 			if get_tile_id(cx + dx, cy + dy) == 5:
+				return true
+	return false
+
+func _area_has_cliff(cx: int, cy: int, r: int) -> bool:
+	"""cheby r 内是否有山体/雪崖（W4 镇选址：崖地镇建筑无成片干地）"""
+	for dx in range(-r, r + 1):
+		for dy in range(-r, r + 1):
+			if get_tile_id(cx + dx, cy + dy) in [3, 7]:
 				return true
 	return false
 
@@ -1206,10 +1488,13 @@ func _build_sect_territory(sname: String, def: Dictionary, c: Vector2i, r: int):
 	for dx in range(-r + 3, r - 2):
 		for dy in range(-r + 2, -r + 8):
 			override_cells[c + Vector2i(dx, dy)] = cliff
-	# 7) 净空（抑树）+ 登记
+	# 7) 净空（抑树）+ 登记（npc_anchors=领地 NPC 落位唯一来源：主殿门 px / 演武场中心 px）
+	var hall_door := Vector2i(ha.x + int(hfp.x / 2.0), ha.y + hfp.y)
 	_register_town_clearance(c.x, c.y, r)
 	sect_info[sname] = {"center": c, "radius": r, "hall": ha, "fp": hfp,
-		"style": def["style"], "clan": sname, "ring_bad_at_build": ring_bad}
+		"style": def["style"], "clan": sname, "ring_bad_at_build": ring_bad,
+		"npc_anchors": {"hall": Vector2(hall_door.x * 16.0 + 8.0, hall_door.y * 16.0 + 8.0),
+			"arena": Vector2(c.x * 16.0 + 8.0, (c.y + 4) * 16.0 + 8.0)}}
 	print("[WorldGen] Sect[", sname, "] @", c, " r=", r, " ring_bad_at_build=", ring_bad)
 
 

@@ -108,6 +108,10 @@ func _on_mob_died(kind_id: String, camp: Dictionary):
 
 # 主线剧情临时营地：锚定玩家当前位置 + offset，一次性刷出，不参与自动重生
 func spawn_story_camp(camp_name: String, offset_tile: Vector2i, members: Array):
+	# W4 任务冻结（WorldFeatures.quests_disabled）：故事营地永不被调用（双保险，主线已不启动）
+	if WorldFeatures.FLAG["quests_disabled"]:
+		print("[MobSpawner] 任务冻结中，spawn_story_camp 拒绝调用")
+		return
 	var player := get_tree().get_first_node_in_group("player") as Node2D
 	if player == null or _world_gen == null:
 		print("[MobSpawner] spawn_story_camp 失败: 玩家/世界未就绪")

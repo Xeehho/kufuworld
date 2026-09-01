@@ -180,6 +180,10 @@ func _build_nodes() -> Array:
 # ---------- 流程驱动 ----------
 
 func _start_when_ready():
+	# W4 任务冻结（WorldFeatures.quests_disabled）：主线不自动开（W8 重启时随 FLAG 打开）
+	if WorldFeatures.FLAG["quests_disabled"]:
+		print("[Story] 任务冻结中（quests_disabled=true），主线不启动")
+		return
 	await get_tree().create_timer(3.0).timeout
 	if GameManager.story_stage == 0:
 		start_node(0)
