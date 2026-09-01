@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W5"
+CURRENT_STAGE = "W6"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
@@ -218,6 +218,22 @@ def main():
     crossed = [r["gate"] for r in roads if r["bridge_cells"] > 0]
     check("bridge", "official_road_river_bridged", len(crossed) >= 1,
           f"crossed_gates={crossed}", since="W5")
+
+    # ---------- 断言组：walk6（W6 可行域政策） ----------
+    w6 = data.get("walk6", {})
+    check("walk", "settlement_road_no_collide", w6.get("zone_bad_n", -1) == 0,
+          f"bad_n={w6.get('zone_bad_n', -1)} bad={w6.get('zone_bad', [])}", since="W6")
+    rock_total = w6.get("rock_total", 0)
+    rock_near = w6.get("rock_near_mountain", 0)
+    rock_iso = w6.get("rock_isolated", 0)
+    check("walk", "wild_rock_near_mountain", rock_total > 0 and rock_near >= rock_total * 0.70,
+          f"near={rock_near}/{rock_total}（噪声带状非严格贴山，deviation 见进度日志）", since="W6")
+    check("walk", "wild_rock_clustered", rock_total > 0 and rock_iso <= rock_total * 0.30,
+          f"isolated={rock_iso}/{rock_total}", since="W6")
+    r1 = w6.get("reach1", 0)
+    r2cov = w6.get("reach2_covered", 0)
+    check("walk", "corridor_2x2_coverage", r1 > 0 and r2cov >= r1 * 0.80,
+          f"reach2_covered={r2cov}/reach1={r1}", since="W6")
 
     # ---------- 报告 ----------
     STAGE_ORDER = ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"]

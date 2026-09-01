@@ -398,6 +398,15 @@ func _tile_house_cave():
 	_save_tile(_crop_tile(_pack_image("Environment/Tilesets/Wall_Tiles.png"), 1, 21), "house_cave")
 
 # ============ 16x16 mini房屋（2026-08-31 中式化重制：黛瓦垄条+凹曲翘角+白墙朱柱+格扇窗）============
+# W6 plaster 净化：纯色+点噪（异或哈希 ±4% 明度抖动，§8 噪声规范）
+static func _plaster_plain(w: int, h: int, base: Color) -> Image:
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	for y in range(h):
+		for x in range(w):
+			var hsh := absi((x * 73856093) ^ (y * 19349663)) % 997
+			img.set_pixel(x, y, base * (0.96 + float(hsh % 8) * 0.012))
+	return img
+
 func _mini_house(wall_sheet: Image, bprops: Image, kind: String) -> Image:
 	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
@@ -406,8 +415,8 @@ func _mini_house(wall_sheet: Image, bprops: Image, kind: String) -> Image:
 	var gold := Color(0.85, 0.70, 0.35)       # 金脊/庙宇
 	var thatch_c := Color(0.55, 0.42, 0.22)   # 茅草
 	var tile_c := Color(0.42, 0.47, 0.54)     # 黛瓦青灰（2026-08-31提亮，避免晨光下发黑）
-	var plaster := _crop_tile(wall_sheet, 22, 12)
-	var plaster_w := _whiten_img(plaster, 0.85)   # 白灰墙
+	# W6 plaster 净化（规划 §8）：素材包裁切灰泥 → 纯色+点噪（消除最后的材质杂味）
+	var plaster_w := _plaster_plain(12, 12, Color(0.90, 0.87, 0.80))   # 白灰墙
 	# ---- 屋顶色与瓦垄条纹 ----
 	var roof_base := thatch_c if kind == "cottage" else tile_c
 	var roof_px := func(x: int, y: int) -> Color:

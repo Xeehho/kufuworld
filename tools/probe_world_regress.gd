@@ -398,6 +398,130 @@ func _ready():
 	data["bridge"] = {"props": bridges_out, "t17_total": b17_total, "t17_covered": b17_covered,
 		"t17_single": b17_single, "roads": roads_out}
 
+	# ---- 11) W6 可行域：分区零碰撞 / 岩石聚簇 / 2×2 走廊 ----
+	# 11a) SETTLEMENT/ROAD 分区采样：城圈/每镇圈/领地圈(除禁地矩形)/官道 cells——
+	#      豁免登记制碰撞 {39 建筑,40 城墙,43 坊墙}
+	var exempt := {"39": true, "40": true, "43": true}
+	var zone_bad: Array = []
+	var zone_checked := 0
+	var data_water_sect := 0
+	var city_c2: Vector2i = wg.CITY_POS
+	var ch2: int = wg.city_half
+	for dx in range(-ch2 + 1, ch2):
+		for dy in range(-ch2 + 1, ch2):
+			var c := city_c2 + Vector2i(dx, dy)
+			zone_checked += 1
+			var t := str(wg.get_tile_id(c.x, c.y))
+			if wg.collision_tiles.has(wg.get_tile_id(c.x, c.y)) and not exempt.has(t):
+				zone_bad.append(["city", c.x, c.y, t])
+	for tc in wg.town_centers:
+		for dx in range(-13, 14):
+			for dy in range(-13, 14):
+				if Vector2(dx, dy).length() >= 13.0:
+					continue
+				var c2 := Vector2i(int(tc.x) + dx, int(tc.y) + dy)
+				zone_checked += 1
+				var t2 := str(wg.get_tile_id(c2.x, c2.y))
+				if wg.collision_tiles.has(wg.get_tile_id(c2.x, c2.y)) and not exempt.has(t2):
+					zone_bad.append(["town", c2.x, c2.y, t2])
+	for s in wg.sect_info.values():
+		var sc: Vector2i = s["center"]
+		var sr: int = int(s["radius"])
+		# 核心可行承诺区 21×21（选址规则"21×21 水格≤4"的范围）——外环是势力范围（自然山环/水缘
+		# 屏障，W3 feature）；景观水(5)单独计数豁免（湖畔/绿洲派依水建派），固体碰撞零容忍
+		for dx in range(-10, 11):
+			for dy in range(-10, 11):
+				# 后山禁地崖带（北侧 y∈[-r,-r+8] 相对格）豁免——故意不可行区（HOLY_GROUND）
+				if dy <= -sr + 8:
+					continue
+				var c3 := sc + Vector2i(dx, dy)
+				zone_checked += 1
+				var tid3: int = wg.get_tile_id(c3.x, c3.y)
+				if tid3 == 5:
+					data_water_sect += 1
+					continue
+				if wg.collision_tiles.has(tid3) and not exempt.has(str(tid3)):
+					zone_bad.append(["sect", c3.x, c3.y, str(tid3)])
+	for rd in roads_raw:
+		for c4 in rd["cells"]:
+			zone_checked += 1
+			var t4 := str(wg.get_tile_id(c4.x, c4.y))
+			if wg.collision_tiles.has(wg.get_tile_id(c4.x, c4.y)) and not exempt.has(t4):
+				zone_bad.append(["road", c4.x, c4.y, t4])
+	data["walk6"] = {"zone_checked": zone_checked, "zone_bad": zone_bad.slice(0, 12),
+		"zone_bad_n": zone_bad.size(), "sect_water_n": data_water_sect}
+
+	# 11b) 岩石聚簇：desert/snow WILD 散石 step2 采样——贴山率/孤立率/总量
+	var rock_total := 0
+	var rock_near := 0
+	var rock_isolated := 0
+	for y in range(-R + 8, R - 8, 2):
+		for x in range(-R + 8, R - 8, 2):
+			if wg.get_tile_id(x, y) != 14:
+				continue
+			if wg._biome_kind(x, y) == "mountain":
+				continue   # 山体语义不计散石
+			rock_total += 1
+			var near_m := false
+			for dy2 in range(-3, 4):
+				for dx2 in range(-3, 4):
+					if wg._biome_kind(x + dx2, y + dy2) == "mountain":
+						near_m = true
+						break
+				if near_m:
+					break
+			if near_m:
+				rock_near += 1
+			var iso := true
+			for d in dirs:
+				if wg.get_tile_id(x + d.x, y + d.y) == 14:
+					iso = false
+					break
+			if iso:
+				rock_isolated += 1
+	data["walk6"]["rock_total"] = rock_total
+	data["walk6"]["rock_near_mountain"] = rock_near
+	data["walk6"]["rock_isolated"] = rock_isolated
+
+	# 11c) 2×2 走廊：块洪泛可达覆盖 vs 1 格可达
+	var offs22 := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]
+	var ok22 := func(c: Vector2i) -> bool:
+		for off in offs22:
+			var n: Vector2i = c + off
+			if absi(n.x) > R or absi(n.y) > R:
+				return false
+			if wg.get_tile_id(n.x, n.y) in wg.collision_tiles:
+				return false
+		return true
+	var r1: Dictionary = wg._bfs_reachable_from_spawn(dirs)
+	var start22 := Vector2i.ZERO
+	var found22 := false
+	for c in r1.keys():
+		if ok22.call(c):
+			start22 = c
+			found22 = true
+			break
+	var covered_n := 0
+	if found22:
+		var r2 := {start22: true}
+		var q2: Array = [start22]
+		var h2 := 0
+		while h2 < q2.size():
+			var cur: Vector2i = q2[h2]
+			h2 += 1
+			for d in dirs:
+				var n: Vector2i = cur + d
+				if not r2.has(n) and ok22.call(n):
+					r2[n] = true
+					q2.append(n)
+		var covered := {}
+		for c in r2:
+			for off in offs22:
+				covered[c + off] = true
+		covered_n = covered.size()
+	data["walk6"]["reach1"] = r1.size()
+	data["walk6"]["reach2_covered"] = covered_n
+
 	_write(data)
 	_log("[RegressProbe] data written: zones=%d adj_pairs=%d reach=%d" % [zones.size(), adj.size(), spawn_reach.size()])
 	await _wait(0.3)

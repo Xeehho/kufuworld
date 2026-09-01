@@ -183,9 +183,15 @@ func _ready():
 	_generate_towns()
 	if WorldFeatures.FLAG["sect_territories"]:
 		_generate_sect_territories()
+	if WorldFeatures.FLAG["walkability_policy"]:
+		_build_wild_rock_clusters()	# W6：散石聚簇表（desert/snow 装饰层自此查表）
 	_scatter_pois()
 	_apply_poi_terrain()
+	if WorldFeatures.FLAG["bridge_prop"]:
+		_restore_official_roads()	# W5/W6：POI 铺地可能覆盖官道格——按登记 cells 重放
 	_ensure_connectivity()	# Phase F6: 打通所有封闭区域（石中沙地等孤岛开路）
+	if WorldFeatures.FLAG["walkability_policy"]:
+		_ensure_corridor_width()	# W6：走廊宽度感知（窄喉口袋 2 宽开路，限量）
 	if WorldFeatures.FLAG["bridge_prop"]:
 		_place_bridge_props()	# W5：连通性收尾后统一扫描17段→石拱桥prop（纯视觉z1）
 	_compute_reachable_region()	# 刷新对外可达查询（NPC/营地选址用最新数据）
@@ -758,6 +764,27 @@ func _near_official_road(wx: int, wy: int, margin: int = 2) -> bool:
 				and wy >= mini(c0.y, c1.y) - margin and wy <= maxi(c0.y, c1.y) + margin:
 			return true
 	return false
+
+func _restore_official_roads():
+	"""官道复原重铺：旧版 POI 铺地（门派山环 3/城镇 POI 等）可能覆盖官道格——
+	按登记 cells 重放铺设逻辑（水→17/崖→channel/其余→path；39 建筑占格让位）"""
+	var restored := 0
+	for rd in official_roads:
+		for c in rd["cells"]:
+			var tid: int = get_tile_id(c.x, c.y)
+			if tid == 5:
+				override_cells[c] = 17
+				restored += 1
+			elif tid == 39:
+				pass   # 建筑占格让位（登记制碰撞）——异常压道由 walk6 断言暴露
+			elif tid in [3, 7]:
+				override_cells[c] = _palette_at(c.x, c.y)["channel"]
+				restored += 1
+			elif tid != 1 and tid != 17:
+				override_cells[c] = _palette_at(c.x, c.y)["path"]
+				restored += 1
+	if restored > 0:
+		print("[WorldGen] 官道复原重铺 %d 格（POI 铺地覆盖回滚）" % restored)
 
 func _stamp_river(path: Array, water_w: int):
 	"""沿中心线垂直流向铺水（干流4格/支流2格），岸沙1格只写空格；先水后沙"""
@@ -2250,6 +2277,198 @@ func _carve_cell(c: Vector2i) -> int:
 		return 1
 	return 0
 
+# ============ W6 可行域政策（docs/武侠世界重构规划 §6，FLAG walkability_policy） ============
+# 分区：SETTLEMENT（城/镇/领地）/ ROAD（路/桥/广场）/ FARM（农田）/ WILD（其余）。
+# 生成期：SETTLEMENT/ROAD/FARM 零碰撞装饰——散石只在 WILD 贴山 3 格带状聚簇；
+# 走廊：2×2 块洪泛找窄喉口袋（≥20 格的 WILD 组），限量开 2 宽通道；
+# 运行期唯一可行查询 is_walkable()（怪物 AI/NPC/探针统一走它，禁止各自再猜）。
+
+var _rock_cells: Dictionary = {}   # W6 WILD 贴山聚簇散石表（desert/snow 装饰层查询）
+
+func _tile_zone(tx: int, ty: int) -> String:
+	"""格分区。ROAD=路/桥/石板/雪径；FARM=农田/湿田/雪田；SETTLEMENT=城/镇/领地；其余 WILD"""
+	var t := get_tile_id(tx, ty)
+	if t == 1 or t == 17 or t == 35 or t == 42:
+		return "ROAD"
+	if t == 16 or t == 33 or t == 41:
+		return "FARM"
+	if absi(tx - CITY_POS.x) <= city_half + 2 and absi(ty - CITY_POS.y) <= city_half + 2:
+		return "SETTLEMENT"
+	for tc in town_centers:
+		if Vector2(tx, ty).distance_to(tc) < 13.0:
+			return "SETTLEMENT"
+	for s in sect_info.values():
+		if maxi(absi(tx - s["center"].x), absi(ty - s["center"].y)) <= int(s["radius"]):
+			return "SETTLEMENT"
+	return "WILD"
+
+func is_walkable(tx: int, ty: int) -> bool:
+	"""运行期唯一可行查询（规划 §6）：无碰撞瓦片（建筑39/城墙40/坊墙43含于 collision_tiles）。
+	怪物 AI/NPC/探针断言统一调用，禁止各自再猜"""
+	if absi(tx) > WORLD_RADIUS or absi(ty) > WORLD_RADIUS:
+		return false
+	return get_tile_id(tx, ty) not in collision_tiles
+
+func _build_wild_rock_clusters():
+	"""散石聚簇：desert/snow 群系散石不再全图 singles——只贴山系 3 格带状出露（噪声连续天然成带），
+	且仅落 WILD（SETTLEMENT/ROAD/FARM 零碰撞装饰）。mountain 群系崖壁成势不动（山体语义）"""
+	_rock_cells.clear()
+	var R := int(WORLD_RADIUS)
+	# 1) 山系格集（mountain 群系）
+	var mountain_cells := {}
+	for y in range(-R + 6, R - 6):
+		for x in range(-R + 6, R - 6):
+			if _biome_kind(x, y) == "mountain":
+				mountain_cells[Vector2i(x, y)] = true
+	# 2) 山缘格（8 邻含非山）为源，向 WILD 侧 3 格带撒带状散石
+	var carved_total := 0
+	for mc in mountain_cells:
+		var is_edge := false
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+				Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]:
+			if not mountain_cells.has(mc + d):
+				is_edge = true
+				break
+		if not is_edge:
+			continue
+		for dy in range(-3, 4):
+			for dx in range(-3, 4):
+				if maxi(absi(dx), absi(dy)) == 0:
+					continue
+				var c: Vector2i = mc + Vector2i(dx, dy)
+				if mountain_cells.has(c) or _rock_cells.has(c):
+					continue
+				if carved_total >= 2200:   # 总量上限（密度回归）
+					return
+				# 噪声带状出露（~22%）：先噪声后 biome 省调用
+				var d := fposmod(detail_noise.get_noise_2d(c.x * 1.7, c.y * 2.3) + 1.0, 1.0)
+				if d <= 0.78:
+					continue
+				var k := _biome_kind(c.x, c.y)
+				if k != "desert" and k != "snow":
+					continue
+				# 只落 WILD（轻量分区：净空/城圈/镇圈/领地圈/官道）
+				if _in_town_clearance(c.x, c.y) or _near_official_road(c.x, c.y, 1):
+					continue
+				if absi(c.x - CITY_POS.x) <= city_half + 3 and absi(c.y - CITY_POS.y) <= city_half + 3:
+					continue
+				var near_town := false
+				for tc in town_centers:
+					if Vector2(c.x, c.y).distance_to(tc) < 14.0:
+						near_town = true
+						break
+				if near_town:
+					continue
+				var near_sect := false
+				for s in sect_info.values():
+					if maxi(absi(c.x - s["center"].x), absi(c.y - s["center"].y)) <= int(s["radius"]) + 2:
+						near_sect = true
+						break
+				if near_sect:
+					continue
+				_rock_cells[c] = true
+				carved_total += 1
+	print("[WorldGen] wild rock clusters: %d cells (贴山3格带状)" % carved_total)
+
+func _ensure_corridor_width():
+	"""走廊宽度感知 BFS（规划 §6.3）：2×2 块洪泛（块锚 4 格全通行才可扩展）。
+	"1格可达但 2×2 不可达"的 WILD 窄喉口袋 ≥20 格时，在缝处开 2 宽通道（_carve_cell：
+	水→桥17/阻挡→群系 channel），carve 总量限 40 防凿烂地形。聚落内（SETTLEMENT/ROAD/FARM
+	占多数的组）不修——走廊要求只针对野外"""
+	var corridor_w: int = WorldData.WALKABILITY["corridor_width"]
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var offs22 := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]
+	var reach1 := _bfs_reachable_from_spawn(dirs)
+	var ok22 := func(c: Vector2i) -> bool:
+		for off in offs22:
+			var n: Vector2i = c + off
+			if absi(n.x) > WORLD_RADIUS or absi(n.y) > WORLD_RADIUS:
+				return false
+			if get_tile_id(n.x, n.y) in collision_tiles:
+				return false
+		return true
+	var start := Vector2i.ZERO
+	var found := false
+	for c in reach1.keys():
+		if ok22.call(c):
+			start = c
+			found = true
+			break
+	if not found:
+		print("[WorldGen] corridor: no 2x2 block near spawn, skip")
+		return
+	var reach2 := {start: true}
+	var q: Array = [start]
+	var head := 0
+	while head < q.size():
+		var cur: Vector2i = q[head]
+		head += 1
+		for d in dirs:
+			var n: Vector2i = cur + d
+			if not reach2.has(n) and ok22.call(n):
+				reach2[n] = true
+				q.append(n)
+	var covered := {}
+	for c in reach2:
+		for off in offs22:
+			covered[c + off] = true
+	# 窄喉口袋连通分组（4 连，限界内）
+	var pockets := {}
+	for c in reach1.keys():
+		if not covered.has(c):
+			pockets[c] = true
+	var carved := 0
+	var fixed_groups := 0
+	var seen := {}
+	for p in pockets:
+		if seen.has(p):
+			continue
+		var group: Array = [p]
+		seen[p] = true
+		var gq: Array = [p]
+		var gh := 0
+		while gh < gq.size():
+			var gc: Vector2i = gq[gh]
+			gh += 1
+			for d in dirs:
+				var n: Vector2i = gc + d
+				if not seen.has(n) and pockets.has(n):
+					seen[n] = true
+					group.append(n)
+					gq.append(n)
+		if group.size() < 20:
+			continue
+		# 聚落内组不修（采样组头 5 格分区判定）
+		var in_settle := 0
+		for i in range(mini(5, group.size())):
+			var g: Vector2i = group[i]
+			if _tile_zone(g.x, g.y) != "WILD":
+				in_settle += 1
+		if in_settle >= 3:
+			continue
+		# 缝处开 2 宽通道：找组内与 covered 相邻的缝格，把 2×2 块朝组方向推进一格（carve 阻挡）
+		var opened := false
+		for gcell in group:
+			if opened or carved >= 40:
+				break
+			for d in dirs:
+				var qq: Vector2i = gcell + d
+				if not covered.has(qq):
+					continue
+				var d2: Vector2i = Vector2i(signi(gcell.x - qq.x), signi(gcell.y - qq.y))
+				var anchor: Vector2i = qq + d2   # 朝组推进的新 2×2 块锚
+				for off in offs22:
+					var t: Vector2i = anchor + off
+					if get_tile_id(t.x, t.y) in collision_tiles:
+						carved += _carve_cell(t)
+				opened = true
+				fixed_groups += 1
+				break
+	if carved > 0:
+		print("[WorldGen] corridor width: carved=%d (%d 组窄喉已拓 %d宽)" % [carved, fixed_groups, corridor_w])
+	else:
+		print("[WorldGen] corridor width: no narrow-throat pocket >=20 (WILD)")
+
 # ============ 地形生成（含边界和覆盖） ============
 
 func get_height(x: int, y: int) -> float:
@@ -2328,14 +2547,16 @@ func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 			elif r > 0.40: return 14
 			return _ground_of(x, y)
 		"desert":
-			# W1 自然规律：沙漠零树（岩石保留）
-			if r > 0.94: return 14
+			# W1 自然规律：沙漠零树；W6 岩石改 WILD 贴山聚簇表（不再全图 singles）
+			if r > 0.94:
+				return 14 if _rock_cells.has(Vector2i(x, y)) else _ground_of(x, y)
 			return _ground_of(x, y)
 		"snow":
 			# demo3风：白雪地面+稀疏雪松+雪线崖壁点缀（崖用7=积雪崖，避免深色秃崖突兀）
 			if r > 0.94: return 7
 			elif r > 1.0 - dens * 0.12: return 4
-			elif r > 0.83: return 14
+			elif r > 0.83:
+				return 14 if _rock_cells.has(Vector2i(x, y)) else _ground_of(x, y)
 			return _ground_of(x, y)
 		"lake":
 			# W1：湖面为 override 显式水（_generate_lakes 已铺），此处只留湖缘装饰
@@ -2921,6 +3142,8 @@ func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
 		if get_tile_id(wx, wy) in collision_tiles:
 			continue
 		if _near_sect_territory(wx, wy):
+			continue
+		if _near_official_road(wx, wy, 16):
 			continue
 		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 		if _too_close_to_other_poi(pos, tpl.min_distance):
