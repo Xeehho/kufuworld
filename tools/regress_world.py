@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W7"
+CURRENT_STAGE = "W8"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
@@ -189,10 +189,18 @@ def main():
     check("npc", "npc_anchor_dist_le3", len(npc.get("bad_anchors", [])) == 0,
           f"bad={npc.get('bad_anchors', [])}", since="W4")
 
-    # ---------- 断言组：quest（W4 冻结期零发布） ----------
+    # ---------- 断言组：quest（W8 任务重启，规则 v2：告示板恢复+主线自动启动+玩家未接取） ----------
     q = data.get("quest", {})
-    for k in ["available", "active", "pending_story", "completed"]:
-        check("quest", f"quest_{k}_zero", q.get(k, -1) == 0, f"{k}={q.get(k, -1)}", since="W4")
+    check("quest", "quest_available_positive", q.get("available", -1) >= 1,
+          f"available={q.get('available', -1)}（W8 规则v2：告示板恢复发布，冻结期零发布语义终止）", since="W8")
+    check("quest", "story_started", bool(q.get("story_started", False)),
+          f"started={q.get('story_started', False)}（主线 _start_when_ready 恢复，主1已启动）", since="W8")
+    check("quest", "quest_active_zero", q.get("active", -1) == 0,
+          f"active={q.get('active', -1)}（玩家未接取）", since="W4")
+    check("quest", "quest_pending_story_zero", q.get("pending_story", -1) == 0,
+          f"pending_story={q.get('pending_story', -1)}（主1无委托字段，主2未开始）", since="W4")
+    check("quest", "quest_completed_zero", q.get("completed", -1) == 0,
+          f"completed={q.get('completed', -1)}", since="W4")
 
     # ---------- 断言组：mob（营地避城回归） ----------
     m = data.get("mob", {})

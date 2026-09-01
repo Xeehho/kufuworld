@@ -12,10 +12,12 @@ const FLAG := {
 	"sect_territories": true,    # W3 门派领地 + 主殿 accent ✅ 2026-09-01 开启（W7 legacy 删）
 	"town_v2": true,             # W4 村镇模板 v2（一圈一团一水）✅ 2026-09-01 开启（W7 legacy 删）
 	"npc_static": true,          # W4 NPC 驻留制（岗job + 驻留，读 door_px 落位）✅ 2026-09-01 开启
-	"quests_disabled": true,     # W4 起冻结任务系统（W8 重启时逐项改回 false）✅ 2026-09-01 接线
+	"quests_disabled": false,    # W8 任务重启 ✅ 2026-09-01：告示板恢复发布+主线自动启动（冻结期断言已按规则v2升级）
 	"bridge_prop": true,         # W5 石拱桥 prop（可通行语义与外观分离）✅ 2026-09-01 开启（W7 legacy 删）
 	"walkability_policy": true,  # W6 可行域政策（SETTLEMENT/ROAD 零碰撞物+走廊连通）✅ 2026-09-01 开启（W7 legacy 删）
 }
 
 ## 规则版本号：布局/断言规则变更时必须 +1 并登记到重构规划文档（§10.3）
-const WORLD_RULES_VERSION := 1
+## v2 = W8 任务重启：quest_available_zero → quest_available_positive + 新增 story_started
+## （冻结期"零发布"语义随 quests_disabled=false 终止，登记见进度日志 §二·I）
+const WORLD_RULES_VERSION := 2

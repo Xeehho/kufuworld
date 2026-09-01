@@ -335,13 +335,23 @@ func _ready():
 					npc_bad.append({"name": nm, "dist": dist_t, "ref": str(npc.get_meta("anchor_ref"))})
 	data["npc"] = {"total": npc_total, "static_n": npc_static_n, "bad_anchors": npc_bad}
 
-	# ---- 8) W4 任务冻结：全口径委托计数（冻结期应全为 0） ----
+	# ---- 8) W8 任务重启：告示板计数 + 主线自动启动标志（等 node_index 至多 3s 防同帧竞态） ----
+	var story := get_node_or_null("/root/Main/MainStory")
+	var story_started := false
+	if story != null:
+		for _i in range(12):
+			if int(story.get("node_index")) >= 0 or int(GameManager.story_stage) > 0:
+				story_started = true
+				break
+			await _wait(0.25)
 	var qs := get_node_or_null("/root/Main/QuestSystem")
-	var quest_data := {"available": -1, "active": -1, "pending_story": -1, "completed": -1, "frozen": false}
+	var quest_data := {"available": -1, "active": -1, "pending_story": -1, "completed": -1,
+		"frozen": bool(WorldFeatures.FLAG["quests_disabled"]), "story_started": story_started}
 	if qs != null:
-		quest_data = {"available": qs.available_quests.size(), "active": qs.get_active_quests().size(),
-			"pending_story": qs.get_pending_story_quests().size(), "completed": qs.completed_quests.size(),
-			"frozen": bool(WorldFeatures.FLAG["quests_disabled"])}
+		quest_data["available"] = qs.available_quests.size()
+		quest_data["active"] = qs.get_active_quests().size()
+		quest_data["pending_story"] = qs.get_pending_story_quests().size()
+		quest_data["completed"] = qs.completed_quests.size()
 	data["quest"] = quest_data
 
 	# ---- 9) W4 营地避城回归：常规营地 in_settlement=false；故事营地=0 ----
