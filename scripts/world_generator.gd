@@ -2520,6 +2520,11 @@ func _load_chunk(chunk: Vector2i):
 						tm.set_cell(1, cell, tid, Vector2i(0, 0))
 					else:
 						tm.set_cell(0, cell, _paint_ground(tid, wx, wy), Vector2i(0, 0))
+					# 画面改造P3.2：水格岸环覆盖层1（滩涂+泡沫+草沿；仅视觉，不改碰撞/可达）
+					if tid == 5:
+						var sc := _shore_coords(wx, wy)
+						if sc.x >= 0:
+							tm.set_cell(1, cell, SHORE_SRC_ID, sc)
 			world_cells[cell] = get_tile_id(wx, wy)
 
 	loaded_chunks[chunk] = true
@@ -2530,6 +2535,39 @@ func _paint_ground(tid: int, x: int, y: int) -> int:
 	if tid == 0 or tid == 6 or tid == 18 or tid == 34:
 		return _ground_variant(tid, x, y)
 	return tid
+
+# ============ 画面改造P3.2 水岸过渡 ============
+# 水格岸环覆盖（层1）：Water_tiles 首岛环块（滩涂+泡沫+草沿），key=陆地相对水格的方向。
+# 正交块草沿横贯，对角块草沿抱角；源64在 tileset_generator 注册（4帧波光动画）
+const SHORE_SRC_ID := 64
+const SHORE_BY_DIR := {
+	"N": Vector2i(2, 4), "E": Vector2i(0, 2), "S": Vector2i(2, 0), "W": Vector2i(4, 2),
+	"NE": Vector2i(1, 4), "NW": Vector2i(3, 4), "SE": Vector2i(1, 0), "SW": Vector2i(3, 0),
+}
+
+func _is_land_for_shore(tid: int) -> bool:
+	# 桥(17)不算岸：河心桥下不出草沿，杜绝"河心浮草岛"
+	return tid != 5 and tid != 17
+
+func _shore_coords(wx: int, wy: int) -> Vector2i:
+	"""水格(wx,wy)的岸环瓦片坐标；周边无陆地返回(-1,-1)。正交优先，其次对角抱角。"""
+	if _is_land_for_shore(get_tile_id(wx, wy - 1)):
+		return SHORE_BY_DIR["N"]
+	if _is_land_for_shore(get_tile_id(wx, wy + 1)):
+		return SHORE_BY_DIR["S"]
+	if _is_land_for_shore(get_tile_id(wx + 1, wy)):
+		return SHORE_BY_DIR["E"]
+	if _is_land_for_shore(get_tile_id(wx - 1, wy)):
+		return SHORE_BY_DIR["W"]
+	if _is_land_for_shore(get_tile_id(wx + 1, wy - 1)):
+		return SHORE_BY_DIR["NE"]
+	if _is_land_for_shore(get_tile_id(wx - 1, wy - 1)):
+		return SHORE_BY_DIR["NW"]
+	if _is_land_for_shore(get_tile_id(wx + 1, wy + 1)):
+		return SHORE_BY_DIR["SE"]
+	if _is_land_for_shore(get_tile_id(wx - 1, wy + 1)):
+		return SHORE_BY_DIR["SW"]
+	return Vector2i(-1, -1)
 
 func _get_ground_tile(x: int, y: int) -> int:
 	"""获取指定位置的地面瓦片ID（不含装饰物）"""

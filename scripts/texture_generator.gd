@@ -94,6 +94,12 @@ func generate_tiles():
 	_save_tile(_bake_ground_ao(_whiten_img(_crop_tile(floors, 1, 23), 1.0)), "snow_a")   # 50 雪地像素变体A
 	_save_tile(_bake_ground_ao(_whiten_img(_crop_tile(floors, 3, 22), 1.0)), "snow_b")   # 51 雪地像素变体B
 	_save_tile(_crop_tile(floors, 6, 10), "path")
+	# 画面改造P3.3 水面动画：Water_tiles 填充区 A/B 两组波纹位错开，拼 32x16 双帧条
+	# （(1,7)=A组 / (6,7)=B组，TileSet animation 2帧轮播 → 水面微光流动）
+	var wanim := Image.create(32, 16, false, Image.FORMAT_RGBA8)
+	wanim.blit_rect(water_sheet, Rect2i(1 * 16, 7 * 16, 16, 16), Vector2i.ZERO)
+	wanim.blit_rect(water_sheet, Rect2i(6 * 16, 7 * 16, 16, 16), Vector2i(16, 0))
+	_save_tile(wanim, "water_anim")
 	_save_tile(_crop_tile(water_sheet, 6, 7), "water")
 	_save_tile(_bake_ground_ao(_crop_tile(floors, 6, 23)), "sand")
 	_save_tile(_bake_ground_ao(_whiten_img(_crop_tile(floors, 2, 24), 1.0)), "snow")
@@ -367,8 +373,22 @@ static func _bake_ground_ao(src: Image) -> Image:
 			out.set_pixel(x, y, Color(minf(c.r * m, 1.0), minf(c.g * m, 1.0), minf(c.b * m, 1.0), c.a))
 	return out
 
-func _save_tile(img: Image, tile_name: String):
+static func _save_tile(img: Image, tile_name: String):
 	img.save_png("res://sprites/tiles/" + tile_name + ".png")
+
+# 画面改造P3.2 岸环草沿调色：只对绿色主导像素做草地暖化（水蓝/滩棕/泡沫白不动，
+# 使水岸的草沿与暖化草地同色系）
+static func _tint_veg_pixels(src: Image, r_mul: float, g_mul: float, b_mul: float) -> Image:
+	var out := Image.create(src.get_width(), src.get_height(), false, Image.FORMAT_RGBA8)
+	for y in range(out.get_height()):
+		for x in range(out.get_width()):
+			var c := src.get_pixel(x, y)
+			if c.a > 0.0 and c.g > c.r + 0.04 and c.g > c.b + 0.04:
+				out.set_pixel(x, y, Color(
+					minf(c.r * r_mul, 1.0), minf(c.g * g_mul, 1.0), minf(c.b * b_mul, 1.0), c.a))
+			else:
+				out.set_pixel(x, y, c)
+	return out
 
 func _tile_grass():
 	_save_tile(_crop_tile(_pack_image("Environment/Tilesets/Floors_Tiles.png"), 2, 10), "grass")

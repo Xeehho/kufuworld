@@ -82,7 +82,7 @@ func _ensure_textures():
 	# 注意：必须用 FileAccess 而非 ResourceLoader.exists —— 运行时生成的PNG没有import数据
 	# Phase G重构：全部瓦片（含terrain五件套）由 texture_generator 从素材包直接裁切
 	var tile_files = [
-		"grass", "grass_dark", "path", "water", "sand", "snow", "stone",
+		"grass", "grass_dark", "path", "water", "water_anim", "sand", "snow", "stone",
 		"farmland", "farmland_wet", "mountain", "mountain_snow",
 		"house_town", "house_cottage", "house_temple", "house_cave",
 		"flower", "daisy", "mushroom", "rock", "fence", "bridge", "city_wall",

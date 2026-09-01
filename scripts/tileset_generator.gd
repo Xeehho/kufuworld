@@ -22,7 +22,7 @@ static func build_tileset() -> TileSet:
 		1: "res://sprites/tiles/path.png",
 		2: "res://sprites/tiles/house_town.png",
 		3: "res://sprites/tiles/mountain.png",
-		5: "res://sprites/tiles/water.png",
+		5: "res://sprites/tiles/water_anim.png",      # 画面改造P3.3：双帧波纹动画条（32x16）
 		6: "res://sprites/tiles/sand.png",
 		7: "res://sprites/tiles/mountain_snow.png",
 		10: "res://sprites/tiles/house_cottage.png",
@@ -98,4 +98,27 @@ static func build_tileset() -> TileSet:
 					])
 					tile_data.set_collision_polygons_count(0, 1)
 					tile_data.set_collision_polygon_points(0, 0, poly)
+				# 画面改造P3.3：水面双帧轮播（32x16条，帧2在x+1；0.9s/帧微光流动）
+				if id == 5:
+					source.set_tile_animation_frames_count(Vector2i(0, 0), 2)
+					source.set_tile_animation_frame_duration(Vector2i(0, 0), 0, 0.9)
+					source.set_tile_animation_frame_duration(Vector2i(0, 0), 1, 0.9)
+
+	# 画面改造P3.2 水岸过渡（源64）：Water_tiles 首岛岸环 8 块（滩涂+泡沫+草沿），静态帧。
+	# 注：环块的4组岛跨列动画曾尝试 set_tile_animation_separation(6,1)，Godot 报
+	# "tiles are already present in the space the tile would cover"——占位校验不过，故用静态帧；
+	# 水面动态由源5的双帧波纹动画承担。草沿像素做草地暖化同步色系
+	var shore_img: Image = TextureGen._pack_image("Environment/Tilesets/Water_tiles.png")
+	if shore_img != null:
+		var shore_img_tinted = TextureGen._tint_veg_pixels(shore_img, 1.55, 1.16, 9.0)
+		var shore = TileSetAtlasSource.new()
+		shore.texture = ImageTexture.create_from_image(shore_img_tinted)
+		shore.texture_region_size = Vector2i(16, 16)
+		var shore_cells = [
+			Vector2i(2, 4), Vector2i(2, 0), Vector2i(0, 2), Vector2i(4, 2),   # 正交：草沿朝N/E/S/W
+			Vector2i(1, 4), Vector2i(3, 4), Vector2i(1, 0), Vector2i(3, 0),   # 对角：草沿朝NE/NW/SE/SW
+		]
+		for coords in shore_cells:
+			shore.create_tile(coords)
+		ts.add_source(shore, 64)
 	return ts
