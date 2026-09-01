@@ -52,6 +52,10 @@ func _ready():
 	if npc_data == null:
 		_setup_default_npc()
 	_setup_sprite_frames()
+	# 画面改造P2.1：脚底软阴影（NPC帧脚线=节点原点，影垫脚下）
+	var shadow := TextureGen.make_shadow_sprite(20.0, 0.28)
+	shadow.position = Vector2(0, 1)
+	add_child(shadow)
 	_create_screen_name_tag()
 	last_pos = global_position
 	wander_center = npc_data.home_position

@@ -79,23 +79,24 @@ func generate_tiles():
 	var bprops := _pack_image("Environment/Structures/Buildings/Props.png")
 	# ---- 地表（素材包原版裁切，色调与demo三图一致）----
 	# 画面改造P1.1：草系乘法暖化（51,119,4→约79,138,36 暖黄绿）
-	_save_tile(_tint_img(_crop_tile(floors, 2, 10), 1.55, 1.16, 9.0), "grass")
-	_save_tile(_tint_img(_crop_tile(floors, 1, 11), 1.55, 1.16, 9.0), "grass_dark")
+	# 画面改造P2.4：全部自然地面烘焙上下微渐变伪AO（顶亮1px/底暗1px，布纹感）
+	_save_tile(_bake_ground_ao(_tint_img(_crop_tile(floors, 2, 10), 1.55, 1.16, 9.0)), "grass")
+	_save_tile(_bake_ground_ao(_tint_img(_crop_tile(floors, 1, 11), 1.55, 1.16, 9.0)), "grass_dark")
 	# 画面改造P1.2 地面变体：同色系像素变体（打破重复平铺）+ 色调深斑（草地斑驳感）
-	_save_tile(_tint_img(_crop_tile(floors, 1, 10), 1.55, 1.16, 9.0), "grass_a")      # 45 草地像素变体A
-	_save_tile(_tint_img(_crop_tile(floors, 3, 10), 1.55, 1.16, 9.0), "grass_b")      # 46 草地像素变体B
-	_save_tile(_tint_img(_crop_tile(floors, 3, 11), 1.55, 1.16, 9.0), "grass_patch")  # 47 深绿色斑（草原斑驳）
-	_save_tile(_tint_img(_crop_tile(floors, 2, 11), 1.55, 1.16, 9.0), "dark_a")       # 48 竹林深草变体A
-	_save_tile(_tint_img(_crop_tile(floors, 3, 11), 1.55, 1.16, 9.0), "dark_b")       # 49 竹林深草变体B
-	_save_tile(_crop_tile(floors, 7, 23), "sand_a")    # 52 沙地像素变体A
-	_save_tile(_crop_tile(floors, 9, 23), "sand_b")    # 53 沙地像素变体B
-	_save_tile(_crop_tile(floors, 13, 11), "dirt_patch")  # 54 深棕干土斑（沙漠斑驳）
-	_save_tile(_whiten_img(_crop_tile(floors, 1, 23), 1.0), "snow_a")   # 50 雪地像素变体A
-	_save_tile(_whiten_img(_crop_tile(floors, 3, 22), 1.0), "snow_b")   # 51 雪地像素变体B
+	_save_tile(_bake_ground_ao(_tint_img(_crop_tile(floors, 1, 10), 1.55, 1.16, 9.0)), "grass_a")      # 45 草地像素变体A
+	_save_tile(_bake_ground_ao(_tint_img(_crop_tile(floors, 3, 10), 1.55, 1.16, 9.0)), "grass_b")      # 46 草地像素变体B
+	_save_tile(_bake_ground_ao(_tint_img(_crop_tile(floors, 3, 11), 1.55, 1.16, 9.0)), "grass_patch")  # 47 深绿色斑（草原斑驳）
+	_save_tile(_bake_ground_ao(_tint_img(_crop_tile(floors, 2, 11), 1.55, 1.16, 9.0)), "dark_a")       # 48 竹林深草变体A
+	_save_tile(_bake_ground_ao(_tint_img(_crop_tile(floors, 3, 11), 1.55, 1.16, 9.0)), "dark_b")       # 49 竹林深草变体B
+	_save_tile(_bake_ground_ao(_crop_tile(floors, 7, 23)), "sand_a")    # 52 沙地像素变体A
+	_save_tile(_bake_ground_ao(_crop_tile(floors, 9, 23)), "sand_b")    # 53 沙地像素变体B
+	_save_tile(_bake_ground_ao(_crop_tile(floors, 13, 11)), "dirt_patch")  # 54 深棕干土斑（沙漠斑驳）
+	_save_tile(_bake_ground_ao(_whiten_img(_crop_tile(floors, 1, 23), 1.0)), "snow_a")   # 50 雪地像素变体A
+	_save_tile(_bake_ground_ao(_whiten_img(_crop_tile(floors, 3, 22), 1.0)), "snow_b")   # 51 雪地像素变体B
 	_save_tile(_crop_tile(floors, 6, 10), "path")
 	_save_tile(_crop_tile(water_sheet, 6, 7), "water")
-	_save_tile(_crop_tile(floors, 6, 23), "sand")
-	_save_tile(_whiten_img(_crop_tile(floors, 2, 24), 1.0), "snow")
+	_save_tile(_bake_ground_ao(_crop_tile(floors, 6, 23)), "sand")
+	_save_tile(_bake_ground_ao(_whiten_img(_crop_tile(floors, 2, 24), 1.0)), "snow")
 	_save_tile(_snow_farmland_img(), "snow_farmland")   # 41 雪覆农田（群系调色板）
 	_save_tile(_snow_path_img(), "snow_path")           # 42 雪径（群系调色板）
 	_save_tile(_crop_tile(floors, 17, 1), "stone")
@@ -315,6 +316,55 @@ static func _tint_img(src: Image, r_mul: float, g_mul: float, b_mul: float) -> I
 				minf(c.r * r_mul, 1.0),
 				minf(c.g * g_mul, 1.0),
 				minf(c.b * b_mul, 1.0), c.a))
+	return out
+
+# ============================================================
+# 画面改造P2 全场景实体软阴影（树/建筑/角色/站台同源共享）
+# ============================================================
+static var _shadow_tex: ImageTexture = null
+
+static func get_shadow_texture() -> ImageTexture:
+	if _shadow_tex != null:
+		return _shadow_tex
+	var img := Image.create(48, 20, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	for x in range(48):
+		for y in range(20):
+			var dx = (x - 23.5) / 23.5
+			var dy = (y - 9.5) / 9.5
+			var d = sqrt(dx * dx + dy * dy)
+			if d < 1.0:
+				var a := clampf(1.0 - d, 0.0, 1.0)
+				img.set_pixel(x, y, Color(1, 1, 1, pow(a, 1.35)))
+	_shadow_tex = ImageTexture.create_from_image(img)
+	return _shadow_tex
+
+# 生成脚底阴影精灵：白椭圆纹理modulate压黑半透明；加入tree_shadow组（weather按日照强弱缩放alpha）
+static func make_shadow_sprite(width: float, base_alpha: float = 0.30) -> Sprite2D:
+	var s := Sprite2D.new()
+	s.texture = get_shadow_texture()
+	s.scale = Vector2(width / 48.0, width * 0.38 / 20.0)
+	s.z_index = -1   # 相对父实体-1：地面之上、实体之下
+	s.modulate = Color(0, 0, 0, base_alpha)
+	s.set_meta("shadow_base_a", base_alpha)
+	s.add_to_group("tree_shadow")
+	return s
+
+# 画面改造P2.4 地面伪AO：顶缘微亮+底缘微暗
+# 教训：连续整行暗边在纯色地面上形成16px周期条纹（草坪读成割纹/沙滩成砖块）——
+# 改为像素哈希抖动断线：暗线被 dash 打断成有机布纹，保留"厚度"不引入机械条纹
+static func _bake_ground_ao(src: Image) -> Image:
+	var out := Image.create(src.get_width(), src.get_height(), false, Image.FORMAT_RGBA8)
+	var h := src.get_height()
+	for y in range(h):
+		for x in range(src.get_width()):
+			var c := src.get_pixel(x, y)
+			var m := 1.0
+			if y == h - 1:
+				m = 0.90 if (x * 31 + 17) % 3 != 0 else 1.0    # 底缘 2/3 像素压暗（dash断线）
+			elif y == 0:
+				m = 1.05 if (x * 17 + 7) % 4 == 0 else 1.0     # 顶缘 1/4 像素提亮（碎光点）
+			out.set_pixel(x, y, Color(minf(c.r * m, 1.0), minf(c.g * m, 1.0), minf(c.b * m, 1.0), c.a))
 	return out
 
 func _save_tile(img: Image, tile_name: String):

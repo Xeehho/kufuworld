@@ -80,6 +80,10 @@ func _build_visual():
 	anim.animation = "idle"
 	anim.play("idle")
 	anim.offset = Vector2(0, -15)   # 32x32帧脚线对齐节点原点（与NPC一致）
+	# 画面改造P2.1：脚底软阴影（与NPC同款，脚线=原点）
+	var shadow := TextureGen.make_shadow_sprite(22.0, 0.28)
+	shadow.position = Vector2(0, 1)
+	add_child(shadow)
 	add_child(anim)
 
 func _build_frames(prefix: String) -> SpriteFrames:

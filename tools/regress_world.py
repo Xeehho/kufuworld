@@ -46,6 +46,8 @@ def main():
         with open(pg, encoding="utf-8") as f:
             cur = f.read()
         cur = cur.replace("\n" + MARKER, "").replace(MARKER, "")
+        # 补丁插入残留的空行清掉（否则每次回归留下+1空行脏diff，与run_w8_shots.py同款修复）
+        cur = cur.replace("[autoload]\n\n\n\n", "[autoload]\n\n").replace("[autoload]\n\n\n", "[autoload]\n\n")
         with open(pg, "w", encoding="utf-8") as f:
             f.write(cur)
 

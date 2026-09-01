@@ -74,7 +74,6 @@ const TREE_SHEETS := {
 	9: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_02/Size_03.png", "cell": Vector2i(48, 80)},   # 竹/细高树 3x2=6变体
 }
 var _tree_sheet_cache: Dictionary = {}
-var _tree_shadow_tex: ImageTexture = null
 
 func _get_tree_sheet_texture(tid: int) -> Texture2D:
 	if _tree_sheet_cache.has(tid):
@@ -83,22 +82,9 @@ func _get_tree_sheet_texture(tid: int) -> Texture2D:
 	_tree_sheet_cache[tid] = tex
 	return tex
 
-# Phase B-3：树底椭圆软阴影（径向衰减白椭圆，modulate压黑半透明），提升落地感
+# Phase B-3：树底椭圆软阴影（画面改造P2起逻辑收口到TextureGen.get_shadow_texture全场景共享）
 func _get_tree_shadow_texture() -> ImageTexture:
-	if _tree_shadow_tex != null:
-		return _tree_shadow_tex
-	var img = Image.create(48, 20, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	for x in range(48):
-		for y in range(20):
-			var dx = (x - 23.5) / 23.5
-			var dy = (y - 9.5) / 9.5
-			var d = sqrt(dx * dx + dy * dy)
-			if d < 1.0:
-				var a := clampf(1.0 - d, 0.0, 1.0)
-				img.set_pixel(x, y, Color(1, 1, 1, pow(a, 1.35)))
-	_tree_shadow_tex = ImageTexture.create_from_image(img)
-	return _tree_shadow_tex
+	return TextureGen.get_shadow_texture()
 
 func _tree_grid(tid: int) -> Vector2i:
 	"""树表真实网格列×行（Phase G2连通分量实测，供变体索引取模）"""

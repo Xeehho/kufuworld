@@ -120,6 +120,10 @@ func _ready():
 	attack_indicator.visible = false
 	_setup_meditate_particles()   # 打坐吐纳内力粒子
 	_setup_meditate_ui()          # 打坐进度盘（内力/修炼双条）
+	# 画面改造P2.1：脚底软阴影（帧脚线在中心下16px，影垫脚跟；入tree_shadow组随日照强弱）
+	var shadow := TextureGen.make_shadow_sprite(24.0, 0.30)
+	shadow.position = Vector2(0, 14)
+	add_child(shadow)
 	# 碰撞分层表（地形/建筑StaticBody=层1）：玩家=层2，NPC=层4，敌人=层8
 	# 玩家mask=1|4|8：被NPC/敌人挡住（空气墙）；NPC/敌人mask只含层1→
 	# 它们做重叠分离时不会把玩家算进去，玩家位置绝不被实体改变

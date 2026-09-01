@@ -15,7 +15,7 @@ var weather_duration: float = 0.0
 var day_colors: Dictionary = {}
 var night_color: Color = Color(0.40, 0.46, 0.72, 1.0)   # Phase D：更沉的蓝夜仍保可读性
 var dawn_color: Color = Color(0.84, 0.64, 0.56, 1.0)    # 晨雾暖粉
-var noon_color: Color = Color(1.0, 0.97, 0.90, 1.0)
+var noon_color: Color = Color(1.0, 0.955, 0.86, 1.0)    # 画面改造P2.5：正午微暖（星露谷式暖阳），不再接近纯白
 var dusk_color: Color = Color(0.86, 0.55, 0.42, 1.0)    # 落日暖橙
 # Phase D 天气对光照的调制（亮度乘数+色偏），经current_light平滑承接
 const WEATHER_LIGHT := {

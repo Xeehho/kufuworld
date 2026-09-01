@@ -56,6 +56,10 @@ func place_station(type_str: String, pos: Vector2) -> Node2D:
 		var h := spr.texture.get_height()
 		spr.offset = Vector2(0, -h * 0.5 + 6)   # 底缘落在节点原点附近
 		node.add_child(spr)
+	# 画面改造P2.2：站台脚底软阴影（底缘+6对齐，影垫站台脚下）
+	var shadow := TextureGen.make_shadow_sprite(26.0, 0.26)
+	shadow.position = Vector2(0, 4)
+	node.add_child(shadow)
 	get_parent().add_child(node)
 	print("[Station] 放置 %s @ %s" % [type_str, pos])
 	return node
