@@ -678,6 +678,70 @@ static func _fill_logs(img: Image, x0: int, x1: int, y0: int, h: int, logw: Imag
 		for y in range(y0, mini(y0 + h, img.get_height())):
 			img.set_pixel(x, y, logw.get_pixel((x + seed_off) % 16, (y + 3) % 16))
 
+# ============ W5 石拱桥 prop（规划 §5.2：可通行语义仍是 tile 17，外观由 prop 承担） ============
+# 灰白条石桥面+两侧栏板望柱+桥端石阶+拱腹阴影带；按 (宽格,高格,方向) 缓存，任意尺寸生成。
+static var _bridge_tex_cache: Dictionary = {}
+
+static func get_bridge_texture(w_tiles: int, h_tiles: int, horizontal: bool) -> Texture2D:
+	var key := "%d_%d_%s" % [w_tiles, h_tiles, "h" if horizontal else "v"]
+	if _bridge_tex_cache.has(key):
+		return _bridge_tex_cache[key]
+	var tex := ImageTexture.create_from_image(_bridge_stone(w_tiles * 16, h_tiles * 16, horizontal))
+	_bridge_tex_cache[key] = tex
+	return tex
+
+static func _bridge_stone(W: int, H: int, horizontal: bool) -> Image:
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	var deck := Color(0.63, 0.61, 0.57)
+	var deck_d := Color(0.53, 0.51, 0.47)
+	var rail := Color(0.36, 0.35, 0.33)
+	var post := Color(0.82, 0.81, 0.78)
+	var step_c := Color(0.57, 0.55, 0.51)
+	var L := W if horizontal else H        # 沿路方向（桥长，含两端石阶）
+	var Wd := H if horizontal else W       # 横跨路的方向（桥宽）
+	for y in range(H):
+		for x in range(W):
+			var u := x if horizontal else y
+			var v := y if horizontal else x
+			# 条石砌块：沿路 8px 一缝、横跨 6px 一缝，异或哈希微明度（§8 噪声规范）
+			var brick := ((u / 8) ^ (v / 6)) % 2 == 0
+			var hsh := absi((u * 73856093) ^ (v * 19349663)) % 997
+			var col := (deck if brick else deck_d) * (0.94 + float(hsh % 7) * 0.02)
+			# 拱冠提亮/缘石压暗（横跨中央亮）
+			var vc := absf(float(v) - float(Wd - 1) * 0.5) / (float(Wd) * 0.5)
+			col *= 1.06 - 0.18 * vc
+			# 桥端石阶（两端各 6px，三阶渐暗）
+			if u < 6:
+				col = step_c * (1.0 - float(6 - u) * 0.05)
+			elif u >= L - 6:
+				col = step_c * (1.0 - float(u - (L - 7)) * 0.05)
+			# 拱腹阴影弧带（两端石阶内侧 4px，弧形明暗暗示拱起）
+			elif (u >= 6 and u < 10) or (u >= L - 10 and u < L - 6):
+				col *= 0.90 - 0.07 * vc
+			img.set_pixel(x, y, col)
+	# 两侧栏板 3px + 望柱（沿长轴每 8px 一柱头）
+	if horizontal:
+		for x in range(W):
+			for e in [0, 1]:
+				var ry: int = e * (H - 3)
+				for k in range(3):
+					img.set_pixel(x, ry + k, rail.darkened(0.0 if k == 1 else 0.08))
+				if x % 8 == 3:
+					img.set_pixel(x, ry + 1, post)
+					if (x / 8) % 2 == 0:
+						img.set_pixel(x, ry, post.darkened(0.12))
+	else:
+		for y in range(H):
+			for e in [0, 1]:
+				var rx: int = e * (W - 3)
+				for k in range(3):
+					img.set_pixel(rx + k, y, rail.darkened(0.0 if k == 1 else 0.08))
+				if y % 8 == 3:
+					img.set_pixel(rx + 1, y, post)
+					if (y / 8) % 2 == 0:
+						img.set_pixel(rx, y, post.darkened(0.12))
+	return img
+
 # ============ 大建筑中式化重制（2026-08-31） ============
 # 凹曲屋面+飞檐翘角（幂曲线轮廓）+ 竖向瓦垄 + 檐口瓦当 + 正脊鸱吻
 # + 白灰墙 + 朱红/主题色梁柱角柱 + 檐下斗拱带 + 格扇窗 + 门钉板门 + 匾额 + 石台基台阶

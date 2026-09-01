@@ -355,6 +355,49 @@ func _ready():
 				"in_settlement": wg.is_in_settlement(camp["center"])})
 	data["mob"] = {"camps": camps, "story_camps": story_camps_n}
 
+	# ---- 10) W5 石拱桥：17 段 prop 覆盖审计 + 官道桥（17 全在 override_cells，直接遍历） ----
+	var bprops: Array = wg.get("bridge_props") if wg.get("bridge_props") != null else []
+	var b17_total := 0
+	var b17_covered := 0
+	var b17_single := 0
+	for cell in wg.override_cells:
+		if int(wg.override_cells[cell]) != 17:
+			continue
+		b17_total += 1
+		var joined := false
+		for d in dirs:
+			if int(wg.override_cells.get(cell + d, -1)) == 17:
+				joined = true
+				break
+		if not joined:
+			b17_single += 1   # 单格 17（修补转角）豁免 prop
+			b17_covered += 1
+			continue
+		for bp in bprops:
+			var rr: Array = bp["run_rect"]
+			if cell.x >= int(rr[0]) and cell.x < int(rr[0]) + int(rr[2]) \
+					and cell.y >= int(rr[1]) and cell.y < int(rr[1]) + int(rr[3]):
+				b17_covered += 1
+				break
+	var bridges_out: Array = []
+	for bp in bprops:
+		var water_side := false
+		for cell2 in bp["cells"]:
+			for d in dirs:
+				if int(wg.override_cells.get(cell2 + d, -1)) == 5:
+					water_side = true
+					break
+			if water_side:
+				break
+		bridges_out.append({"axis": str(bp["axis"]), "run": bp["run_rect"], "water_side": water_side})
+	var roads_out: Array = []
+	var roads_raw: Array = wg.get("official_roads") if wg.get("official_roads") != null else []
+	for rd in roads_raw:
+		roads_out.append({"gate": str(rd["gate"]), "len": rd["cells"].size(),
+			"bridge_cells": rd["bridge_cells"].size()})
+	data["bridge"] = {"props": bridges_out, "t17_total": b17_total, "t17_covered": b17_covered,
+		"t17_single": b17_single, "roads": roads_out}
+
 	_write(data)
 	_log("[RegressProbe] data written: zones=%d adj_pairs=%d reach=%d" % [zones.size(), adj.size(), spawn_reach.size()])
 	await _wait(0.3)

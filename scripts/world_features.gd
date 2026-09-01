@@ -11,7 +11,7 @@ const FLAG := {
 	"town_v2": true,             # W4 村镇模板 v2（一圈一团一水）✅ 2026-09-01 开启
 	"npc_static": true,          # W4 NPC 驻留制（岗job + 驻留，读 door_px 落位）✅ 2026-09-01 开启
 	"quests_disabled": true,     # W4 起冻结任务系统（W8 重启时逐项改回 false）✅ 2026-09-01 接线
-	"bridge_prop": false,        # W5 石拱桥 prop（可通行语义与外观分离）
+	"bridge_prop": true,         # W5 石拱桥 prop（可通行语义与外观分离）✅ 2026-09-01 开启
 	"walkability_policy": false, # W6 可行域政策（SETTLEMENT/ROAD 零碰撞物+走廊连通）
 }
 

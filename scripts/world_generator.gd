@@ -174,6 +174,8 @@ func _ready():
 	_setup_poi_templates()
 	_generate_rivers()
 	_generate_city()	# 青石城：先于城镇/POI写入override，后续选址自动避让
+	if WorldFeatures.FLAG["bridge_prop"]:
+		_generate_official_roads()	# W5：四门官道（宽2，过河段=17桥语义），镇/POI选址自动避让占格
 	# 顺序关键：先定位安全出生点，再以出生点为源做可达性洪泛，
 	# 之后城镇/POI选址必须落在可达区内（修复少林寺入口在海上等问题）
 	_relocate_player_to_safe_spawn()
@@ -184,6 +186,8 @@ func _ready():
 	_scatter_pois()
 	_apply_poi_terrain()
 	_ensure_connectivity()	# Phase F6: 打通所有封闭区域（石中沙地等孤岛开路）
+	if WorldFeatures.FLAG["bridge_prop"]:
+		_place_bridge_props()	# W5：连通性收尾后统一扫描17段→石拱桥prop（纯视觉z1）
 	_compute_reachable_region()	# 刷新对外可达查询（NPC/营地选址用最新数据）
 	# 初始加载玩家周围的chunk
 	_initial_load()
@@ -590,6 +594,170 @@ func _bridge_along(path: Array, water_w: int, period: int):
 			override_cells[c + perp * w] = 17
 		override_cells[c + perp * (-half - 1)] = 1   # 两岸接路
 		override_cells[c + perp * (water_w - half)] = 1
+
+# ============ W5 四门官道 + 石拱桥（docs/武侠世界重构规划 §5.2，FLAG bridge_prop） ============
+# 官道：四门外宽 2 path 直线外铺（≤48 格），过河段写 17（桥语义），遇崖/建筑占格/边界即停。
+# 石拱桥 prop：_ensure_connectivity 收尾后统一扫描 17 连通块（≥2 格）→ 矩形判定 → prop
+#（桥端石阶外扩 1 格落在岸上；z=1 垫在实体 z2 之下、TileMap z0 之上——World y_sort 下
+#  北半球桥若 z=0 会被 TileMap(y=0) 盖住，z1 是关键）。
+var official_roads: Array = []   # [{gate, cells, bridge_cells}]
+var bridge_props: Array = []     # [{cells, axis, run_rect:[x,y,w,h], prop_rect:[...]}]
+
+func _generate_official_roads():
+	official_roads.clear()
+	var h := city_half
+	var dirs := {"n": Vector2i(0, -1), "s": Vector2i(0, 1), "w": Vector2i(-1, 0), "e": Vector2i(1, 0)}
+	for g in dirs:
+		var d: Vector2i = dirs[g]
+		var perp := Vector2i(-d.y, d.x)
+		var cells: Array = []
+		var bridge_cells: Array = []
+		for step in range(1, 49):
+			var stopped := false
+			for w in [-1, 0]:   # 宽 2：门中缝两侧（gap 4 格中线）
+				var c: Vector2i = Vector2i(CITY_POS.x, CITY_POS.y) + d * (h + step) + perp * w
+				if Vector2(c.x, c.y).length() > WORLD_RADIUS - 10:
+					stopped = true
+					break
+				var tid := get_tile_id(c.x, c.y)
+				if tid == 5:
+					override_cells[c] = 17   # 过河=桥语义（prop 由 _place_bridge_props 统一铺）
+					bridge_cells.append(c)
+				elif int(override_cells.get(c, -1)) == 39:
+					stopped = true   # 建筑/镇体占格即停
+					break
+				elif tid in [3, 7]:
+					# 官道穿崖（山口语义，实测城周环山曾秒断三向官道）——材质同 _carve_cell 纪律
+					override_cells[c] = _palette_at(c.x, c.y)["channel"]
+				elif int(override_cells.get(c, -1)) != 1 and tid != 17:
+					override_cells[c] = _palette_at(c.x, c.y)["path"]
+				cells.append(c)
+			if stopped:
+				break
+		official_roads.append({"gate": g, "cells": cells, "bridge_cells": bridge_cells})
+		print("[WorldGen] 官道[%s] len=%d 过河格=%d" % [g, cells.size(), bridge_cells.size()])
+
+func _place_bridge_props():
+	bridge_props.clear()
+	var R := int(WORLD_RADIUS)
+	var visited := {}
+	var naked_singles := 0   # 单格 17（修补转角/擦边）——保留裸 17 不做 prop
+	for y in range(-R, R + 1):
+		for x in range(-R, R + 1):
+			var c := Vector2i(x, y)
+			if visited.has(c) or get_tile_id(x, y) != 17:
+				continue
+			# 4 连通洪泛整段桥
+			var comp := {c: true}
+			var q: Array = [c]
+			var head := 0
+			visited[c] = true
+			while head < q.size():
+				var cur: Vector2i = q[head]
+				head += 1
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var n2: Vector2i = cur + d
+					if visited.has(n2) or comp.has(n2) or get_tile_id(n2.x, n2.y) != 17:
+						continue
+					comp[n2] = true
+					visited[n2] = true
+					q.append(n2)
+			var cells: Array = comp.keys()
+			if cells.size() < 2:
+				naked_singles += 1
+				continue
+			var minc: Vector2i = cells[0]
+			var maxc: Vector2i = cells[0]
+			for cc in cells:
+				minc = Vector2i(mini(minc.x, cc.x), mini(minc.y, cc.y))
+				maxc = Vector2i(maxi(maxc.x, cc.x), maxi(maxc.y, cc.y))
+			var rect := Rect2i(minc, maxc - minc + Vector2i.ONE)
+			if cells.size() == rect.size.x * rect.size.y:
+				# 矩形桥段：整段一座 prop，长边=跨河方向
+				_make_bridge_prop(cells, minc, rect.size, rect.size.x >= rect.size.y)
+				continue
+			# L 形（修补桥转弯）：分解为直段 prop——先横后纵（剩余格）
+			var remaining := {}
+			for cc2 in cells:
+				remaining[cc2] = true
+			for axis in ["h", "v"]:
+				var dv: Vector2i = Vector2i(1, 0) if axis == "h" else Vector2i(0, 1)
+				for cc2 in cells:
+					if not remaining.has(cc2):
+						continue
+					if not remaining.has(cc2 + dv) and not remaining.has(cc2 - dv):
+						continue
+					var a0: int = cc2.x if axis == "h" else cc2.y
+					var a1: int = a0
+					while remaining.has(cc2 + (Vector2i(a0 - 1 - cc2.x, 0) if axis == "h" else Vector2i(0, a0 - 1 - cc2.y))):
+						a0 -= 1
+					while remaining.has(cc2 + (Vector2i(a1 + 1 - cc2.x, 0) if axis == "h" else Vector2i(0, a1 + 1 - cc2.y))):
+						a1 += 1
+					if a1 - a0 + 1 < 2:
+						continue
+					var seg: Array = []
+					var seg_min := Vector2i(a0, cc2.y) if axis == "h" else Vector2i(cc2.x, a0)
+					for t in range(a0, a1 + 1):
+						var sc: Vector2i = cc2 + (Vector2i(t - cc2.x, 0) if axis == "h" else Vector2i(0, t - cc2.y))
+						remaining.erase(sc)
+						seg.append(sc)
+					var seg_size := Vector2i(a1 - a0 + 1, 1) if axis == "h" else Vector2i(1, a1 - a0 + 1)
+					_make_bridge_prop(seg, seg_min, seg_size, axis == "h")
+			# 兜底：两轮直段后仍剩余（阶梯形）——按原连通块延伸（允许与既有 prop 重叠，
+			# 同贴图叠加视觉无痕；审计按 rect 覆盖判定）
+			for cc2 in cells:
+				if not remaining.has(cc2):
+					continue
+				var horizontal3: bool = comp.has(cc2 + Vector2i(1, 0)) or comp.has(cc2 + Vector2i(-1, 0))
+				var dv3: Vector2i = Vector2i(1, 0) if horizontal3 else Vector2i(0, 1)
+				var a3s := 0
+				var a3e := 0
+				while comp.has(cc2 + dv3 * (a3s - 1)):
+					a3s -= 1
+				while comp.has(cc2 + dv3 * (a3e + 1)):
+					a3e += 1
+				var seg3: Array = []
+				var seg3_min: Vector2i = cc2 + dv3 * a3s
+				for t in range(a3s, a3e + 1):
+					seg3.append(cc2 + dv3 * t)
+				var size3 := Vector2i(a3e - a3s + 1, 1) if horizontal3 else Vector2i(1, a3e - a3s + 1)
+				_make_bridge_prop(seg3, seg3_min, size3, horizontal3)
+				for ccc in seg3:
+					remaining.erase(ccc)
+	print("[WorldGen] 石拱桥 prop: %d 座（裸单格 %d）" % [bridge_props.size(), naked_singles])
+
+func _make_bridge_prop(cells: Array, run_min: Vector2i, run_size: Vector2i, horizontal: bool):
+	"""prop 覆盖 = 桥段沿长轴两端各外扩 1 格（桥端石阶落岸上）；宽=桥段实际宽。
+	z=1：TileMap(z0) 之上、实体(z2) 之下——World y_sort 下北半球桥若 z=0 会被 TileMap(y=0) 盖住"""
+	var pr: Rect2i
+	if horizontal:
+		pr = Rect2i(run_min + Vector2i(-1, 0), run_size + Vector2i(2, 0))
+	else:
+		pr = Rect2i(run_min + Vector2i(0, -1), run_size + Vector2i(0, 2))
+	var spr := Sprite2D.new()
+	spr.texture = TextureGen.get_bridge_texture(pr.size.x, pr.size.y, horizontal)
+	spr.centered = false
+	spr.position = Vector2(pr.position.x * 16.0, pr.position.y * 16.0)
+	spr.z_index = 1
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	spr.add_to_group("bridge_prop")
+	get_parent().add_child(spr)
+	bridge_props.append({"cells": cells, "axis": "h" if horizontal else "v",
+		"run_rect": [run_min.x, run_min.y, run_size.x, run_size.y],
+		"prop_rect": [pr.position.x, pr.position.y, pr.size.x, pr.size.y]})
+
+## W5：官道走廊避让（POI 铺地半径可达 15，bbox 外扩 2 防贴脸）
+func _near_official_road(wx: int, wy: int, margin: int = 2) -> bool:
+	for rd in official_roads:
+		var cells: Array = rd["cells"]
+		if cells.is_empty():
+			continue
+		var c0: Vector2i = cells[0]
+		var c1: Vector2i = cells[cells.size() - 1]
+		if wx >= mini(c0.x, c1.x) - margin and wx <= maxi(c0.x, c1.x) + margin \
+				and wy >= mini(c0.y, c1.y) - margin and wy <= maxi(c0.y, c1.y) + margin:
+			return true
+	return false
 
 func _stamp_river(path: Array, water_w: int):
 	"""沿中心线垂直流向铺水（干流4格/支流2格），岸沙1格只写空格；先水后沙"""
@@ -2691,6 +2859,9 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 				break
 		if sect_block:
 			continue
+		# W5 避让官道走廊（POI 铺地半径可达 15 → margin 16，防 POI 压断官道）
+		if _near_official_road(wx, wy, 16):
+			continue
 		# 检查是否在世界边界内
 		if sqrt(wx * wx + wy * wy) > WORLD_RADIUS - 10:
 			continue
@@ -2726,6 +2897,8 @@ func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
 			if not _is_reachable_cell(wx, wy):
 				continue
 			if _near_sect_territory(wx, wy):
+				continue
+			if _near_official_road(wx, wy, 16):
 				continue
 			var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 			if _too_close_to_other_poi(pos, tpl.min_distance):

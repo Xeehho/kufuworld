@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W4"
+CURRENT_STAGE = "W5"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
@@ -201,6 +201,23 @@ def main():
     for c in m.get("camps", []):
         check("mob", f"camp_{c['name']}_wild", c["in_settlement"] is False,
               f"in_settlement={c['in_settlement']}", since="W4")
+
+    # ---------- 断言组：bridge（W5 石拱桥+官道） ----------
+    b = data.get("bridge", {})
+    props = b.get("props", [])
+    check("bridge", "bridge_props_count", len(props) >= 8, f"props={len(props)}", since="W5")
+    check("bridge", "t17_all_proped", b.get("t17_covered", 0) == b.get("t17_total", 0),
+          f"covered={b.get('t17_covered', 0)}/{b.get('t17_total', 0)} "
+          f"(single={b.get('t17_single', 0)} 豁免)", since="W5")
+    bad_water = [p["run"] for p in props if not p["water_side"]]
+    check("bridge", "bridge_side_water", len(bad_water) == 0, f"bad={bad_water[:3]}", since="W5")
+    roads = b.get("roads", [])
+    ok_roads = [r for r in roads if r["len"] >= 20]
+    check("bridge", "official_roads_exist", len(ok_roads) == 4,
+          f"roads={[(r['gate'], r['len']) for r in roads]}", since="W5")
+    crossed = [r["gate"] for r in roads if r["bridge_cells"] > 0]
+    check("bridge", "official_road_river_bridged", len(crossed) >= 1,
+          f"crossed_gates={crossed}", since="W5")
 
     # ---------- 报告 ----------
     STAGE_ORDER = ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"]
