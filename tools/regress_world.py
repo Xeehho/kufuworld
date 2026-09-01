@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W6"
+CURRENT_STAGE = "W7"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))

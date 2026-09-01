@@ -174,26 +174,20 @@ func _ready():
 	_setup_poi_templates()
 	_generate_rivers()
 	_generate_city()	# 青石城：先于城镇/POI写入override，后续选址自动避让
-	if WorldFeatures.FLAG["bridge_prop"]:
-		_generate_official_roads()	# W5：四门官道（宽2，过河段=17桥语义），镇/POI选址自动避让占格
+	_generate_official_roads()	# W5：四门官道（宽2，过河段=17桥语义），镇/POI选址自动避让占格
 	# 顺序关键：先定位安全出生点，再以出生点为源做可达性洪泛，
 	# 之后城镇/POI选址必须落在可达区内（修复少林寺入口在海上等问题）
 	_relocate_player_to_safe_spawn()
 	_compute_reachable_region()
 	_generate_towns()
-	if WorldFeatures.FLAG["sect_territories"]:
-		_generate_sect_territories()
-	if WorldFeatures.FLAG["walkability_policy"]:
-		_build_wild_rock_clusters()	# W6：散石聚簇表（desert/snow 装饰层自此查表）
+	_generate_sect_territories()
+	_build_wild_rock_clusters()	# W6：散石聚簇表（desert/snow 装饰层自此查表）
 	_scatter_pois()
 	_apply_poi_terrain()
-	if WorldFeatures.FLAG["bridge_prop"]:
-		_restore_official_roads()	# W5/W6：POI 铺地可能覆盖官道格——按登记 cells 重放
+	_restore_official_roads()	# W5/W6：POI 铺地可能覆盖官道格——按登记 cells 重放
 	_ensure_connectivity()	# Phase F6: 打通所有封闭区域（石中沙地等孤岛开路）
-	if WorldFeatures.FLAG["walkability_policy"]:
-		_ensure_corridor_width()	# W6：走廊宽度感知（窄喉口袋 2 宽开路，限量）
-	if WorldFeatures.FLAG["bridge_prop"]:
-		_place_bridge_props()	# W5：连通性收尾后统一扫描17段→石拱桥prop（纯视觉z1）
+	_ensure_corridor_width()	# W6：走廊宽度感知（窄喉口袋 2 宽开路，限量）
+	_place_bridge_props()	# W5：连通性收尾后统一扫描17段→石拱桥prop（纯视觉z1）
 	_compute_reachable_region()	# 刷新对外可达查询（NPC/营地选址用最新数据）
 	# 初始加载玩家周围的chunk
 	_initial_load()
@@ -358,7 +352,7 @@ func _generate_rivers():
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 3000
 	# 河流先于城生成：斥力/湖泊避城须预知 v2 城规模（half=30）
-	city_half = 30 if WorldFeatures.FLAG["tang_city"] else CITY_HALF
+	city_half = WorldData.CITY_V2["half"]
 	_generate_lakes(rng)
 	# 干流 2~3 条：源=高山，下坡游走终湖/海
 	var mains := _find_river_sources(rng, 3, 60.0, [])
@@ -838,20 +832,14 @@ func _build_water_humid_boost():
 const TILE_CITY_WALL := 40
 const TILE_WARD_WALL := 43            # W2 唐制坊墙（41/42 已被雪田/雪径占用）
 const CITY_POS := Vector2i(75, 0)     # 城中心（瓦片坐标）：出生点正东
-const CITY_HALF := 22                 # legacy 城墙半边长（v2 唐制城=30，用 city_half 运行时变量）
 
-var city_half: int = 22               # 运行时城半边长（_generate_city_v2 置 30，河斥力/聚落判定/探针读它）
+var city_half: int = 30               # 运行时城半边长（唐制城=30，河斥力/聚落判定/探针读它）
 
 var city_info: Dictionary = {}        # v2: {center_px, gates, gate_px, wards, markets, buildings:{key:{anchor,fp,door_px,job}}}
 
-func _generate_city():
-	if WorldFeatures.FLAG["tang_city"]:
-		_generate_city_v2()
-	else:
-		_generate_city_legacy()
-
 ## W2 唐制城池（WorldData.CITY_V2 蓝图施工）：市坊分离/棋盘路网/官署居北/寺观居东北/东西两市
-func _generate_city_v2():
+## W7：legacy 城路径已删，本函数为唯一城生成路径
+func _generate_city():
 	var cx := CITY_POS.x
 	var cy := CITY_POS.y
 	var h: int = WorldData.CITY_V2["half"]
@@ -1040,111 +1028,12 @@ func _connect_door_to_road(door: Vector2i, limit: Rect2i):
 			override_cells[p] = road_id
 		c2 = p
 
-func _generate_city_legacy():
-	var cx := CITY_POS.x
-	var cy := CITY_POS.y
-	var h := CITY_HALF
-	# 1) 城内地坪统一压平（消除山/水/装饰，保证城内棋盘可规划）；地面按群系调色板（雪原建城则城内为雪面）
-	# 2026-08-31：河道保持水面——城市不得阻断河流（与城镇同规）
-	for dx in range(-h + 1, h):
-		for dy in range(-h + 1, h):
-			var cc := Vector2i(cx + dx, cy + dy)
-			if get_tile_id(cc.x, cc.y) == 5:
-				continue
-			override_cells[cc] = _palette_at(cx + dx, cy + dy)["ground"]
-	# 2) 围墙圈 + 四门豁口（3格宽铺路，保证城内外连通）；河道穿墙处留水门（桥面，河从墙下过）
-	for dx in range(-h, h + 1):
-		for dy in range(-h, h + 1):
-			if absi(dx) == h or absi(dy) == h:
-				var wc := Vector2i(cx + dx, cy + dy)
-				override_cells[wc] = (17 if get_tile_id(wc.x, wc.y) == 5 else TILE_CITY_WALL)
-	for g in range(-1, 2):
-		var gn := Vector2i(cx + g, cy - h)
-		var gs := Vector2i(cx + g, cy + h)
-		var gw := Vector2i(cx - h, cy + g)
-		var ge := Vector2i(cx + h, cy + g)
-		if get_tile_id(gn.x, gn.y) != 5: override_cells[gn] = _palette_at(gn.x, gn.y)["path"]
-		if get_tile_id(gs.x, gs.y) != 5: override_cells[gs] = _palette_at(gs.x, gs.y)["path"]
-		if get_tile_id(gw.x, gw.y) != 5: override_cells[gw] = _palette_at(gw.x, gw.y)["path"]
-		if get_tile_id(ge.x, ge.y) != 5: override_cells[ge] = _palette_at(ge.x, ge.y)["path"]
-	# 3) 十字主街 + 中央石板广场；主街过河处铺桥保连通
-	for d in range(-h, h + 1):
-		var s1 := Vector2i(cx + d, cy)
-		var s2 := Vector2i(cx, cy + d)
-		override_cells[s1] = (17 if get_tile_id(s1.x, s1.y) == 5 else _palette_at(cx + d, cy)["path"])
-		override_cells[s2] = (17 if get_tile_id(s2.x, s2.y) == 5 else _palette_at(cx, cy + d)["path"])
-	for dx in range(-3, 4):
-		for dy in range(-3, 4):
-			if get_tile_id(cx + dx, cy + dy) != 5:
-				override_cells[Vector2i(cx + dx, cy + dy)] = 35
-	# 4) 功能建筑（规划化摆放：府衙镇北、酒楼居东、药坊居西、市肆环广场、民居四角）
-	city_info = {"center_px": Vector2(cx * 16.0 + 8.0, cy * 16.0 + 8.0), "buildings": {}, "gate_px": {
-		"n": Vector2(cx * 16.0 + 8.0, (cy - h + 2) * 16.0 + 8.0),
-		"s": Vector2(cx * 16.0 + 8.0, (cy + h - 2) * 16.0 + 8.0),
-		"w": Vector2((cx - h + 2) * 16.0 + 8.0, cy * 16.0 + 8.0),
-		"e": Vector2((cx + h - 2) * 16.0 + 8.0, cy * 16.0 + 8.0),
-	}}
-	var bdefs := {
-		"yamen":      ["yamen",      Vector2i(cx - 5, cy - 20)],   # 府衙：北端镇守
-		"tavern":     ["tavern",     Vector2i(cx + 9, cy - 11)],   # 酒楼：东北闹市
-		"apothecary": ["apothecary", Vector2i(cx - 16, cy - 11)],  # 药坊：西北
-		"smithy":     ["shop_a",     Vector2i(cx - 17, cy + 5)],   # 铁匠铺：西南作坊区
-		"cloth":      ["shop_b",     Vector2i(cx + 10, cy + 6)],   # 布庄：东南
-		"grocery":    ["shop_a",     Vector2i(cx - 13, cy - 17)],  # 杂货铺：西北里巷
-		"house_ne":   ["house",      Vector2i(cx + 7, cy - 18)],   # 民居：东北
-		"house_se":   ["house",      Vector2i(cx + 13, cy + 12)],  # 民居：东南
-		"house_w":    ["hut",        Vector2i(cx - 10, cy + 12)],  # 民居：西南
-	}
-	for key in bdefs:
-		var kind: String = bdefs[key][0]
-		var a: Vector2i = bdefs[key][1]
-		_force_place_building_prop(kind, a)
-		var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
-		var door := Vector2i(a.x + int(fp.x / 2.0), a.y + fp.y)
-		city_info["buildings"][key] = {"anchor": a, "fp": fp,
-			"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0)}
-		_carve_door_path(a, fp, cy)   # 门前小径连主街，出门即达路网
-	# 5) 市集：主街两侧四个市摊 + 水井（登记进buildings供NPC站位/日程）
-	var stalls := {
-		"stall_w1": ["stall_red",  Vector2i(cx - 8, cy + 1)],
-		"stall_w2": ["stall_red",  Vector2i(cx - 8, cy - 3)],
-		"stall_e1": ["stall_teal", Vector2i(cx + 8, cy + 1)],
-		"stall_e2": ["stall_teal", Vector2i(cx + 8, cy - 3)],
-		"well":     ["well",       Vector2i(cx - 5, cy - 5)],
-	}
-	for key in stalls:
-		var kind2: String = stalls[key][0]
-		var a2: Vector2i = stalls[key][1]
-		_force_place_building_prop(kind2, a2)
-		city_info["buildings"][key] = {"anchor": a2, "fp": Vector2i(1, 1),
-			"door_px": Vector2((a2.x + 0.5) * 16.0, (a2.y + 1.5) * 16.0)}
-	# 6) 城名标（北门上方，世界空间小字）
-	var lbl := Label.new()
-	lbl.text = "· 青 石 城 ·"
-	lbl.add_theme_font_size_override("font_size", 5)
-	lbl.add_theme_color_override("font_color", Color(1.0, 0.92, 0.6))
-	lbl.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.04))
-	lbl.add_theme_constant_override("outline_size", 2)
-	lbl.z_index = 20
-	lbl.position = Vector2(cx * 16.0 + 8.0 - 26.0, (cy - h) * 16.0 - 12.0)
-	get_parent().add_child(lbl)
-	# 7) 登记净空区（城墙外余量圈不生成树木/岩石）
-	_register_town_clearance(cx, cy, h)
-	print("[WorldGen] City[青石城] @(%d,%d) half=%d buildings=%d" % [cx, cy, h, city_info["buildings"].size()])
-
 func get_city_info() -> Dictionary:
 	return city_info
 
 # ============ 城镇系统 ============
 
-# ---- Phase G3: 城镇模板——三型布局（主建筑/民居组合/农田数量/中心广场）----
-const TOWN_TEMPLATES := [
-	{"id": "village",     "main": "house",  "extras": ["hut", "hut", "house"],   "farms_min": 2, "farms_max": 2, "plaza": false},
-	{"id": "market_town", "main": "manor",  "extras": ["house", "house", "hut"], "farms_min": 2, "farms_max": 3, "plaza": true},
-	{"id": "temple_town", "main": "temple", "extras": ["house", "hut"],          "farms_min": 1, "farms_max": 2, "plaza": true},
-]
-
-# ---- Phase G3: 城镇净空区——城镇周边(half+余量)内不生成树木/岩石，杜绝树冠压街压田 ----
+# ---- 城镇净空区——城镇周边(half+余量)内不生成树木/岩石，杜绝树冠压街压田 ----
 var _town_clear_rects: Array[Rect2i] = []
 const TOWN_CLEAR_MARGIN := 3   # 净空外扩格数（树冠悬伸+呼吸空间）
 
@@ -1158,84 +1047,10 @@ func _register_town_clearance(cx: int, cy: int, half: int):
 	var m: int = half + TOWN_CLEAR_MARGIN
 	_town_clear_rects.append(Rect2i(cx - m, cy - m, 2 * m + 1, 2 * m + 1))
 
-func _generate_towns():
-	"""在合适位置生成3-5个城镇区域"""
-	if WorldFeatures.FLAG["town_v2"]:
-		_generate_towns_v2()
-		return
-	var rng = RandomNumberGenerator.new()
-	rng.seed = WORLD_SEED + 4000
-
-	var town_count = rng.randi_range(6, 9)
-	var town_positions: Array = []
-	town_centers.clear()
-
-	for i in range(town_count):
-		var placed = false
-		for _attempt in range(30):
-			var tx = rng.randi_range(-155, 155)
-			var ty = rng.randi_range(-145, 145)
-			var h = get_height(tx, ty)
-			var w = get_humidity(tx, ty)
-
-			# 城镇只在平地（草地）生成
-			if h < -0.15 or h > 0.2:
-				continue
-			if w < -0.3 or w > 0.6:
-				continue
-
-			# 群系约束（2026-08-31）：城镇不落雪原/沙漠/湖心——农田与绿草铺装在寒冷干旱群系违和
-			var bk := _biome_kind(tx, ty)
-			if bk == "snow" or bk == "desert" or bk == "lake":
-				continue
-
-			# 检查与其他城镇的距离
-			var too_close = false
-			for tp in town_positions:
-				if Vector2(tx, ty).distance_to(tp) < 20:
-					too_close = true
-					break
-			if too_close:
-				continue
-
-			# 避让青石城（v2 half=30 + 镇 half 9 + 街道余量）
-			if Vector2(tx, ty).distance_to(Vector2(CITY_POS)) < 46:
-				continue
-
-			# 检查是否在边界内
-			if sqrt(tx * tx + ty * ty) > WORLD_RADIUS - 10:
-				continue
-
-			# 避让玩家出生点（防止城镇建筑/栅栏把出生点围死）
-			if Vector2(tx, ty).distance_to(_spawn_tile()) < 15:
-				continue
-
-			# 可达性校验：城镇中心必须玩家可达（防止城镇落在河对岸/山坳孤岛）
-			if not _is_reachable_cell(tx, ty):
-				continue
-
-			# 不能压河：城镇范围（half最大9+门口小径+余量）内不得有水面——河流必须绕城镇而过
-			if _area_has_water(tx, ty, 12):
-				continue
-
-			town_positions.append(Vector2(tx, ty))
-			town_centers.append(Vector2(tx, ty))
-			_generate_single_town(tx, ty, rng)
-			placed = true
-			break
-
-		if not placed:
-			print("[WorldGen] Could not place town " + str(i))
-
-	print("[WorldGen] Generated " + str(town_positions.size()) + " towns")
-
-# ============ W4 村镇模板 v2（WorldData.TOWN_TEMPLATES_V2，docs/武侠世界重构规划 §4） ============
-# 一圈一团一水：农耕村（环状农带）/ 市镇（主街行肆）/ 渡口村（临河渡亭）。
-# town_info[中心格] = {template, center, half, buildings{key:{kind,anchor,fp,door_px,job}}, ferry_axis?}
-# buildings.key 与 WorldData.NPC_JOBS.building 对齐——NPC 落位唯一来源（禁止 npc_spawner 自算坐标）。
 var town_info: Dictionary = {}
 
-func _generate_towns_v2():
+# W7：legacy 村镇路径（TOWN_TEMPLATES/象限撒点）已删，本函数为唯一村镇生成路径。
+func _generate_towns():
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 4000
 	var town_count := rng.randi_range(6, 9)
@@ -1969,81 +1784,6 @@ func _dump_spawn_diagnostics(origin: Vector2i):
 			line += "#" if tid in collision_tiles else "."
 		lines += "\n[WorldGen]   " + line
 	print("[WorldGen] ASCII map around spawn (#=blocked .=walk):" + lines)
-
-func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
-	"""Phase G3模板化：十字土路+中心广场(可选)+主建筑/环绕民居(按模板)+开阔农田斑块。
-	Phase F5基础上重构为TOWN_TEMPLATES驱动，并登记净空区抑制周边树木。"""
-	var half := rng.randi_range(7, 9)	# 需容纳最大footprint(temple 7x5)+象限余量
-
-	# 十字主路（按群系调色板：雪原城镇=雪径，避免棕土路穿雪）
-	# 2026-08-31：逐格避水——override会覆写基面导致河流被城镇路面截断，河面保持为水
-	for dx in range(-half, half + 1):
-		var rc := Vector2i(cx + dx, cy)
-		if get_tile_id(rc.x, rc.y) == 5:
-			continue
-		override_cells[rc] = _palette_at(rc.x, rc.y)["path"]
-	for dy in range(-half, half + 1):
-		var rc2 := Vector2i(cx, cy + dy)
-		if override_cells.has(rc2) or get_tile_id(rc2.x, rc2.y) == 5:
-			continue
-		override_cells[rc2] = _palette_at(rc2.x, rc2.y)["path"]
-
-	var tpl: Dictionary = TOWN_TEMPLATES[rng.randi() % TOWN_TEMPLATES.size()]
-
-	# 中心广场（市镇/庙宇型）：5x5石板芯（素材包灰石板，demo1城镇质感）；河面不覆
-	if bool(tpl.get("plaza", false)):
-		for dx in range(-2, 3):
-			for dy in range(-2, 3):
-				var pc := Vector2i(cx + dx, cy + dy)
-				if get_tile_id(pc.x, pc.y) == 5:
-					continue
-				override_cells[pc] = 35
-
-	# 主建筑（按模板）+ 环绕民居，四象限轮转分布
-	var quadrants := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
-	var qi := rng.randi() % 4
-	_try_place_town_building(cx, cy, half, quadrants[qi], str(tpl["main"]), rng)
-	var extras: Array = tpl["extras"]
-	for i in range(extras.size()):
-		_try_place_town_building(cx, cy, half, quadrants[(qi + 1 + i) % 4], str(extras[i]), rng)
-
-	# 开阔农田斑块（无栅栏，2x3）
-	# 开阔农田斑块（无栅栏，2x3，数量按模板）——注释保留原F5语义
-	for f in range(rng.randi_range(int(tpl["farms_min"]), int(tpl["farms_max"]))):
-		var fx := rng.randi_range(-half + 1, half - 2)
-		var fy := rng.randi_range(-half + 1, half - 2)
-		var ok := true
-		for dx in range(3):
-			for dy in range(2):
-				var cell := Vector2i(cx + fx + dx, cy + fy + dy)
-				if override_cells.has(cell) or abs(fx + dx) <= 1 or abs(fy + dy) <= 1:
-					ok = false
-				if get_tile_id(cell.x, cell.y) == 5:
-					ok = false   # 农田不得覆写河面
-		if ok:
-			for dx in range(3):
-				for dy in range(2):
-					override_cells[Vector2i(cx + fx + dx, cy + fy + dy)] = _palette_at(cx + fx + dx, cy + fy + dy)["farm"]
-
-	# Phase G3：登记城镇净空区（half+余量），周边格子不再生成树木/岩石
-	_register_town_clearance(cx, cy, half)
-	print("[WorldGen] Town[%s] @(%d,%d) half=%d plaza=%s" % [str(tpl["id"]), cx, cy, half, str(tpl.get("plaza", false))])
-
-func _try_place_town_building(cx: int, cy: int, half: int, quad: Vector2i, kind: String, rng: RandomNumberGenerator) -> bool:
-	"""在象限内随机找合法锚点放置建筑；footprint整体保持在中心十字路>=2格之外"""
-	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
-	var lo_x: int = (cx + 2) if quad.x > 0 else (cx - half)
-	var hi_x: int = (cx + half - fp.x) if quad.x > 0 else (cx - 2 - fp.x + 1)
-	var lo_y: int = (cy + 2) if quad.y > 0 else (cy - half)
-	var hi_y: int = (cy + half - fp.y) if quad.y > 0 else (cy - 2 - fp.y + 1)
-	if hi_x < lo_x or hi_y < lo_y:
-		return false
-	for _attempt in range(24):
-		var a := Vector2i(rng.randi_range(lo_x, hi_x), rng.randi_range(lo_y, hi_y))
-		if _place_building_prop(kind, a):
-			_carve_door_path(a, fp, cy)
-			return true
-	return false
 
 func _carve_door_path(a: Vector2i, fp: Vector2i, road_y: int):
 	"""从门格(footprint下方中央)向主路铺小径，保证出门即达道路"""
