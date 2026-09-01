@@ -87,6 +87,7 @@ func _ensure_textures():
 		"house_town", "house_cottage", "house_temple", "house_cave",
 		"flower", "daisy", "mushroom", "rock", "fence", "bridge", "city_wall",
 		"snow_farmland", "snow_path",
+		"ward_wall",
 	]
 	var need_textures = false
 	for t in tile_files:

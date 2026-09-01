@@ -6,7 +6,7 @@ class_name WorldFeatures
 ## 旧路径在开关后保留至 W7 终验，任何阶段可独立回滚（FLAG 关闭即回旧路径）。
 
 const FLAG := {
-	"tang_city": false,          # W2 唐制城池蓝图（坊/市/四门/官署/寺观）
+	"tang_city": true,           # W2 唐制城池蓝图（坊/市/四门/官署/寺观）✅ 2026-09-01 开启
 	"sect_territories": false,   # W3 门派领地 + STYLE 系统
 	"town_v2": false,            # W4 村镇模板 v2（一圈一团一水）
 	"npc_static": false,         # W4 NPC 驻留制（岗job + 驻留，读 door_px 落位）

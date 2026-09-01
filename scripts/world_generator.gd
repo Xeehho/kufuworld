@@ -26,8 +26,8 @@ var world_cells: Dictionary = {}
 
 # 河流和城镇的覆盖数据（瓦片坐标 -> tile_id）
 var override_cells: Dictionary = {}
-# 需要碰撞的瓦片集合（39=大建筑footprint占位，40=青石城城墙）
-var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 39, 40]
+# 需要碰撞的瓦片集合（39=大建筑footprint占位，40=青石城城墙，43=唐制坊墙）
+var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 39, 40, 43]
 # ---- Phase F5: 大型建筑道具（星露谷比例，Sprite+StaticBody，替代16px瓦片房）----
 # fp=footprint占格(瓦片)；纹理由 texture_generator.generate_big_buildings() 生成到 sprites/buildings/
 const BUILDING_PROPS := {
@@ -338,6 +338,8 @@ var lake_centers: Array = []   # [{"pos":Vector2i, "r":float}]
 func _generate_rivers():
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 3000
+	# 河流先于城生成：斥力/湖泊避城须预知 v2 城规模（half=30）
+	city_half = 30 if WorldFeatures.FLAG["tang_city"] else CITY_HALF
 	_generate_lakes(rng)
 	# 干流 2~3 条：源=高山，下坡游走终湖/海
 	var mains := _find_river_sources(rng, 3, 60.0, [])
@@ -345,6 +347,7 @@ func _generate_rivers():
 		var path := _walk_river(src, rng, true)
 		if path.size() < 40:
 			continue
+		_force_sea_connection(path)
 		_stamp_river(path, 4)
 		_bridge_along(path, 4, 36)
 		river_paths.append({"path": path, "main": true})
@@ -373,7 +376,9 @@ func _generate_lakes(rng):
 			continue
 		if Vector2(x, y).length() < 30.0:
 			continue
-		if Vector2(x - CITY_POS.x, y - CITY_POS.y).length() < 45.0:
+		# 避城 62 = 城外接圆 30√2≈42.4 + 湖半径16 + 噪声余量（规划§2.1：湖泊不与城重叠，
+		# 旧 45 只防圆形半径，湖缘会侵入方形城角）
+		if Vector2(x - CITY_POS.x, y - CITY_POS.y).length() < 62.0:
 			continue
 		var ok := true
 		for l in lake_centers:
@@ -404,6 +409,9 @@ func _find_river_sources(rng, want: int, min_apart: float, exclude: Array) -> Ar
 		for y in range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30, 6):
 			for x in range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30, 6):
 				if _climate_kind(x, y) != "mountain" or get_height(x, y) < h_min:
+					continue
+				# 城禁域：源点不得落城墙邻域（曾在城东南角选出源点→河出生即被困）
+				if absi(x - CITY_POS.x) < city_half + 8 and absi(y - CITY_POS.y) < city_half + 8:
 					continue
 				var p := Vector2i(x, y)
 				var bad := false
@@ -462,9 +470,15 @@ func _walk_river(src: Vector2i, rng, is_main: bool) -> Array:
 					var score: float = get_height(n.x, n.y) * 8.0 + rng.randf() * 2.5
 					# 边界引导出海；步数越深权重越大（防河困死内陆）
 					score += Vector2(n.x, n.y).length() * (0.012 + path.size() * 0.00008)
-					# 城市斥力改方形判定：仅当 x、y 同时落城圈邻域内才罚——河可贴城墙南北绕行
-					if absi(n.x - CITY_POS.x) < CITY_HALF + 6 and absi(n.y - CITY_POS.y) < CITY_HALF + 6:
-						score += (CITY_HALF + 6 - maxi(absi(n.x - CITY_POS.x), absi(n.y - CITY_POS.y))) * 3.0
+					# 城市斥力（方形判定）：城墙邻域绝对拒绝（不进候选，相对排序会被地形差压过），
+					# 外圈软斥力引导绕行——河贴城墙切向绕行
+					var cdx := absi(n.x - CITY_POS.x)
+					var cdy := absi(n.y - CITY_POS.y)
+					var cheby := maxi(cdx, cdy)
+					if cdx < city_half + 2 and cdy < city_half + 2:
+						continue
+					if cheby < city_half + 8:
+						score += (city_half + 8 - cheby) * 4.0
 					if is_main:
 						for l in lake_centers:
 							var dl := Vector2(n.x - l["pos"].x, n.y - l["pos"].y).length()
@@ -474,15 +488,27 @@ func _walk_river(src: Vector2i, rng, is_main: bool) -> Array:
 						best_score = score
 						best = n
 		if best == cur:
-			# 洼地/冲海兜底：径向 d4 外推（禁止回头；无视 visited 防自锁，600 步上限防死循环）
+			# 洼地/冲海兜底：8 邻径向外推（切向绕行出口更充分；禁回头/禁城禁域；1000 步上限防死循环）
 			var outward := Vector2(cur.x, cur.y)
 			if outward.length() < 1.0:
 				outward = Vector2(1, 0)
-			var cand := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+			var cand: Array = []
+			for dx2 in range(-1, 2):
+				for dy2 in range(-1, 2):
+					if dx2 == 0 and dy2 == 0:
+						continue
+					cand.append(Vector2i(dx2, dy2))
 			cand.sort_custom(func(a, b): return Vector2(a.x, a.y).dot(outward) > Vector2(b.x, b.y).dot(outward))
-			var nc: Vector2i = cur + cand[0]
-			if path.size() >= 2 and nc == Vector2i(path[path.size() - 2]):
-				nc = cur + cand[1]
+			var nc := cur
+			for cd in cand:
+				var tc: Vector2i = cur + cd
+				if path.size() >= 2 and tc == Vector2i(path[path.size() - 2]):
+					continue
+				# 避城硬禁域（冲海径向也不许穿城角）
+				if absi(tc.x - CITY_POS.x) < city_half + 2 and absi(tc.y - CITY_POS.y) < city_half + 2:
+					continue
+				nc = tc
+				break
 			cur = nc
 		else:
 			cur = best
@@ -495,6 +521,47 @@ func _touches_water(c: Vector2i) -> bool:
 			var v = override_cells.get(Vector2i(c.x + dx, c.y + dy), -1)
 			if v != null and int(v) == 5:
 				return true
+	return false
+
+## 干流强制接海：终态非湖/海时，从尾端径向 d4 推进（贴城切向绕行、禁回头）直至出界
+func _force_sea_connection(path: Array):
+	var tail: Vector2i = path[path.size() - 1]
+	if _at_sea(tail) or _at_lake(tail):
+		return
+	var c := tail
+	var prev := tail
+	for _i in range(500):
+		var outward := Vector2(c.x, c.y)
+		if outward.length() < 1.0:
+			outward = Vector2(1, 0)
+		var cand := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+		cand.sort_custom(func(a, b): return Vector2(a.x, a.y).dot(outward) > Vector2(b.x, b.y).dot(outward))
+		var moved := false
+		for cd in cand:
+			var tc: Vector2i = c + cd
+			if tc == prev:
+				continue
+			if absi(tc.x - CITY_POS.x) < city_half + 2 and absi(tc.y - CITY_POS.y) < city_half + 2:
+				continue
+			if Vector2(tc.x, tc.y).length() > WORLD_RADIUS - 6:
+				continue
+			prev = c
+			c = tc
+			moved = true
+			break
+		if not moved:
+			break
+		path.append(c)
+		if _at_sea(c) or _at_lake(c):
+			break
+
+func _at_sea(c: Vector2i) -> bool:
+	return Vector2(c.x, c.y).length() > WORLD_RADIUS - 8
+
+func _at_lake(c: Vector2i) -> bool:
+	for l in lake_centers:
+		if Vector2(c.x - l["pos"].x, c.y - l["pos"].y).length() < float(l["r"]):
+			return true
 	return false
 
 func _bridge_along(path: Array, water_w: int, period: int):
@@ -565,12 +632,211 @@ func _build_water_humid_boost():
 # 玩法锚点城池：围墙圈+四门+十字主街+中央广场+功能建筑（府衙/酒楼/药坊/铁匠铺/布庄/杂货铺/民居）
 # 城内市摊/水井点缀；非门派NPC（商人/手工业者/衙役等）由 npc_spawner 依 city_info 迁入并赋予固定日程
 const TILE_CITY_WALL := 40
+const TILE_WARD_WALL := 43            # W2 唐制坊墙（41/42 已被雪田/雪径占用）
 const CITY_POS := Vector2i(75, 0)     # 城中心（瓦片坐标）：出生点正东
-const CITY_HALF := 22                 # 城墙半边长（45x45占地）
+const CITY_HALF := 22                 # legacy 城墙半边长（v2 唐制城=30，用 city_half 运行时变量）
 
-var city_info: Dictionary = {}        # {center_px, buildings:{key:{anchor,door_px,fp}}, gate_px:{n,s,e,w}}
+var city_half: int = 22               # 运行时城半边长（_generate_city_v2 置 30，河斥力/聚落判定/探针读它）
+
+var city_info: Dictionary = {}        # v2: {center_px, gates, gate_px, wards, markets, buildings:{key:{anchor,fp,door_px,job}}}
 
 func _generate_city():
+	if WorldFeatures.FLAG["tang_city"]:
+		_generate_city_v2()
+	else:
+		_generate_city_legacy()
+
+## W2 唐制城池（WorldData.CITY_V2 蓝图施工）：市坊分离/棋盘路网/官署居北/寺观居东北/东西两市
+func _generate_city_v2():
+	var cx := CITY_POS.x
+	var cy := CITY_POS.y
+	var h: int = WorldData.CITY_V2["half"]
+	city_half = h
+	# 1) 城内地坪压平（避水；地面按群系调色板）
+	for dx in range(-h + 1, h):
+		for dy in range(-h + 1, h):
+			var cc := Vector2i(cx + dx, cy + dy)
+			if get_tile_id(cc.x, cc.y) == 5:
+				continue
+			override_cells[cc] = _palette_at(cc.x, cc.y)["ground"]
+	# 2) 城墙圈 + 四门豁口（4格宽对齐主街）
+	for dx in range(-h, h + 1):
+		for dy in range(-h, h + 1):
+			if absi(dx) == h or absi(dy) == h:
+				var wc := Vector2i(cx + dx, cy + dy)
+				override_cells[wc] = (17 if get_tile_id(wc.x, wc.y) == 5 else TILE_CITY_WALL)
+	for g in range(-2, 2):
+		for wc in [Vector2i(cx + g, cy - h), Vector2i(cx + g, cy + h), Vector2i(cx - h, cy + g), Vector2i(cx + h, cy + g)]:
+			override_cells[wc] = (17 if get_tile_id(wc.x, wc.y) == 5 else _palette_at(wc.x, wc.y)["path"])
+	# 3) 主街宽4（x,y∈[-2,1] 全贯）+ 次街宽2（横 y∈[14,15]、纵 x∈[14,15]）
+	for d in range(-h, h + 1):
+		for w in ([-2, -1, 0, 1] + [14, 15]):
+			for sc in [Vector2i(cx + d, cy + w), Vector2i(cx + w, cy + d)]:
+				override_cells[sc] = (17 if get_tile_id(sc.x, sc.y) == 5 else _palette_at(sc.x, sc.y)["path"])
+	# 4) 中央石板广场
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			if get_tile_id(cx + dx, cy + dy) != 5:
+				override_cells[Vector2i(cx + dx, cy + dy)] = 35
+	# 5) 里坊：坊墙一圈(tile 43) + 中横/中纵巷道 + 坊门2格 + 门外接引
+	var wards: Dictionary = WorldData.CITY_V2["wards"]
+	var ward_gate_out := {}   # 坊名 -> 门外接引格（连接主街/次街）
+	for wname in wards:
+		var r: Rect2i = wards[wname]
+		for dx in range(r.position.x, r.end.x):
+			for dy in range(r.position.y, r.end.y):
+				if dx != r.position.x and dx != r.end.x - 1 and dy != r.position.y and dy != r.end.y - 1:
+					continue
+				override_cells[Vector2i(cx + dx, cy + dy)] = TILE_WARD_WALL
+		var mx: int = r.position.x + r.size.x / 2
+		var my: int = r.position.y + r.size.y / 2
+		for dx in range(r.position.x + 1, r.end.x - 1):
+			_ward_path(cx + dx, cy + my)
+		for dy in range(r.position.y + 1, r.end.y - 1):
+			_ward_path(cx + mx, cy + dy)
+		# 坊门：朝主街侧墙中点 2 格；门外接引 2 格接主街/次街
+		var east_side: bool = r.position.x < 0
+		var gx: int = (r.end.x - 1) if east_side else r.position.x
+		var ox: int = gx + (1 if east_side else -1)
+		for gy in [my - 1, my]:
+			_ward_path(cx + gx, cy + gy)
+			_ward_path(cx + ox, cy + gy)
+		ward_gate_out[wname] = Vector2i(ox, my - 1)
+	# 6) 市巷（横 y=26 两市各一条，接主街）
+	for mname in WorldData.CITY_V2["markets"]:
+		var mr: Rect2i = WorldData.CITY_V2["markets"][mname]
+		for dx in range(mr.position.x, mr.end.x):
+			_ward_path(cx + dx, cy + 26)
+	# 7) 功能建筑（规划化摆放，job 供 W4 NPC 岗位）
+	city_info = {
+		"center_px": Vector2(cx * 16.0 + 8.0, cy * 16.0 + 8.0),
+		"gates": WorldData.CITY_V2["gates"],
+		"gate_px": {
+			"n": Vector2(cx * 16.0 + 8.0, (cy - h + 2) * 16.0 + 8.0),
+			"s": Vector2(cx * 16.0 + 8.0, (cy + h - 2) * 16.0 + 8.0),
+			"w": Vector2((cx - h + 2) * 16.0 + 8.0, cy * 16.0 + 8.0),
+			"e": Vector2((cx + h - 2) * 16.0 + 8.0, cy * 16.0 + 8.0),
+		},
+		"wards": [], "markets": [], "buildings": {},
+	}
+	for wname in wards:
+		city_info["wards"].append({"name": wname, "rect": wards[wname]})
+	for mname in WorldData.CITY_V2["markets"]:
+		city_info["markets"].append({"name": mname, "rect": WorldData.CITY_V2["markets"][mname]})
+	# key 命名保持 npc_spawner.city_npc_configs 依赖（tavern/apothecary/smithy/cloth/yamen/house_w/house_ne/stall_w1/stall_e1/well）
+	var bdefs := {
+		"yamen":      ["yamen", Vector2i(-27, -27), "捕头"],
+		"constable":  ["shop_a", Vector2i(-13, -27), "捕快"],
+		"temple":     ["temple", Vector2i(6, -27), "知客僧"],
+		"smithy":     ["shop_a", Vector2i(-16, 22), "铁匠"],
+		"apothecary": ["apothecary", Vector2i(-11, 22), "药师"],
+		"cloth":      ["shop_b", Vector2i(-6, 22), "布庄"],
+		"grocery":    ["shop_a", Vector2i(2, 22), "杂货"],
+		"house_ne":   ["house", Vector2i(7, 22), "商户"],
+		"tavern":     ["tavern", Vector2i(4, 5), "掌柜"],
+		"hut_s1":     ["hut", Vector2i(11, 5), "民"],
+		"hut_s2":     ["hut", Vector2i(4, 12), "民"],
+		"house_w":    ["house", Vector2i(-27, 5), "民居"],
+		"hut_w2":     ["hut", Vector2i(-20, 5), "民"],
+		"house_w3":   ["house", Vector2i(-13, 5), "民居"],
+		"hut_w4":     ["hut", Vector2i(-26, 11), "民"],
+		"house_w5":   ["house", Vector2i(-20, 11), "民居"],
+		"hut_w6":     ["hut", Vector2i(-13, 11), "民"],
+		"house_e1":   ["house", Vector2i(18, 5), "民居"],
+		"hut_e2":     ["hut", Vector2i(24, 5), "民"],
+		"house_se":   ["house", Vector2i(18, 11), "民居"],
+		"hut_e4":     ["hut", Vector2i(24, 11), "民"],
+		"house_e5":   ["house", Vector2i(24, 15), "民居"],
+		"stall_w1":   ["stall_red", Vector2i(-13, 26), "小贩"],
+		"stall_w2":   ["stall_teal", Vector2i(-9, 27), "小贩"],
+		"stall_e1":   ["stall_red", Vector2i(8, 26), "小贩"],
+		"stall_e2":   ["stall_teal", Vector2i(11, 27), "小贩"],
+		"well":       ["well", Vector2i(-4, 28), "井"],
+	}
+	var doors := {}
+	for key in bdefs:
+		var kind: String = bdefs[key][0]
+		var rel: Vector2i = bdefs[key][1]
+		var a := Vector2i(cx + rel.x, cy + rel.y)
+		_force_place_building_prop(kind, a)
+		var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+		var door := Vector2i(a.x + int(fp.x / 2.0), a.y + fp.y)
+		doors[key] = door
+		city_info["buildings"][key] = {"anchor": a, "fp": fp,
+			"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": bdefs[key][2]}
+	# 8) 门前小径：BFS 连接最近路（主街/次街/坊巷/市巷；阻挡建筑/墙/坊墙/水）
+	var city_lim := Rect2i(cx - h + 2, cy - h + 2, 2 * h - 4, 2 * h - 4)
+	for key in doors:
+		_connect_door_to_road(doors[key], city_lim)
+	# 9) 城门楼（纯视觉 prop，无碰撞，挂四门上方）
+	var gtex = TextureGen.load_png_texture("res://sprites/buildings/gate_tower.png")
+	if gtex:
+		for gp in [Vector2(cx * 16.0 + 8.0, (cy - h) * 16.0 + 8.0), Vector2(cx * 16.0 + 8.0, (cy + h) * 16.0 + 8.0),
+				Vector2((cx - h) * 16.0 + 8.0, cy * 16.0 + 8.0), Vector2((cx + h) * 16.0 + 8.0, cy * 16.0 + 8.0)]:
+			var sp := Sprite2D.new()
+			sp.texture = gtex
+			sp.position = gp
+			sp.offset = Vector2(0, -26)
+			sp.z_index = 3
+			get_parent().add_child(sp)
+	# 10) 城名标（北门上方）
+	var lbl := Label.new()
+	lbl.text = "· 青 石 城 ·"
+	lbl.add_theme_font_size_override("font_size", 5)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.92, 0.6))
+	lbl.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.04))
+	lbl.add_theme_constant_override("outline_size", 2)
+	lbl.z_index = 20
+	lbl.position = Vector2(cx * 16.0 + 8.0 - 26.0, (cy - h) * 16.0 - 12.0)
+	get_parent().add_child(lbl)
+	# 11) 净空区（城墙外余量圈）
+	_register_town_clearance(cx, cy, h)
+	print("[WorldGen] City[青石城·唐制] @(%d,%d) half=%d wards=%d markets=%d buildings=%d" % [cx, cy, h, city_info["wards"].size(), city_info["markets"].size(), city_info["buildings"].size()])
+
+## 坊内/市内铺巷（不覆盖建筑footprint/墙/水）
+func _ward_path(wx: int, wy: int):
+	var t = get_tile_id(wx, wy)
+	if t in [39, 40, 43, 5]:
+		return
+	override_cells[Vector2i(wx, wy)] = _palette_at(wx, wy)["path"]
+
+## 门前小径：从 door BFS 找最近路格（path/35/桥），沿途铺 path（阻挡建筑/墙/坊墙/水）
+func _connect_door_to_road(door: Vector2i, limit: Rect2i):
+	var road_id: int = _palette_at(door.x, door.y)["path"]
+	if get_tile_id(door.x, door.y) == road_id:
+		return
+	var prev := {door: door}
+	var q: Array = [door]
+	var head := 0
+	var found := Vector2i.ZERO
+	var ok := false
+	while head < q.size():
+		var c: Vector2i = q[head]
+		head += 1
+		if c != door:
+			var t = get_tile_id(c.x, c.y)
+			if t == road_id or t == 35 or t == 17:
+				found = c
+				ok = true
+				break
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + d
+			if prev.has(n) or not limit.has_point(n):
+				continue
+			if get_tile_id(n.x, n.y) in [39, 40, 43, 5]:
+				continue
+			prev[n] = c
+			q.append(n)
+	if not ok:
+		return
+	var c2 := found
+	while c2 != door:
+		var p: Vector2i = prev[c2]
+		if get_tile_id(p.x, p.y) not in [road_id, 35, 17]:
+			override_cells[p] = road_id
+		c2 = p
+
+func _generate_city_legacy():
 	var cx := CITY_POS.x
 	var cy := CITY_POS.y
 	var h := CITY_HALF
@@ -725,8 +991,8 @@ func _generate_towns():
 			if too_close:
 				continue
 
-			# 避让青石城（城圈45x45+街道余量）
-			if Vector2(tx, ty).distance_to(Vector2(CITY_POS)) < 34:
+			# 避让青石城（v2 half=30 + 镇 half 9 + 街道余量）
+			if Vector2(tx, ty).distance_to(Vector2(CITY_POS)) < 46:
 				continue
 
 			# 检查是否在边界内
@@ -767,7 +1033,7 @@ func _area_has_water(cx: int, cy: int, r: int) -> bool:
 func is_in_settlement(p: Vector2) -> bool:
 	"""2026-08-31：判定某像素点是否落在青石城/城镇范围内（MobSpawner营地避让用）"""
 	var t := Vector2i(int(p.x / 16.0), int(p.y / 16.0))
-	if absi(t.x - CITY_POS.x) <= CITY_HALF + 2 and absi(t.y - CITY_POS.y) <= CITY_HALF + 2:
+	if absi(t.x - CITY_POS.x) <= city_half + 2 and absi(t.y - CITY_POS.y) <= city_half + 2:
 		return true
 	for tc in town_centers:
 		if Vector2(t.x, t.y).distance_to(tc) < 13.0:
@@ -1584,10 +1850,10 @@ func _load_poi_chunks():
 				var c = poi_chunk + Vector2i(dx, dy)
 				if not loaded_chunks.has(c):
 					_load_chunk(c)
-	# 青石城chunk强制加载（城圈45x45 → ±2 chunk覆盖全城）
+	# 青石城chunk强制加载（v2 城圈61x61 → ±3 chunk 全覆盖）
 	var city_chunk = world_to_chunk(Vector2(CITY_POS.x * TILE_SIZE_PX, CITY_POS.y * TILE_SIZE_PX))
-	for dx in range(-2, 3):
-		for dy in range(-2, 3):
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
 			var c2 = city_chunk + Vector2i(dx, dy)
 			if not loaded_chunks.has(c2):
 				_load_chunk(c2)
@@ -1932,8 +2198,8 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 		if _too_close_to_other_poi(pos, tpl.min_distance):
 			continue
-		# 避让青石城（城圈+余量）
-		if Vector2(wx, wy).distance_to(Vector2(CITY_POS)) < 34:
+		# 避让青石城（v2 城圈61x61+余量）
+		if Vector2(wx, wy).distance_to(Vector2(CITY_POS)) < 46:
 			continue
 		# 检查是否在世界边界内
 		if sqrt(wx * wx + wy * wy) > WORLD_RADIUS - 10:

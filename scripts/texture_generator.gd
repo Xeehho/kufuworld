@@ -107,6 +107,7 @@ func generate_tiles():
 	_save_tile(_mini_house(wall_sheet, bprops, "temple"), "house_temple")
 	# ---- 青石城：城墙砖（程序化，素材包无城墙）----
 	_save_tile(_city_wall_tile(), "city_wall")
+	_save_tile(_ward_wall_tile(), "ward_wall")   # 43 唐制坊墙（城砖淡色版，W2；41/42已被雪田/雪径占用）
 	print("[TextureGen] Tiles generated (Pixel Crawler pack crops)")
 
 # 城墙砖瓦片：青灰砖+错缝砖线+顶部压光，四面围墙用（tile id 40）
@@ -130,6 +131,28 @@ func _city_wall_tile() -> Image:
 				img.set_pixel(x, y, hi)                   # 砖顶棱受光
 			elif yy == 6:
 				img.set_pixel(x, y, lo)                   # 砖底压暗
+	return img
+
+# 坊墙瓦片：城砖淡色版（白灰坊墙，唐制里坊围合；tile id 43，W2）
+func _ward_wall_tile() -> Image:
+	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
+	var base := Color(0.74, 0.71, 0.66)   # 白灰淡砖
+	var mortar := Color(0.56, 0.54, 0.50)
+	var hi := Color(0.83, 0.80, 0.75)
+	var lo := Color(0.63, 0.60, 0.56)
+	img.fill(base)
+	for y in range(TILE_SIZE):
+		var yy := y % 8
+		var off := ((y / 8) % 2) * 4
+		for x in range(TILE_SIZE):
+			if yy == 7:
+				img.set_pixel(x, y, mortar)
+			elif (x + off) % 8 == 7:
+				img.set_pixel(x, y, mortar)
+			elif yy == 0:
+				img.set_pixel(x, y, hi)
+			elif yy == 6:
+				img.set_pixel(x, y, lo)
 	return img
 
 # ============ 青石城市集道具（程序化） ============
@@ -512,19 +535,76 @@ func generate_big_buildings():
 		img.save_png(ProjectSettings.globalize_path(path))
 		print("[TextureGen] big building: ", kind, " ", sz)
 
-# 城市小道具：市摊×2配色 + 水井（缺失才生成）
+# 城市小道具：市摊×2配色 + 水井 + 城门楼（缺失才生成）
 func generate_city_props():
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://sprites/buildings"))
 	var outs := {
 		"stall_red": _market_stall(Color(0.72, 0.22, 0.18)),
 		"stall_teal": _market_stall(Color(0.18, 0.48, 0.45)),
 		"well": _city_well(),
+		"gate_tower": _gate_tower_img(),
 	}
 	for pname in outs:
 		var path := "res://sprites/buildings/%s.png" % pname
 		if not FileAccess.file_exists(path):
 			outs[pname].save_png(ProjectSettings.globalize_path(path))
 			print("[TextureGen] city prop: ", pname)
+
+# 城门楼：48x52 纯视觉 prop（挂在四门上方，无碰撞不占格；W2 唐制双层门楼）
+func _gate_tower_img() -> Image:
+	var W := 48
+	var H := 52
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var wall := Color(0.90, 0.87, 0.80)      # 白灰墙
+	var brick := Color(0.46, 0.46, 0.47)     # 城砖
+	var pillar := Color(0.58, 0.20, 0.16)    # 朱红柱
+	var roof := Color(0.40, 0.45, 0.52)      # 黛瓦
+	var roof_hi := Color(0.52, 0.57, 0.64)
+	var ridge := Color(0.62, 0.55, 0.28)     # 金脊
+	var wood := Color(0.42, 0.30, 0.20)
+	var xo := 0.0
+	for y in range(H):
+		for x in range(W):
+			# ---- 基座：条石城砖（底部 8px）----
+			if y >= H - 8:
+				var t := (x / 8 + (y / 4) % 2) % 2
+				img.set_pixel(x, y, brick if t == 0 else brick.darkened(0.12))
+			# ---- 下层：白墙+朱柱+格扇窗（8px 起 16px 高）----
+			elif y >= H - 24:
+				var edge := x < 4 or x >= W - 4
+				if edge:
+					img.set_pixel(x, y, pillar if (y % 6) < 5 else wood)
+				elif y >= H - 26 + 14:
+					img.set_pixel(x, y, wood)   # 下层檐枋
+				else:
+					var win := (x % 12) >= 3 and (x % 12) <= 8 and (y % 8) >= 2 and (y % 8) <= 5
+					img.set_pixel(x, y, wall if not win else wood)
+			# ---- 腰檐（黛瓦出挑）----
+			elif y >= H - 28:
+				img.set_pixel(x, y, roof if x > 0 and x < W - 1 else roof_hi)
+			# ---- 上层：收窄白墙+朱柱（28px 起 12px 高）----
+			elif y >= H - 40 and x >= 6 and x < W - 6:
+				var edge2 := x < 10 or x >= W - 10
+				if edge2:
+					img.set_pixel(x, y, pillar if (y % 6) < 5 else wood)
+				else:
+					var win2 := (x % 10) >= 3 and (x % 10) <= 6
+					img.set_pixel(x, y, wall if not win2 else wood)
+			# ---- 大屋顶：凹曲黛瓦+金脊（顶部 12px，出挑翘角）----
+			elif y >= H - 52:
+				var tt := float(H - 1 - y)   # 0=顶
+				var half := 6.0 + tt * 2.6   # 反曲展宽
+				var cx := (W - 1) / 2.0
+				if absf(x - cx) <= half:
+					if tt < 1.5:
+						img.set_pixel(x, y, ridge)                    # 正脊金线
+					elif tt > 8.0:
+						img.set_pixel(x, y, roof_hi)                  # 檐口受光
+					else:
+						var sh := (int(x) % 3 == 0)
+						img.set_pixel(x, y, roof.darkened(0.15 if sh else 0.0))
+	return img
 
 # 原木条填充（横梁/角柱/脊梁共用；logw=横原木墙瓦片）
 static func _fill_logs(img: Image, x0: int, x1: int, y0: int, h: int, logw: Image, seed_off: int = 0):

@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W1"
+CURRENT_STAGE = "W2"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
@@ -94,8 +94,9 @@ def main():
     check("water", "river_not_through_town", worst_town >= 13.0, f"min={worst_town:.1f}")
     # W1 起生效：河流改道（源高山终湖海+避城轨迹）后河水不再进入城圈。
     # W0 现状为第三轮成果"穿城河+水门街桥"（规划 §3.2 保留语义），基线豁免。
-    check("water", "river_not_through_city", w["min_dist_city"] >= 23.0,
-          f"min_dist_city={w['min_dist_city']:.1f} (city_half+1=23)", since="W1")
+    # W2 起城 half=30（方形）：水距城心用切比雪夫距离 ≥32（欧氏会放过城角内的水）
+    check("water", "river_not_through_city", w["min_dist_city"] >= 32.0,
+          f"min_dist_city(cheby)={w['min_dist_city']:.1f} (city_half+2=32)", since="W2")
     check("water", "city_interior_dry", w["city_water"] == 0, f"cells={w['city_water']}", since="W1")
 
     # W1 新增：湖泊存在、河源在山、干流终湖/海（规划 §2.1/§5.1 自然规律）
@@ -106,6 +107,8 @@ def main():
           f"rivers={len(rivers)} mains={sum(1 for r in rivers if r['main'])}", since="W1")
     bad_src = []
     for i, rv in enumerate(rivers):
+        if not rv["main"]:
+            continue   # 支流源允许在山缘（弱要求），自然规律断言只查干流
         src_mountain = sum(c for k, c in rv["head_kinds"].items() if k in ("mountain", "snow"))
         if src_mountain < 6:   # 前10格至少6格在高山/雪群系
             bad_src.append(i)
@@ -129,6 +132,13 @@ def main():
         check("city", f"gate_{g}_reachable", ok, "")
     bad_doors = [k for k, ok in c["doors"].items() if not ok]
     check("city", "all_building_doors_reachable", len(bad_doors) == 0, f"failed={bad_doors}")
+    # W2 新增：唐制坊/市存在、坊内连通（中巷从广场可达=坊门有效）、同坊房间距≥2
+    check("city", "wards_exist", c.get("wards_n", 0) >= 4, f"wards={c.get('wards_n', 0)}", since="W2")
+    check("city", "markets_exist", c.get("markets_n", 0) >= 2, f"markets={c.get('markets_n', 0)}", since="W2")
+    for wname, ok in c.get("ward_reach", {}).items():
+        check("city", f"ward_{wname}_connected", ok, "", since="W2")
+    check("city", "room_spacing_ge2", c.get("room_spacing_ok", False),
+          f"detail={c.get('spacing_detail', {})}", since="W2")
 
     # ---------- 断言组：connectivity ----------
     check("walk", "spawn_reach_large", data["reach_count"] >= 8000,

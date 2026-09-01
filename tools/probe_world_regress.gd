@@ -98,7 +98,8 @@ func _ready():
 			continue
 		if Vector2(cell.x, cell.y).length() > R - 8:
 			continue   # 边界深水不计
-		var dc: float = Vector2(cell.x - city_c.x, cell.y - city_c.y).length()
+		# 方形城用切比雪夫距离（欧氏会放过城角内的水：城角距城心可达 30√2）
+		var dc: float = float(maxi(absi(cell.x - city_c.x), absi(cell.y - city_c.y)))
 		if dc < min_city:
 			min_city = dc
 		for tc in wg.town_centers:
@@ -115,9 +116,9 @@ func _ready():
 		var fp: Vector2i = b["fp"]
 		rects.append(Rect2i(a, fp))
 	for tc in wg.town_centers:
-		binfo = wg.town_buildings.get(tc, {}) if wg.get("town_buildings") != null else {}
-		for key in binfo:
-			var b2: Dictionary = binfo[key]
+		var tb: Dictionary = wg.town_buildings.get(tc, {}) if wg.get("town_buildings") != null else {}
+		for key in tb:
+			var b2: Dictionary = tb[key]
 			var a2: Vector2i = b2["anchor"]
 			var fp2: Vector2i = b2["fp"]
 			rects.append(Rect2i(a2, fp2))
@@ -127,13 +128,18 @@ func _ready():
 				if wg.get_tile_id(r.position.x + dx, r.position.y + dy) == 5:
 					footprint_water += 1
 	var city_water := 0
-	var ch: int = wg.CITY_HALF
+	var city_water_cells := []
+	var ch: int = wg.city_half
 	for dx in range(-ch + 1, ch):
 		for dy in range(-ch + 1, ch):
 			if wg.get_tile_id(city_c.x + dx, city_c.y + dy) == 5:
 				city_water += 1
+				if city_water_cells.size() < 20:
+					var ov = wg.override_cells.get(Vector2i(city_c.x + dx, city_c.y + dy), "none")
+					city_water_cells.append([dx, dy, str(ov)])
 	data["water"] = {"min_dist_city": min_city, "min_dist_towns": water_min_town,
-		"footprint_water": footprint_water, "city_water": city_water}
+		"footprint_water": footprint_water, "city_water": city_water,
+		"city_water_cells": city_water_cells}
 
 	# ---- 4) 城池组：从广场 BFS，四门与全部 door_px 可达性 ----
 	var reach := {}
@@ -168,6 +174,37 @@ func _ready():
 		var dt2 := Vector2i(int(floor(dp.x / 16.0)), int(floor(dp.y / 16.0)))
 		doors_ok[key] = reach.has(dt2)
 	data["city"] = {"gates": gates_ok, "doors": doors_ok}
+
+	# ---- 4b) W2 唐制城：坊/市存在性 + 坊内连通（中巷格可达）+ 坊内房间距≥2 ----
+	var wards: Array = wg.city_info.get("wards", [])
+	var markets: Array = wg.city_info.get("markets", [])
+	data["city"]["wards_n"] = wards.size()
+	data["city"]["markets_n"] = markets.size()
+	var ward_reach := {}
+	var spacing_ok := true
+	var spacing_detail := {}
+	for w in wards:
+		var wr: Rect2i = w["rect"]
+		var ar := Rect2i(wr.position + city_c, wr.size)
+		# 坊内中横巷中点（坊门连通则从广场 BFS 可达）
+		var mid := Vector2i(ar.position.x + ar.size.x / 2, ar.position.y + ar.size.y / 2)
+		ward_reach[w["name"]] = reach.has(mid)
+		# 同坊建筑 footprint 各膨胀 1 格后两两不相交 = 间隙 ≥2 格（防火巷）
+		var rms: Array = []
+		for key in binfo:
+			var b: Dictionary = binfo[key]
+			var ba: Vector2i = b["anchor"]
+			var bf: Vector2i = b["fp"]
+			var br := Rect2i(ba, bf).grow(1)
+			if ar.intersects(Rect2i(ba, bf)):
+				for other in rms:
+					if br.intersects(other):
+						spacing_ok = false
+						spacing_detail[key] = str(other)
+				rms.append(br)
+	data["city"]["ward_reach"] = ward_reach
+	data["city"]["room_spacing_ok"] = spacing_ok
+	data["city"]["spacing_detail"] = spacing_detail
 
 	# ---- 5) 连通性：出生点可达区规模 ----
 	var spawn_reach: Dictionary = wg._bfs_reachable_from_spawn(dirs)
