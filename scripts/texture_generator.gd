@@ -659,8 +659,13 @@ const BIG_BUILDING_DEFS := {
 	"hall_ym": {"size": Vector2i(122, 100), "thatch": false, "temple": true,  "accent": Color(0.14, 0.10, 0.12)},  # 幽冥教：黑
 }
 
+var _roof_pat: Image = null   # 画面改造P4.1：Roofs.png 青瓦纹样（屋面填充用，generate_big_buildings 装载）
+
 func generate_big_buildings():
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://sprites/buildings"))
+	# 画面改造P4.1：Roofs.png 青瓦平铺区裁 16x16 纹样，反曲屋面轮廓内做瓦楞质感填充
+	var roofs_img: Image = _pack_image("Environment/Structures/Buildings/Roofs.png")
+	_roof_pat = _crop_tile(roofs_img, 11, 11) if roofs_img != null else null
 	for kind in BIG_BUILDING_DEFS:
 		var def: Dictionary = BIG_BUILDING_DEFS[kind]
 		var sz: Vector2i = def["size"]
@@ -678,18 +683,108 @@ func generate_big_buildings():
 # 城市小道具：市摊×2配色 + 水井 + 城门楼（缺失才生成）
 func generate_city_props():
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://sprites/buildings"))
+	var farm_img: Image = _pack_image("Environment/Props/Static/Farm.png")
+	var scare := Image.create(30, 58, false, Image.FORMAT_RGBA8)
+	var fence := Image.create(68, 54, false, Image.FORMAT_RGBA8)
+	if farm_img != null:
+		scare.blit_rect(farm_img, Rect2i(246, 38, 30, 58), Vector2i.ZERO)    # 稻草人（P4.3）
+		fence.blit_rect(farm_img, Rect2i(284, 38, 68, 54), Vector2i.ZERO)    # 横向木栅栏段（P4.3）
 	var outs := {
 		"stall_red": _market_stall(Color(0.72, 0.22, 0.18)),
 		"stall_teal": _market_stall(Color(0.18, 0.48, 0.45)),
 		"well": _city_well(),
 		"gate_tower": _gate_tower_img(),
 		"ferry": _ferry_pavilion_img(),   # W4 渡口村渡亭（开放式小筑）
+		# ---- 画面改造P4.2/P4.3 城镇道具 ----
+		"lantern": _lantern_img(),        # 红灯笼（市摊/街巷）
+		"barrel": _barrel_img(),          # 木桶
+		"crate": _crate_img(),            # 货箱
+		"scarecrow": scare,               # 稻草人（Farm.png 裁切）
+		"fence_seg": fence,               # 栅栏段（Farm.png 裁切）
 	}
 	for pname in outs:
 		var path := "res://sprites/buildings/%s.png" % pname
 		if not FileAccess.file_exists(path):
 			outs[pname].save_png(ProjectSettings.globalize_path(path))
 			print("[TextureGen] city prop: ", pname)
+
+# 画面改造P4.2 红灯笼：14x26 木杆+金箍+红灯笼身+灯纹+穗子
+func _lantern_img() -> Image:
+	var W := 14
+	var H := 26
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var post := Color(0.30, 0.20, 0.12)
+	var cap := Color(0.75, 0.60, 0.28)
+	var red := Color(0.78, 0.18, 0.14)
+	var red_d := Color(0.60, 0.12, 0.10)
+	var gold := Color(0.85, 0.70, 0.35)
+	# 木杆（底 10px）
+	for y in range(H - 10, H):
+		img.set_pixel(6, y, post)
+		img.set_pixel(7, y, post.darkened(0.2))
+	# 灯笼：椭圆身 y=4..15，宽10
+	for y in range(4, 16):
+		var t := float(y - 4) / 11.0
+		var hw := 5.0 - 1.2 * pow(2.0 * t - 1.0, 2.0)   # 中间宽两端窄
+		for x in range(int(7 - hw), int(7 + hw) + 1):
+			var edge := (x == int(7 - hw) or x == int(7 + hw))
+			img.set_pixel(x, y, red_d if edge else red)
+		# 竖向灯笼纹
+		img.set_pixel(4, y, red_d)
+		img.set_pixel(10, y, red_d)
+	# 上下金箍
+	for x in range(4, 11):
+		img.set_pixel(x, 3, cap)
+		img.set_pixel(x, 16, cap)
+	# 顶盖+提环
+	img.set_pixel(6, 2, cap)
+	img.set_pixel(7, 2, cap)
+	img.set_pixel(6, 1, cap.darkened(0.2))
+	img.set_pixel(7, 1, cap.darkened(0.2))
+	# 穗子
+	for y in range(17, 21):
+		img.set_pixel(6, y, gold)
+		img.set_pixel(7, y, gold.darkened(0.25))
+	return img
+
+# 画面改造P4.2 木桶：14x16 竖板桶身+两道铁箍
+func _barrel_img() -> Image:
+	var W := 14
+	var H := 16
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var wood := Color(0.52, 0.36, 0.20)
+	var wood_d := Color(0.38, 0.26, 0.14)
+	var band := Color(0.35, 0.30, 0.26)
+	for y in range(H):
+		var t := float(y) / (H - 1)
+		var hw := 6.0 - 1.6 * pow(2.0 * t - 1.0, 2.0)   # 鼓形
+		for x in range(int(7 - hw), int(7 + hw) + 1):
+			var edge := (x == int(7 - hw) or x == int(7 + hw))
+			var stave := 1.0 if (x % 4) < 2 else 0.85   # 竖板明暗
+			var c := (wood_d if edge else wood) * stave
+			img.set_pixel(x, y, c)
+	for x in range(1, W - 1):
+		if img.get_pixel(x, 3).a > 0:
+			img.set_pixel(x, 3, band)
+			img.set_pixel(x, 12, band)
+	return img
+
+# 画面改造P4.2 货箱：14x12 木箱+边框+斜撑
+func _crate_img() -> Image:
+	var W := 14
+	var H := 12
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var wood := Color(0.62, 0.45, 0.26)
+	var wood_d := Color(0.42, 0.29, 0.16)
+	for y in range(H):
+		for x in range(W):
+			var edge := (x == 0 or x == W - 1 or y == 0 or y == H - 1)
+			var diag := (x == y + 1) or (x == y + 2) or (x + y == W - 2) or (x + y == W - 3)
+			img.set_pixel(x, y, wood_d if edge else (wood_d if diag else wood))
+	return img
 
 # 城门楼：48x52 纯视觉 prop（挂在四门上方，无碰撞不占格；W2 唐制双层门楼）
 func _gate_tower_img() -> Image:
@@ -935,6 +1030,7 @@ func _compose_big_building(W: int, H: int, thatch: bool, temple: bool, accent: C
 				img.set_pixel(xx, y, Color(0.34, 0.32, 0.30))
 
 	# ---- 屋顶：反曲屋面（2026-08-31：pow(t,2.1)脊陡檐展，替换旧1-pow(1-t,1.8)的穹顶轮廓）+ 竖向瓦垄 ----
+	# 画面改造P4.1：非茅草屋面用 Roofs.png 青瓦纹样做明暗调制（保留反曲轮廓与配色，只加瓦楞质感）
 	for y in range(ridge_y, eave_row + 1):
 		var t := float(y - ridge_y) / maxf(1.0, float(eave_row - ridge_y))
 		var half := ridge_half + (eave_half - ridge_half) * pow(t, 2.1)
@@ -947,6 +1043,10 @@ func _compose_big_building(W: int, H: int, thatch: bool, temple: bool, accent: C
 			if thatch:
 				vv = 0.88 + 0.14 * hh
 			var c := Color(minf(roof_base.r * vv * stripe, 1.0), minf(roof_base.g * vv * stripe, 1.0), minf(roof_base.b * vv * stripe, 1.0))
+			if not thatch and _roof_pat != null:
+				var tp := _roof_pat.get_pixel(x % _roof_pat.get_width(), y % _roof_pat.get_height())
+				var f2 := 0.80 + ((tp.r + tp.g + tp.b) / 3.0) * 0.45   # 瓦纹亮度→明暗调制
+				c = Color(minf(c.r * f2, 1.0), minf(c.g * f2, 1.0), minf(c.b * f2, 1.0))
 			if float(x) < x0f + 1.5 or float(x) > x1f - 1.5:
 				c = roof_edge
 			img.set_pixel(x, y, c)

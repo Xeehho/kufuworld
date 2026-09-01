@@ -108,7 +108,8 @@ func _ensure_textures():
 	for kind in ["hut", "house", "manor", "temple", "castle",
 			"yamen", "tavern", "apothecary", "shop_a", "shop_b",
 			"stall_red", "stall_teal", "well", "gate_tower", "ferry",
-			"hall_qf", "hall_ts", "hall_gc", "hall_yw", "hall_ym"]:
+			"hall_qf", "hall_ts", "hall_gc", "hall_yw", "hall_ym",
+			"lantern", "barrel", "crate", "scarecrow", "fence_seg"]:   # 画面改造P4.2/P4.3 街景道具
 		if not FileAccess.file_exists("res://sprites/buildings/%s.png" % kind):
 			big_missing = true
 			break

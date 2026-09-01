@@ -75,6 +75,41 @@ const TREE_SHEETS := {
 }
 var _tree_sheet_cache: Dictionary = {}
 
+# 画面改造P4.4 季节树：变体索引→季节表（tools/analyze_tree_variants.py 逐格主导色实测）
+# 松4: 0-1春 2-3枯 4-7秋；橡8: 0春 1枯 2/4/5/6秋 3/7雪；竹9: 0/1/3/4春 2枯（5近空格不用）
+const TREE_SEASONS := {
+	4: {"spring": [0, 1], "autumn": [4, 5, 6, 7], "bare": [2, 3], "snow": []},
+	8: {"spring": [0], "autumn": [2, 4, 5, 6], "bare": [1], "snow": [3, 7]},
+	9: {"spring": [0, 1, 3, 4], "autumn": [], "bare": [2], "snow": []},
+}
+
+func _pick_tree_variant(tid: int, wx: int, wy: int) -> int:
+	"""按群系选树变体：森/原野以春为主点缀秋色，雪原用雪覆/春+冷色调制，竹林全春。
+	旧逻辑对全变体均匀取模——森林里 2/8 概率出枯树、6/8 概率出秋红松，四季混乱。"""
+	var grid := _tree_grid(tid)
+	var total := grid.x * grid.y
+	var table: Dictionary = TREE_SEASONS.get(tid, {})
+	if table.is_empty():
+		return abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % total
+	var r := fposmod(detail_noise.get_noise_2d(wx * 9.7 + 3.1, wy * 6.1 + 8.7) + 1.0, 1.0)
+	var season := "spring"
+	match _biome_kind(wx, wy):
+		"forest":
+			season = "autumn" if r > 0.85 else "spring"
+		"plains", "lake":
+			season = "autumn" if r > 0.90 else "spring"
+		"mountain":
+			season = "bare" if r > 0.5 else "spring"
+		"desert":
+			season = "bare"
+		"snow":
+			season = "snow" if not (table["snow"] as Array).is_empty() else "spring"
+		_: season = "spring"
+	var pool: Array = table.get(season, table["spring"])
+	if (pool as Array).is_empty():
+		pool = table["spring"]
+	return int(pool[abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % pool.size()])
+
 func _get_tree_sheet_texture(tid: int) -> Texture2D:
 	if _tree_sheet_cache.has(tid):
 		return _tree_sheet_cache[tid]
@@ -119,7 +154,7 @@ func _spawn_tree_prop(wx: int, wy: int, tid: int) -> bool:
 		return false
 	var cell: Vector2i = info["cell"]
 	var grid := _tree_grid(tid)
-	var variant: int = abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % (grid.x * grid.y)
+	var variant: int = _pick_tree_variant(tid, wx, wy)   # 画面改造P4.4：按群系季节选变体
 	var atlas = AtlasTexture.new()
 	atlas.atlas = sheet
 	atlas.region = Rect2(float(variant % grid.x) * cell.x, float(variant / grid.x) * cell.y, cell.x, cell.y)
@@ -1050,6 +1085,8 @@ func _generate_city():
 	get_parent().add_child(lbl)
 	# 11) 净空区（城墙外余量圈）
 	_register_town_clearance(cx, cy, h)
+	# 12) 画面改造P4.2：街景道具（灯笼/桶箱，纯视觉无碰撞）
+	_place_city_dressing(cx, cy)
 	print("[WorldGen] City[青石城·唐制] @(%d,%d) half=%d wards=%d markets=%d buildings=%d" % [cx, cy, h, city_info["wards"].size(), city_info["markets"].size(), city_info["buildings"].size()])
 
 ## 坊内/市内铺巷（不覆盖建筑footprint/墙/水）
@@ -1103,7 +1140,7 @@ func get_city_info() -> Dictionary:
 # ---- 城镇净空区——城镇周边(half+余量)内不生成树木/岩石，杜绝树冠压街压田 ----
 var _town_clear_rects: Array[Rect2i] = []
 const TOWN_CLEAR_MARGIN := 5   # 净空外扩格数（W8：11→13 方覆盖回归探针的镇圈采样圆 r=13，
-                               # 消除"净空方 11 vs 采样圆 13"缝隙里的山缘岩/树；树冠悬伸+呼吸空间）
+							   # 消除"净空方 11 vs 采样圆 13"缝隙里的山缘岩/树；树冠悬伸+呼吸空间）
 
 func _in_town_clearance(x: int, y: int) -> bool:
 	for r in _town_clear_rects:
@@ -1239,6 +1276,7 @@ func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, rng: RandomNumb
 			for dy in range(half - 2, half):
 				for dx in range(-half + 1, half):
 					_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
+			_place_farm_dressing(cx, cy, half)   # 画面改造P4.3：稻草人+栅栏段
 		"market":
 			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
 				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
@@ -1985,6 +2023,62 @@ func _attach_building_sprite(kind: String, a: Vector2i):
 	body.add_child(cs)
 	root.add_child(body)
 	get_parent().add_child(root)
+
+# ============ 画面改造P4.2/P4.3 城镇道具（灯笼/桶箱/稻草人/栅栏——纯视觉无碰撞） ============
+
+func _place_decor_prop(png: String, cell: Vector2i, group := "city_prop") -> bool:
+	"""脚底锚定装饰道具：原点=贴图底缘，z=2并入Y-sort；不占格不进碰撞，零语义影响。
+	建筑footprint(39)/水面(5)上不放。"""
+	var tid := get_tile_id(cell.x, cell.y)
+	if tid == 39 or tid == 5:
+		return false
+	var tex := TextureGen.load_png_texture(png)
+	if tex == null:
+		return false
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.z_index = 2
+	var pos := Vector2(cell.x * 16.0 + 8.0, (cell.y + 1) * 16.0 - 2.0)
+	spr.position = pos
+	spr.offset = Vector2(0, -tex.get_height() * 0.5)
+	spr.add_to_group(group)
+	spr.set_meta("base_y", pos.y)
+	var sh := TextureGen.make_shadow_sprite(clampf(tex.get_width() * 0.85, 14.0, 44.0), 0.24)
+	sh.position = Vector2(0, -2)
+	spr.add_child(sh)
+	get_parent().add_child(spr)
+	return true
+
+func _place_city_dressing(cx: int, cy: int):
+	"""青石城街景道具：四市摊灯笼夹道+桶箱、水井双灯、中央十字街口四灯"""
+	var stalls := [Vector2i(-13, 26), Vector2i(-9, 27), Vector2i(8, 26), Vector2i(11, 27)]
+	for s in stalls:
+		var a := Vector2i(cx + s.x, cy + s.y)
+		_place_decor_prop("res://sprites/buildings/lantern.png", a + Vector2i(-2, 0))
+		_place_decor_prop("res://sprites/buildings/lantern.png", a + Vector2i(2, 0))
+		_place_decor_prop("res://sprites/buildings/barrel.png", a + Vector2i(-1, 1))
+		_place_decor_prop("res://sprites/buildings/crate.png", a + Vector2i(1, 1))
+	_place_decor_prop("res://sprites/buildings/lantern.png", Vector2i(cx - 6, cy + 28))
+	_place_decor_prop("res://sprites/buildings/lantern.png", Vector2i(cx - 2, cy + 28))
+	for c in [Vector2i(-1, -2), Vector2i(1, -2), Vector2i(-1, 2), Vector2i(1, 2)]:
+		_place_decor_prop("res://sprites/buildings/lantern.png", Vector2i(cx + c.x, cy + c.y))
+
+func _place_farm_dressing(cx: int, cy: int, half: int):
+	"""farm 模板农带装点：稻草人 1 座 + 农带外缘栅栏段（3 格 1 段，只落在农田格上）"""
+	var farm_tids := [16, 41]
+	var scare_cells := [Vector2i(cx - half + 3, cy - half + 5), Vector2i(cx - half + 2, cy - half + 8)]
+	for sc in scare_cells:
+		if get_tile_id(sc.x, sc.y) in farm_tids:
+			_place_decor_prop("res://sprites/buildings/scarecrow.png", sc, "farm_prop")
+			break
+	for dy in range(cy - half + 2, cy + half - 1, 3):
+		var c := Vector2i(cx - half + 1, dy)
+		if get_tile_id(c.x, c.y) in farm_tids:
+			_place_decor_prop("res://sprites/buildings/fence_seg.png", c, "farm_prop")
+	for dx in range(cx - half + 3, cx + half - 1, 3):
+		var c := Vector2i(dx, cy + half - 1)
+		if get_tile_id(c.x, c.y) in farm_tids:
+			_place_decor_prop("res://sprites/buildings/fence_seg.png", c, "farm_prop")
 
 # ---- Phase F6: 连通性保障（饥荒式：所有可走孤岛自动开路接回主大陆） ----
 # W1 算法升级：逐 pocket "最近点对暴力搜索"（183 pocket × reach 8.6万 → 卡死）改为
