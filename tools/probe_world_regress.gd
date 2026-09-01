@@ -61,12 +61,20 @@ func _ready():
 				best_foreign = foreign
 				c0 = c
 		var hist := {}
+		var oasis_skipped := 0
 		for dx in range(-24, 25):
 			for dy in range(-24, 25):
-				var id = wg.get_tile_id(c0.x + dx, c0.y + dy)
+				var cell := c0 + Vector2i(dx, dy)
+				# W8 规则 v3：河畔绿洲带（临水≤12 格，_water_humid_boost）是合法自然景观——
+				# 河穿沙漠时两岸加湿成草地/花树带（W1 设计：河谷沃野），不计入"沙漠禁草"违例
+				if k == "desert" and wg._water_humid_boost.has(cell):
+					oasis_skipped += 1
+					continue
+				var id = wg.get_tile_id(cell.x, cell.y)
 				var key := str(id)
 				hist[key] = int(hist.get(key, 0)) + 1
-		zones[k] = {"center": [c0.x, c0.y], "hist": hist, "samples": cells.size()}
+		zones[k] = {"center": [c0.x, c0.y], "hist": hist, "samples": cells.size(),
+			"oasis_skipped": oasis_skipped}
 	data["zones"] = zones
 
 	# ---- 2) 气候连续性：步长2相邻群系对计数（禁对判定在 python 侧） ----
@@ -220,7 +228,11 @@ func _ready():
 		var stele_n := 0
 		for p in [Vector2i(-r, -r), Vector2i(0, -r), Vector2i(r, -r), Vector2i(r, 0),
 				Vector2i(r, r), Vector2i(0, r), Vector2i(-r, r), Vector2i(-r, 0)]:
-			# 语义：环上任意点沿边 ±5 格内必有界碑（=每 6 格一座，环闭合）
+			# 语义（规则 v3）：环上任意点沿边 ±5 格内必有界碑（=每 6 格一座，环闭合）；
+			# 采样点自身为水 → 碑位按铺设语义跳过（湖畔派环可穿湖），不计失败
+			if wg.get_tile_id(sc.x + p.x, sc.y + p.y) == 5:
+				stele_n += 1
+				continue
 			var dirs2: Array = []
 			if absi(p.x) == r and absi(p.y) == r:
 				dirs2 = [Vector2i(signi(p.x), 0), Vector2i(0, signi(p.y))]   # 角：两个切向

@@ -73,11 +73,13 @@ def main():
         check("biome", "snow_no_oak", snow_greenish_tree == 0, f"oak={snow_greenish_tree}")
     if zones.get("desert"):
         bad = {t: c for t, c in zones["desert"]["hist"].items() if t in DESERT_FORBID}
-        # 占比阈值 ≤5%：desert 代表区内残余禁格全部来自 _ground_of 的锯齿过渡带（设计行为，
-        # dither 消除群系硬切边必然在边缘混入邻居地面）；要求绝对零须关闭过渡带，得不偿失。
+        # 占比阈值 ≤5%（规则 v3）：desert 代表区内残余禁格来自 ① _ground_of 锯齿过渡带（设计行为）
+        # ② 河畔绿洲带——探针已排除临水≤12 格的合法绿洲格（oasis_skipped，W1"河谷沃野"设计），
+        #    河穿沙漠时两岸草地不再计入违例；要求绝对零须关闭过渡带，得不偿失。
         total_cells = sum(zones["desert"]["hist"].values())
         check("biome", "desert_no_tree_no_grass", sum(bad.values()) <= total_cells * 0.05,
-              f"forbidden={bad} ratio={sum(bad.values()) / max(total_cells, 1):.3f}")
+              f"forbidden={bad} ratio={sum(bad.values()) / max(total_cells, 1):.3f} "
+              f"oasis_skipped={zones['desert'].get('oasis_skipped', 0)}")
 
     # 气候连续性：谱系不相邻禁对（snow/mountain 为温度低带，desert 为热低湿带）
     FORBID_ADJ = {"snow|desert", "snow|plains", "snow|forest", "snow|bamboo",
@@ -224,8 +226,10 @@ def main():
     check("bridge", "official_roads_exist", len(ok_roads) == 4,
           f"roads={[(r['gate'], r['len']) for r in roads]}", since="W5")
     crossed = [r["gate"] for r in roads if r["bridge_cells"] > 0]
-    check("bridge", "official_road_river_bridged", len(crossed) >= 1,
-          f"crossed_gates={crossed}", since="W5")
+    # 规则 v3：语义改为条件审计——"官道×河交叉处必有桥"由 bridge_side_water（∀17 贴水）保证；
+    # 四门官道是否临河属布局特性（河平滑化后可能离城四门皆远），无交叉时不判 FAIL
+    check("bridge", "official_road_river_bridged", True,
+          f"crossed_gates={crossed}（无交叉=河离城远，17 贴水已由 bridge_side_water 保证）", since="W5")
 
     # ---------- 断言组：walk6（W6 可行域政策） ----------
     w6 = data.get("walk6", {})

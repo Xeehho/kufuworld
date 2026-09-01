@@ -19,5 +19,6 @@ const FLAG := {
 
 ## 规则版本号：布局/断言规则变更时必须 +1 并登记到重构规划文档（§10.3）
 ## v2 = W8 任务重启：quest_available_zero → quest_available_positive + 新增 story_started
-## （冻结期"零发布"语义随 quests_disabled=false 终止，登记见进度日志 §二·I）
-const WORLD_RULES_VERSION := 2
+## v3 = W8 观感修复：desert 直方图排除河畔绿洲带（临水≤12 格合法绿洲，探针 oasis_skipped）+
+##   桥水侧不变量（陆上裸 17 降级 path）+ POI 避让镇建成区 + 渡亭选址前置验证（登记见进度日志 §二·J）
+const WORLD_RULES_VERSION := 3
