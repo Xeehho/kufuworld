@@ -2,6 +2,7 @@ extends Node2D
 
 const TextureGen = preload("res://scripts/texture_generator.gd")
 const TilesetGen = preload("res://scripts/tileset_generator.gd")
+const TownDemoKit = preload("res://scripts/town_demo_kit.gd")   # 城镇样板区（立项书 §4.3）
 
 const CHUNK_SIZE = 16
 const TILE_SIZE_PX = 16
@@ -210,6 +211,13 @@ func _ready():
 	_ensure_corridor_width()	# W6：走廊宽度感知（窄喉口袋 2 宽开路，限量）
 	_place_bridge_props()	# W5：连通性收尾后统一扫描17段→石拱桥prop（纯视觉z1）
 	_dress_farm_bands()	# 画面改造P4b：全局农田装点（作物+栅栏+稻草人，纯视觉零语义）
+	# 城镇样板区（立项书 §4.3：唯一接线点——_ready 尾部、_dress_farm_bands 后；FLAG 门控）
+	if WorldFeatures.FLAG["demo_town"]:
+		var demo_kit := TownDemoKit.new()
+		demo_kit.name = "TownDemoKit"
+		add_child(demo_kit)
+		if demo_kit.setup(self):
+			demo_kit.build()
 	_compute_reachable_region()	# 刷新对外可达查询（NPC/营地选址用最新数据）
 	# 初始加载玩家周围的chunk
 	_initial_load()
@@ -1144,6 +1152,9 @@ func get_city_info() -> Dictionary:
 
 # ---- 城镇净空区——城镇周边(half+余量)内不生成树木/岩石，杜绝树冠压街压田 ----
 var _town_clear_rects: Array[Rect2i] = []
+# 城镇样板区 rect（town_demo_kit 选址成功后写入；size=0 表示未启用）——
+# is_in_settlement 据此判定：营地/野怪避让样板区（立项书 §4.4 风险对策）
+var demo_zone_rect := Rect2i(0, 0, 0, 0)
 const TOWN_CLEAR_MARGIN := 5   # 净空外扩格数（W8：11→13 方覆盖回归探针的镇圈采样圆 r=13，
 							   # 消除"净空方 11 vs 采样圆 13"缝隙里的山缘岩/树；树冠悬伸+呼吸空间）
 
@@ -1670,6 +1681,9 @@ func is_in_settlement(p: Vector2) -> bool:
 	for tc in town_centers:
 		if Vector2(t.x, t.y).distance_to(tc) < 13.0:
 			return true
+	# 城镇样板区（P0：营地/野怪避让，mob.gd/_resolve_camp_center 经此继承）
+	if demo_zone_rect.size.x > 0 and demo_zone_rect.has_point(t):
+		return true
 	return false
 
 func _spawn_tile() -> Vector2:

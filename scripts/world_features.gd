@@ -15,6 +15,7 @@ const FLAG := {
 	"quests_disabled": false,    # W8 任务重启 ✅ 2026-09-01：告示板恢复发布+主线自动启动（冻结期断言已按规则v2升级）
 	"bridge_prop": true,         # W5 石拱桥 prop（可通行语义与外观分离）✅ 2026-09-01 开启（W7 legacy 删）
 	"walkability_policy": true,  # W6 可行域政策（SETTLEMENT/ROAD 零碰撞物+走廊连通）✅ 2026-09-01 开启（W7 legacy 删）
+	"demo_town": true,           # 城镇样板区（材质包 1:1 复刻试点，纯视觉零语义）P0 2026-09-02
 }
 
 ## 规则版本号：布局/断言规则变更时必须 +1 并登记到重构规划文档（§10.3）
