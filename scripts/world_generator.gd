@@ -1070,7 +1070,7 @@ func _generate_city():
 		var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
 		var door := Vector2i(a.x + int(fp.x / 2.0), a.y + fp.y)
 		doors[key] = door
-		city_info["buildings"][key] = {"anchor": a, "fp": fp,
+		city_info["buildings"][key] = {"kind": kind, "anchor": a, "fp": fp,
 			"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": bdefs[key][2]}
 	# 8) 门前小径：BFS 连接最近路（主街/次街/坊巷/市巷；阻挡建筑/墙/坊墙/水）
 	var city_lim := Rect2i(cx - h + 2, cy - h + 2, 2 * h - 4, 2 * h - 4)
@@ -1101,7 +1101,64 @@ func _generate_city():
 	_register_town_clearance(cx, cy, h)
 	# 12) 画面改造P4.2：街景道具（灯笼/桶箱，纯视觉无碰撞）
 	_place_city_dressing(cx, cy)
+	# 12.5) v4 M3：坊内密度增强（立项书 §3.3——檐下道具/坊巷灯笼/花簇/市摊货台）
+	_dress_city_wards(cx, cy)
 	print("[WorldGen] City[青石城·唐制] @(%d,%d) half=%d wards=%d markets=%d buildings=%d" % [cx, cy, h, city_info["wards"].size(), city_info["markets"].size(), city_info["buildings"].size()])
+
+func _dress_city_wards(cx: int, cy: int):
+	"""v4 M3 坊内密度增强（docs/立项-v4城镇全量重构.md §3.3）：
+	①house/hut 檐下桶箱（14 栋）②坊巷灯笼 glow（4 坊×2，收口 wg._process 昼夜调能）
+	③坊内花簇 ④市摊货台 crate。27 建筑 key/anchor 零改动（city_npc_configs 硬依赖）；
+	纯 prop 零瓦片语义；props 入 city_prop 组。"""
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), Rect2i(cx - city_half, cy - city_half, city_half * 2 + 1, city_half * 2 + 1))
+	var n := 0
+	# 1 檐下道具：house/hut 左桶右箱（脚底=底缘行；守卫=不压 39/40/43/5/水/已占）
+	for key in city_info["buildings"]:
+		var b: Dictionary = city_info["buildings"][key]
+		var kind: String = b["kind"]
+		if kind != "house" and kind != "hut":
+			continue
+		var a: Vector2i = b["anchor"]
+		var fp: Vector2i = b["fp"]
+		var feet_y: int = a.y + fp.y - 1
+		for pc in [Vector2i(a.x - 1, feet_y), Vector2i(a.x + fp.x, feet_y)]:
+			var t: int = get_tile_id(pc.x, pc.y)
+			if t in [39, 40, 43, 5] or kit.occupied.has(pc):
+				continue
+			var png := "res://sprites/buildings/barrel.png" if pc.x < a.x else "res://sprites/buildings/crate.png"
+			if kit.stamp_prop(png, pc, false, "city_prop"):
+				kit.occupied[pc] = true
+				n += 1
+	# 2 市摊货台：4 摊门侧 crate（货台化意象）
+	for skey in ["stall_w1", "stall_w2", "stall_e1", "stall_e2"]:
+		if not city_info["buildings"].has(skey):
+			continue
+		var s: Dictionary = city_info["buildings"][skey]
+		var dp: Vector2 = s["door_px"]
+		var sc := Vector2i(int(dp.x / 16.0) + 1, int(dp.y / 16.0))
+		var t2: int = get_tile_id(sc.x, sc.y)
+		if t2 in [39, 40, 43, 5] or kit.occupied.has(sc):
+			continue
+		if kit.stamp_prop("res://sprites/buildings/crate.png", sc, false, "city_prop"):
+			kit.occupied[sc] = true
+			n += 1
+	# 3 坊巷灯笼（中纵巷两端，glow）+ 4 坊内花簇
+	var flower_n := 0
+	for w in city_info["wards"]:
+		var wr: Rect2i = w["rect"]
+		var ar := Rect2i(wr.position + Vector2i(cx, cy), wr.size)
+		var mid_x: int = ar.position.x + ar.size.x / 2
+		for lc in [Vector2i(mid_x, ar.position.y + 2), Vector2i(mid_x, ar.end.y - 3)]:
+			var t3: int = get_tile_id(lc.x, lc.y)
+			if t3 in [39, 40, 43, 5] or kit.occupied.has(lc):
+				continue
+			if kit.stamp_prop("res://sprites/buildings/lantern.png", lc, true, "city_prop"):
+				kit.occupied[lc] = true
+				n += 1
+		flower_n += kit.scatter_flowers(ar, 0.03, 8)
+	town_glow_lights.append_array(kit.glow_lights)
+	print("[WorldGen] CityWards 密度增强：props=%d 花簇=%d（坊内目标≥20%%）" % [n, flower_n])
 
 ## 坊内/市内铺巷（不覆盖建筑footprint/墙/水）
 func _ward_path(wx: int, wy: int):
