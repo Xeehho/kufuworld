@@ -8,12 +8,12 @@ const OUT := "C:/Learn/my-godot-project/docs/shots/"
 
 # [name, 瓦片坐标, zoom]
 const SPOTS := [
-	["farm1_overview", Vector2i(-75, 55), 1.0],    # farm 镇全景（21×21 体）
-	["farm1_north", Vector2i(-75, 51), 2.0],        # 北带祠堂/农舍地块特写
-	["farm2_overview", Vector2i(-45, 69), 1.0],
-	["farm2_south", Vector2i(-45, 73), 2.0],        # 南带民居地块特写
-	["farm3_overview", Vector2i(128, 11), 1.0],
-	["farm3_close", Vector2i(128, 8), 2.5],         # 北带门径/围栏放大
+	["market1_overview", Vector2i(-87, 116), 1.0],   # market 镇全景（23×23 体，M2）
+	["market1_plaza", Vector2i(-87, 114), 2.0],      # 中央广场/十字街/市摊特写
+	["market2_overview", Vector2i(-72, 94), 1.0],
+	["ferry1_overview", Vector2i(-117, 88), 1.0],    # ferry 渡口村全景（19×19 体，M2）
+	["ferry1_close", Vector2i(-117, 85), 2.0],       # 北带地块特写
+	["farm3_close", Vector2i(128, 8), 2.5],          # farm 北带门径/围栏放大（M1 回归样本）
 ]
 
 func _log(m):

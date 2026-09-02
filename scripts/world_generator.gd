@@ -1231,7 +1231,7 @@ func _generate_towns():
 					continue
 				# 渡亭岸位前置验证（治因：外带有水≠有合格岸位——2x2 干置+外邻贴水+门行干燥三重约束，
 				# 选址期不验证则"有村无亭"（回归 ferry_pavilion FAIL），找不到即弃此候选）
-				if k == "ferry" and _find_bank_spot(tx, ty, 8) == Vector2i(9999, 9999):
+				if k == "ferry" and _find_bank_spot(tx, ty, 9) == Vector2i(9999, 9999):   # v4 M2：half 同步 8→9（预检=放置模拟）
 					continue
 				# 崖带排除：cheby≤10 内有山体/雪崖 → 建筑无成片干地（曾产出 1 建筑空镇）
 				if _area_has_cliff(tx, ty, 10):
@@ -1256,59 +1256,21 @@ func _water_in_band(cx: int, cy: int, r0: int, r1: int) -> bool:
 	return false
 
 func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, town_index: int):
-	# M1（v4 立项书 §3.2）：布局 rng 镇级隔离（seed 由镇序派生）——布局改动对其他镇/选址零外溢；
-	# 选址仍消费 _generate_towns 主 rng（跨镇序列）。farm 模板自此走 v4 地块式布局（半边 8→10）。
+	# M1/M2（v4 立项书 §3.2）：布局 rng 镇级隔离（seed 由镇序派生）——布局改动对其他镇/选址
+	# 零外溢；选址仍消费 _generate_towns 主 rng（跨镇序列）。三模板全地块式布局（M2 起
+	# legacy 象限撒点退役：farm half=10 / market half=11 / ferry half=9）。
 	var rng := RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 4000 + (town_index + 1) * 7919
-	var tpl: Dictionary = WorldData.TOWN_TEMPLATES_V2[tpl_key]
-	var half := 10 if tpl_key == "farm" else (9 if tpl_key == "market" else 8)
+	var half := 10 if tpl_key == "farm" else (11 if tpl_key == "market" else 9)
 	var info := {"template": tpl_key, "center": Vector2i(cx, cy), "half": half, "buildings": {}}
 	town_info[Vector2i(cx, cy)] = info
-	if tpl_key == "farm":
-		_build_farm_town_v4(cx, cy, half, rng, info)
-		_log_town_jobs(tpl_key, cx, cy, half, info)
-		_register_town_clearance(cx, cy, half)
-		return
-	# ---- market/ferry：legacy 布局（M2 重排），仅 rng 换镇级源 ----
-	# 十字土路（逐格避水，同 legacy）
-	for dx in range(-half, half + 1):
-		var rc := Vector2i(cx + dx, cy)
-		if get_tile_id(rc.x, rc.y) != 5:
-			override_cells[rc] = _palette_at(rc.x, rc.y)["path"]
-	for dy in range(-half, half + 1):
-		var rc2 := Vector2i(cx, cy + dy)
-		if get_tile_id(rc2.x, rc2.y) != 5:
-			override_cells[rc2] = _palette_at(rc2.x, rc2.y)["path"]
-	# 市镇中央石板广场
-	if tpl_key == "market":
-		for dx in range(-2, 3):
-			for dy in range(-2, 3):
-				var pc := Vector2i(cx + dx, cy + dy)
-				if get_tile_id(pc.x, pc.y) != 5:
-					override_cells[pc] = 35
-	# 模板建筑组（key 与 NPC_JOBS.building 对齐；job 空串=无岗位纯民居/功能）
-	# 祠堂：首选 temple；山缘镇 7x5 摆不下时回退 hut 小筑祠堂（村正岗位必须落位）
 	match tpl_key:
+		"farm":
+			_build_farm_town_v4(cx, cy, half, rng, info)
 		"market":
-			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
-				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
-			_place_town_building(cx, cy, half, "smithy", "shop_a", "铁匠", rng, info)
-			_place_town_building(cx, cy, half, "grocer", "shop_b", "货郎", rng, info)
-			_place_town_building(cx, cy, half, "inn", "tavern", "", rng, info)   # 骡马店
+			_build_market_town_v4(cx, cy, half, rng, info)
 		"ferry":
-			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
-				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
-			_place_town_building(cx, cy, half, "farm1", "hut", "农人", rng, info)
-			_place_town_building(cx, cy, half, "farm2", "hut", "农人", rng, info)
-			_place_town_building(cx, cy, half, "grocer", "shop_b", "货郎", rng, info)
-			_place_ferry(cx, cy, half, info)
-	# 补足民居（hut/house 混合，无 job）
-	var lo: int = int(tpl["houses"][0])
-	var hi: int = int(tpl["houses"][1])
-	var want := rng.randi_range(lo, hi)
-	for i in range(want):
-		var kind := "house" if rng.randf() < 0.4 else "hut"
-		_place_town_building(cx, cy, half, "house%d" % i, kind, "", rng, info)
+			_build_ferry_town_v4(cx, cy, half, rng, info)
 	_log_town_jobs(tpl_key, cx, cy, half, info)
 	# 登记净空区
 	_register_town_clearance(cx, cy, half)
@@ -1398,59 +1360,118 @@ func _v4_place_plot(kit, cx: int, cy: int, key: String, kind: String, job: Strin
 	info["buildings"][key] = {"kind": kind, "anchor": a, "fp": fp,
 		"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": job}
 
+# ---- v4 M2：market 模板地块式布局（half=11，唐制行肆意象） ----
+# 十字街（2 宽）+ 中央 7×7 石板广场（水井）+ 坊市摊位（stall prop 沿街）+ 南市巷；
+# 语义槽位：祠堂(村正)/骡马店 inn(无 job)/铁匠/货郎/民居 5~7（槽位 5 席，
+# deviation：want=mini(rng 5..7, 5)，legacy 为 5~7 随机）。
+const TOWN_MARKET_SLOTS := [
+	["shrine", "temple", "村正", Vector2i(-9, -7), Rect2i(-9, -8, 7, 7)],
+	["inn", "tavern", "", Vector2i(2, -7), Rect2i(2, -8, 7, 7)],
+	["smithy", "shop_a", "铁匠", Vector2i(-9, 2), Rect2i(-9, 2, 5, 5)],
+	["grocer", "shop_b", "货郎", Vector2i(2, 2), Rect2i(2, 2, 5, 5)],
+]
+const TOWN_MARKET_HOUSE_SLOTS := [
+	["house1", "house", Vector2i(-9, 8), Rect2i(-9, 8, 6, 4)],
+	["house2", "hut", Vector2i(-3, 8), Rect2i(-3, 8, 3, 4)],
+	["house3", "house", Vector2i(2, 8), Rect2i(2, 8, 6, 4)],
+	["house4", "hut", Vector2i(8, 8), Rect2i(8, 8, 3, 4)],
+	["house5", "hut", Vector2i(8, 2), Rect2i(8, 2, 3, 4)],
+]
+
+func _build_market_town_v4(cx: int, cy: int, half: int, rng: RandomNumberGenerator, info: Dictionary):
+	var body := Rect2i(cx - half, cy - half, half * 2 + 1, half * 2 + 1)
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), body)
+	# 1 十字街 2 宽（main_street 语义）+ 南市巷 1 宽 y=7
+	for ly in range(-half, half + 1):
+		kit.pave(Vector2i(cx, cy + ly))
+		kit.pave(Vector2i(cx + 1, cy + ly))
+	for lx in range(-half, half + 1):
+		kit.pave(Vector2i(cx + lx, cy))
+		kit.pave(Vector2i(cx + lx, cy + 1))
+	for lx in range(-half + 1, half):
+		kit.pave(Vector2i(cx + lx, cy + 7))
+	# 2 语义槽位（祠堂/骡马店/铁匠/货郎）+ 民居 5~7——**建筑先于广场**（_can_place_footprint
+	# 遇 override 即拒；广场见 3，pave_rect 自带 39 守卫）
+	for s in TOWN_MARKET_SLOTS:
+		_v4_place_plot(kit, cx, cy, s[0], s[1], s[2], s[3], s[4], info)
+	var want: int = mini(rng.randi_range(5, 7), TOWN_MARKET_HOUSE_SLOTS.size())
+	for i in range(want):
+		var h: Array = TOWN_MARKET_HOUSE_SLOTS[i]
+		_v4_place_plot(kit, cx, cy, h[0], h[1], "", h[2], h[3], info)
+	# 3 中央石板广场 7×7（39 守卫跳过建筑占格）
+	kit.pave_rect(Rect2i(cx - 3, cy - 3, 7, 7), 35)
+	# 4 坊市摊位（沿横街北缘 4 摊，红青相间 prop；占道不占格——街边行肆意象）
+	var stalls := ["res://sprites/buildings/stall_red.png", "res://sprites/buildings/stall_teal.png"]
+	for i in range(4):
+		var sc: Vector2i = Vector2i(cx, cy) + [Vector2i(-5, -1), Vector2i(-3, -1),
+				Vector2i(3, -1), Vector2i(6, -1)][i]
+		if not kit.occupied.has(sc) and get_tile_id(sc.x, sc.y) != 5:
+			if kit.stamp_prop(stalls[i % 2], sc, false, "city_prop"):
+				kit.occupied[sc] = true
+	# 5 水井 prop（广场西北角，避十字路口）
+	var well_c := Vector2i(cx - 1, cy - 1)
+	if kit.stamp_prop("res://sprites/buildings/well.png", well_c, false, "city_prop"):
+		kit.occupied[well_c] = true
+	# 6 装点密度 + glow 收口
+	kit.scatter_props(body, 0.32, 4242 + cx * 31 + cy)
+	kit.scatter_flowers(body, 0.03, 16)
+	town_glow_lights.append_array(kit.glow_lights)
+	kit.report_density(body, "market@%d,%d" % [cx, cy])
+
+# ---- v4 M2：ferry 模板地块式布局（half=9，渡口村） ----
+# 十字土路 1 宽保留（镇心=渡亭官道接驳起点，ferry_axis 语义）+ 支巷 y=±3；
+# 渡亭走 _place_ferry（岸位三重验证/ferry_axis/石拱桥规则全保留，选址预检 half 同步 8→9）；
+# 宅区地块化：祠堂(村正)/farm1·farm2(农人)/grocer(货郎)/民居 3（deviation：legacy 4~5，
+# half=9 十字/支巷分割后合规槽位 3 席——"grown 间距≥3"防火巷规则收紧了可布密度）。
+const TOWN_FERRY_SLOTS := [
+	["shrine", "temple", "村正", Vector2i(-8, -8), Rect2i(-8, -9, 7, 7)],
+	["farm1", "hut", "农人", Vector2i(2, -7), Rect2i(2, -8, 4, 5)],
+	["farm2", "hut", "农人", Vector2i(7, -7), Rect2i(7, -8, 3, 5)],
+	["grocer", "shop_b", "货郎", Vector2i(-9, 4), Rect2i(-9, 4, 5, 5)],
+]
+const TOWN_FERRY_HOUSE_SLOTS := [
+	["house1", "hut", Vector2i(-3, 5), Rect2i(-3, 4, 3, 5)],
+	["house2", "house", Vector2i(2, 4), Rect2i(2, 4, 6, 5)],
+	["house3", "hut", Vector2i(7, -2), Rect2i(7, -2, 3, 3)],
+]
+
+func _build_ferry_town_v4(cx: int, cy: int, half: int, rng: RandomNumberGenerator, info: Dictionary):
+	var body := Rect2i(cx - half, cy - half, half * 2 + 1, half * 2 + 1)
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), body)
+	# 1 十字土路 1 宽（legacy 语义：镇心=渡亭接驳起点必干燥）+ 支巷 y=±3
+	for dx in range(-half, half + 1):
+		kit.pave(Vector2i(cx + dx, cy))
+	for dy in range(-half, half + 1):
+		kit.pave(Vector2i(cx, cy + dy))
+	for lx in range(-half + 1, half):
+		kit.pave(Vector2i(cx + lx, cy - 3))
+		kit.pave(Vector2i(cx + lx, cy + 3))
+	# 2 语义槽位（祠堂/农舍×2/货郎）+ 民居 4~5
+	for s in TOWN_FERRY_SLOTS:
+		_v4_place_plot(kit, cx, cy, s[0], s[1], s[2], s[3], s[4], info)
+	var want: int = mini(rng.randi_range(4, 5), TOWN_FERRY_HOUSE_SLOTS.size())
+	for i in range(want):
+		var h: Array = TOWN_FERRY_HOUSE_SLOTS[i]
+		_v4_place_plot(kit, cx, cy, h[0], h[1], "", h[2], h[3], info)
+	# 3 渡亭 + 官道接驳（legacy _place_ferry 原样：岸位三重验证/ferry_axis 登记）
+	_place_ferry(cx, cy, half, info)
+	# 4 装点密度 + glow 收口
+	kit.scatter_props(body, 0.30, 4242 + cx * 31 + cy)
+	kit.scatter_flowers(body, 0.04, 18)
+	town_glow_lights.append_array(kit.glow_lights)
+	kit.report_density(body, "ferry@%d,%d" % [cx, cy])
+
 func _stamp_farm_cell(cell: Vector2i):
 	"""农带单格：不覆已有铺设（路/广场/建筑占格）与水面"""
 	if override_cells.has(cell) or get_tile_id(cell.x, cell.y) == 5:
 		return
 	override_cells[cell] = _palette_at(cell.x, cell.y)["farm"]
 
-func _place_town_building(cx: int, cy: int, half: int, key: String, kind: String, job: String,
-		rng: RandomNumberGenerator, info: Dictionary) -> bool:
-	"""四象限轮转选址摆放（每象限 16 次尝试），成功后登记 town_info + 门前小径。
-	注：画面改造P4b 曾试"贴路优先选址"，实测挪动建筑锚点会挤占门派候选位（sect_count_5→4）
-	并让门径撞上山环（settlement_road_no_collide FAIL）——镇/门派空间契约脆弱，已回退。
-	密度提升改由 _dress_farm_bands（作物/栅栏/稻草人）承担。"""
-	var quads := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
-	var qi := rng.randi() % 4
-	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
-	for i in range(4):
-		var quad: Vector2i = quads[(qi + i) % 4]
-		var lo_x: int = (cx + 2) if quad.x > 0 else (cx - half)
-		var hi_x: int = (cx + half - fp.x) if quad.x > 0 else (cx - 2 - fp.x + 1)
-		var lo_y: int = (cy + 2) if quad.y > 0 else (cy - half)
-		var hi_y: int = (cy + half - fp.y) if quad.y > 0 else (cy - 2 - fp.y + 1)
-		if hi_x < lo_x or hi_y < lo_y:
-			continue
-		for _a in range(16):
-			var a := Vector2i(rng.randi_range(lo_x, hi_x), rng.randi_range(lo_y, hi_y))
-			if not _town_anchor_ok(a, fp, cy):
-				continue
-			if not _place_building_prop(kind, a):
-				continue
-			var door := Vector2i(a.x + int(fp.x / 2.0), a.y + fp.y)
-			_carve_door_path(a, fp, cy)
-			info["buildings"][key] = {"kind": kind, "anchor": a, "fp": fp,
-				"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": job}
-			return true
-	print("[WorldGen] TownV2 building[%s %s] placement failed @%s" % [key, kind, str(info["center"])])
-	return false
-
-func _town_anchor_ok(a: Vector2i, fp: Vector2i, road_y: int) -> bool:
-	"""门前小径预检：door 列（door 行→主路）不得穿越建筑占格(39)/水/崖——
-	dense 摆放时后放建筑的占格会打断先放建筑的 _carve_door_path，door 与路之间留断点
-	（W4 回归 9 FAIL 根因：house/smithy door 不可达）"""
-	var dx := a.x + int(fp.x / 2.0)
-	var y := a.y + fp.y
-	var guard := 0
-	while y != road_y and guard < 64:
-		guard += 1
-		var c := Vector2i(dx, y)
-		if int(override_cells.get(c, -1)) == 39:
-			return false
-		if get_tile_id(c.x, c.y) in [5, 3, 7]:
-			return false
-		y += signi(road_y - y)
-	return true
+# [墓志 2026-09-02 v4 M2] _place_town_building/_town_anchor_ok/_carve_door_path（象限撒点三件套）
+# 随 market/ferry 地块式布局转正而退役：v4 布局表驱动确定性锚点 + yard_ground 门径（override 层），
+# "后放建筑打断先放建筑门径"（W4 9 FAIL 根因）与"门格裸沙"（南象限 carve 穿 footprint）缺陷同根除。
 
 func _place_ferry(cx: int, cy: int, half: int, info: Dictionary):
 	"""渡口：环带找贴水干格放渡亭 + 官道接驳（W5 石拱桥读 ferry_axis）"""
@@ -2026,25 +2047,8 @@ func _dump_spawn_diagnostics(origin: Vector2i):
 		lines += "\n[WorldGen]   " + line
 	print("[WorldGen] ASCII map around spawn (#=blocked .=walk):" + lines)
 
-func _carve_door_path(a: Vector2i, fp: Vector2i, road_y: int):
-	"""从门格(footprint下方中央)向主路铺小径，保证出门即达道路"""
-	var dx := a.x + int(fp.x / 2.0)
-	var y := a.y + fp.y
-	var guard := 0
-	while y != road_y and guard < 64:
-		guard += 1
-		var cell := Vector2i(dx, y)
-		# 2026-08-31：基面为水/崖即停——小径不得穿河凿崖（旧逻辑只看override，河水被硬铺成路）
-		if get_tile_id(cell.x, cell.y) in [5, 3, 7]:
-			break
-		var cur = override_cells.get(cell, -1)
-		# 已是既有路径（含调色板路径/主街）即接驳完成
-		if cur == _palette_at(cell.x, cell.y)["path"]:
-			break
-		# 空地或调色板基础地面（城内地坪已整体压平为调色板地面）才铺门前小径
-		if cur == -1 or cur == 0 or cur == _palette_at(cell.x, cell.y)["ground"]:
-			override_cells[cell] = _palette_at(cell.x, cell.y)["path"]
-		y += 1 if road_y > y else -1
+# [墓志 2026-09-02 v4 M2] _carve_door_path 退役（v4 门径走 kit.yard_ground override 层——
+# 旧 carve 的两处缺陷：南象限建筑门径穿 footprint 无效铺装；门格被河岸 6 占据时整条不铺）
 
 func _can_place_footprint(a: Vector2i, fp: Vector2i) -> bool:
 	for dx in range(fp.x):

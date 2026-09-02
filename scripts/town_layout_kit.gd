@@ -50,10 +50,12 @@ func pave(c: Vector2i) -> void:
 	wg.override_cells[c] = wg._palette_at(c.x, c.y)["path"]
 
 func pave_rect(r: Rect2i, tile: int) -> void:
-	"""矩形铺装（广场 35/垄行 16 等整瓦片）；水面跳过。"""
+	"""矩形铺装（广场 35/垄行 16 等整瓦片）；水面与建筑占格(39)跳过（M2：market 广场
+	在建筑之后铺，不得覆盖 39 占格——否则可达性/碰撞语义被静默破坏）。"""
 	for yy in range(r.position.y, r.end.y):
 		for xx in range(r.position.x, r.end.x):
-			if wg.get_tile_id(xx, yy) == 5:
+			var t: int = wg.get_tile_id(xx, yy)
+			if t == 5 or t == wg.TILE_BUILDING_RESERVE:
 				continue
 			wg.override_cells[Vector2i(xx, yy)] = tile
 
