@@ -86,11 +86,14 @@ func build():
 	_stamp_plots()     # P1：地块划分（记录制，供 P2 建筑/P3 院落消费）
 	_lay_gate_road()   # P0：官道→区口（2 宽）
 	_lay_roads()       # P1：连接巷+主巷蜿蜒+支巷+广场（2 宽主巷/1 宽支巷三级）
+	_stamp_farm_ridges()  # P3：菜圃垄行农田瓦（override，必须先于 chunk 预载）
 	_load_zone_chunks()
+	_place_buildings() # P2：建筑 prefab 落位（prop 不依赖瓦片上漆，chunks 后任意时机）
+	_place_yards()     # P3：前院门径/围栏/作物精灵/稻草人棚架
 	_mark_boundary()
 	_place_sign()
 	built = true
-	print("[DemoKit] 样板区建成：P0 骨架（入口路/灯柱/立牌）+ P1 路网地块（%d 地块）" % plots.size())
+	print("[DemoKit] 样板区建成：P0 骨架+P1 路网+P2 建筑+P3 院落菜圃（%d 地块）" % plots.size())
 
 func _flatten_ground():
 	"""区内自然地理瓦片（山3/水5/雪山7）平整为群系地面——村建谷地，呼应 §三"接现状水域"。
@@ -153,6 +156,193 @@ func _lay_roads():
 		for ly in range(4, 12):
 			wg.override_cells[_g(Vector2i(lx, ly))] = 35
 	print("[DemoKit] 三级路网铺装完成：连接巷+主巷3段大弯(2宽)+纵巷3/横巷1(1宽)+水井广场")
+
+# ---- P2 建筑 Prefab 落位（纹理由 texture_generator.generate_demo_buildings 生成，Main._ensure_textures 接线） ----
+
+const DEMO_BUILDINGS := {
+	"demo_barn":  {"png": "res://sprites/demo/demo_barn.png",  "fp": Vector2i(6, 5)},
+	"demo_long":  {"png": "res://sprites/demo/demo_long.png",  "fp": Vector2i(6, 4)},
+	"demo_green": {"png": "res://sprites/demo/demo_green.png", "fp": Vector2i(5, 4)},
+	"demo_shop":  {"png": "res://sprites/demo/demo_shop.png",  "fp": Vector2i(4, 3)},
+	"demo_house": {"png": "res://sprites/demo/demo_house.png", "fp": Vector2i(4, 3)},
+	"demo_well":  {"png": "res://sprites/buildings/well.png",  "fp": Vector2i(1, 1)},
+}
+
+func _place_buildings():
+	"""P2：按 plots 落位 prefab（锚点=局部坐标表，占位居地块内偏北留前院）；
+	落位后重算 plot.door=建筑底缘中点（门朝南），供 P3 门前小径接巷。"""
+	var anchor := {
+		"barn":       ["demo_barn", Vector2i(6, 2)],
+		"well_plaza": ["demo_well", Vector2i(27, 7)],
+		"greenhouse": ["demo_green", Vector2i(43, 4)],
+		"house_a":    ["demo_house", Vector2i(7, 17)],
+		"longhouse":  ["demo_long", Vector2i(20, 17)],
+		"house_b":    ["demo_house", Vector2i(34, 17)],
+		"shop":       ["demo_shop", Vector2i(45, 17)],
+	}
+	var n := 0
+	for p in plots:
+		var k: String = p["kind"]
+		if not anchor.has(k):
+			continue
+		var def: Array = anchor[k]
+		var a: Vector2i = _g(def[1])
+		var fp: Vector2i = DEMO_BUILDINGS[def[0]]["fp"]
+		_stamp_building(def[0], a)
+		p["door"] = Vector2i(a.x + int(fp.x / 2.0), a.y + fp.y)
+		n += 1
+		if k != "well_plaza":
+			# 檐下道具（P2 要素4）：建筑左墙脚桶、右墙脚箱（脚底=建筑底缘行）
+			var feet_y: int = a.y + fp.y - 1
+			_stamp_prop("res://sprites/buildings/barrel.png", Vector2i(a.x - 1, feet_y))
+			_stamp_prop("res://sprites/buildings/crate.png", Vector2i(a.x + fp.x, feet_y))
+	print("[DemoKit] 建筑落位 %d 栋（四要素：木框抹灰墙/瓦顶烟囱/门窗台/檐下桶箱）" % n)
+
+func _stamp_building(kind: String, a: Vector2i) -> bool:
+	"""样板区建筑落位（铁律 §2.3：decor-prop 形态 Sprite+StaticBody，不写 override 不进瓦片碰撞）。
+	Sprite z=2 底缘锚定并入 World 递归 Y-sort；墙脚软影；StaticBody 挡人（零瓦片语义）。"""
+	var def: Dictionary = DEMO_BUILDINGS[kind]
+	var tex := TextureGen.load_png_texture(def["png"])
+	if tex == null:
+		push_warning("[DemoKit] demo 建筑纹理缺失: " + kind)
+		return false
+	var fp: Vector2i = def["fp"]
+	var bw := fp.x * 16.0
+	var bh := fp.y * 16.0
+	var base_cx := (a.x + fp.x * 0.5) * 16.0
+	var base_y := float((a.y + fp.y) * 16.0)
+	var root := Node2D.new()
+	root.z_index = 2
+	root.position = Vector2(base_cx, base_y)
+	root.add_to_group("demo_building")
+	var shadow := Sprite2D.new()
+	shadow.texture = TextureGen.get_shadow_texture()
+	shadow.scale = Vector2((bw + 24.0) / 48.0, maxf(12.0, bw * 0.30) / 20.0)
+	shadow.position = Vector2(0, -3)
+	shadow.z_index = -1
+	shadow.modulate = Color(0, 0, 0, 0.28)
+	shadow.add_to_group("tree_shadow")
+	root.add_child(shadow)
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.position = Vector2(0, -tex.get_height() * 0.5 + 4.0)
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	root.add_child(spr)
+	var body := StaticBody2D.new()
+	body.position = Vector2(0, -bh * 0.5 + 2.0)
+	var cs := CollisionShape2D.new()
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(bw - 4, bh - 4)
+	cs.shape = shape
+	body.add_child(cs)
+	root.add_child(body)
+	add_child(root)
+	return true
+
+# ---- P3 院落与菜圃（立项书 §三：地块围栏围合、菜圃作物成行+稻草人/棚架；Farm.png 栅栏语义） ----
+
+const FENCE_PNG := "res://sprites/demo/demo_fence.png"
+const TRELLIS_PNG := "res://sprites/demo/demo_trellis.png"
+const CROP_PNGS := ["res://sprites/farm/crop_1.png", "res://sprites/farm/crop_2.png", "res://sprites/farm/crop_3.png"]
+
+func _stamp_farm_ridges():
+	"""菜圃垄行：bounds 内缩 1、每 2 行铺农田瓦 16（垄），垄间草地走道——"作物成行"基底。
+	override 写入必须在 chunk 预载前（上漆一次性契约）；crop 精灵由 _place_yards 撒。"""
+	for p in plots:
+		if p["kind"] != "farm_a" and p["kind"] != "farm_b":
+			continue
+		var b: Rect2i = p["bounds"]
+		var yy := b.position.y + 1
+		while yy <= b.end.y - 2:
+			for xx in range(b.position.x + 1, b.end.x - 1):
+				wg.override_cells[Vector2i(xx, yy)] = 16
+			yy += 2
+	print("[DemoKit] 菜圃垄行铺装（farm_a/farm_b，行距2）")
+
+func _place_yards():
+	"""P3 总入口：6 建筑地块前院（门径+碎石平台+围栏）+ 2 菜圃（围栏+作物+稻草人棚架）。"""
+	var n_crop := 0
+	for p in plots:
+		if p["kind"] == "farm_a" or p["kind"] == "farm_b":
+			n_crop += _build_farm(p)
+		elif p["kind"] != "well_plaza":
+			_build_yard(p)
+	print("[DemoKit] 院落菜圃完成：6 前院围栏 + 2 菜圃（作物精灵 %d，行距2 密度70%%）" % n_crop)
+
+func _build_yard(p: Dictionary):
+	"""建筑地块：门径向南接巷 + 前院碎石平台 3x2 + 边界围栏（南缘门侧留口）。"""
+	var b: Rect2i = p["bounds"]
+	var door: Vector2i = p["door"]
+	for cy in range(door.y, b.end.y + 1):          # 门径：door 南行至南缘外接巷
+		_pave(Vector2i(door.x, cy))
+	for dx in range(-1, 2):                        # 前院平台 3x2
+		for dy in range(0, 2):
+			_pave(Vector2i(door.x + dx, door.y + dy))
+	var skip := {}
+	for sx in range(door.x - 1, door.x + 2):       # 南缘门侧留口
+		skip[Vector2i(sx, b.end.y - 1)] = true
+	_fence_ring(b, skip)
+
+func _build_farm(p: Dictionary) -> int:
+	"""菜圃：边界围栏（北缘门侧留口）+ 垄格撒作物 70% + 稻草人 + 棚架x2。返回 crop 数。"""
+	var b: Rect2i = p["bounds"]
+	var door: Vector2i = p["door"]
+	var n := 0
+	var yy := b.position.y + 1
+	while yy <= b.end.y - 2:
+		for xx in range(b.position.x + 1, b.end.x - 1):
+			var cr := fposmod(wg.detail_noise.get_noise_2d(xx * 3.7 + 5.1, yy * 4.3 + 9.9) + 1.0, 1.0)
+			if cr > 0.30:
+				_stamp_prop(CROP_PNGS[int(cr * 100.0) % CROP_PNGS.size()], Vector2i(xx, yy))
+				n += 1
+		yy += 2
+	_stamp_prop("res://sprites/buildings/scarecrow.png",
+			Vector2i((b.position.x + b.end.x) / 2, (b.position.y + b.end.y) / 2))
+	_stamp_prop(TRELLIS_PNG, Vector2i(b.position.x + 2, b.position.y + 2))
+	_stamp_prop(TRELLIS_PNG, Vector2i(b.end.x - 3, b.end.y - 3))
+	var skip := {}
+	for sx in range(door.x - 1, door.x + 2):       # 北缘门侧留口（door 在横巷行）
+		skip[Vector2i(sx, b.position.y)] = true
+	_fence_ring(b, skip)
+	return n
+
+func _fence_ring(b: Rect2i, skip: Dictionary = {}):
+	"""地块边界一圈栅栏：32px 双格单元（横边步 2、竖边步 2，角点由横边覆盖）。"""
+	var x0 := b.position.x
+	var x1 := b.end.x - 1
+	var y0 := b.position.y
+	var y1 := b.end.y - 1
+	var cx := x0
+	while cx <= x1:
+		if not skip.has(Vector2i(cx, y0)):
+			_stamp_fence(Vector2i(cx, y0), false)
+		if not skip.has(Vector2i(cx, y1)):
+			_stamp_fence(Vector2i(cx, y1), false)
+		cx += 2
+	var cy := y0 + 2
+	while cy <= y1 - 2:
+		if not skip.has(Vector2i(x0, cy)):
+			_stamp_fence(Vector2i(x0, cy), true)
+		if not skip.has(Vector2i(x1, cy)):
+			_stamp_fence(Vector2i(x1, cy), true)
+		cy += 2
+
+func _stamp_fence(cell: Vector2i, vertical: bool):
+	"""栅栏单元：横排底缘锚定（Y-sort 正确）；竖排格中心锚定+90° 旋转（中心对称免 offset 偏移）。"""
+	var tex := TextureGen.load_png_texture(FENCE_PNG)
+	if tex == null:
+		return
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.z_index = 2
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	if vertical:
+		spr.position = Vector2(cell.x * 16.0 + 8.0, cell.y * 16.0 + 8.0)
+		spr.rotation_degrees = 90.0
+	else:
+		spr.position = Vector2(cell.x * 16.0 + 8.0, (cell.y + 1) * 16.0 - 2.0)
+		spr.offset = Vector2(0, -tex.get_height() * 0.5)
+	add_child(spr)
 
 # ---- 选址检查（返回否决原因码，""=通过） ----
 

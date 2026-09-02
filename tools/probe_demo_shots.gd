@@ -7,11 +7,12 @@ const OUT := "C:/Learn/my-godot-project/docs/shots/"
 
 # [名称, 全局瓦片位, zoom(0=默认3)]
 const SPOTS := [
-	["p0_gate", Vector2i(67, 43), 0],        # 区口：立牌+入口路+连接巷
-	["p1_overview", Vector2i(43, 65), 1.1],  # 全区俯瞰（zoom-out 全景，P1 路网 DoD）
-	["p1_road_main_w", Vector2i(25, 57), 0], # 主巷西段：谷仓/农舍A 门脸
-	["p1_road_main_e", Vector2i(61, 48), 0], # 主巷东段：连接巷/温室/广场
-	["p1_cross_south", Vector2i(37, 70), 0], # 横巷+菜圃北门
+	["p1_overview", Vector2i(43, 65), 1.1],  # 全区俯瞰（zoom-out 全景）
+	["p3_farm_a", Vector2i(26, 74), 0],      # 菜圃A特写（垄行+作物+稻草人棚架）
+	["p3_farm_b", Vector2i(43, 74), 0],      # 菜圃B特写
+	["p3_yard_house", Vector2i(24, 65), 0],  # 农舍A前院（门径+围栏）
+	["p3_yard_barn", Vector2i(24, 51), 0],   # 谷仓前院
+	["p3_fence_s", Vector2i(43, 69), 0],     # 南带围栏+横巷
 ]
 
 func _log(m):
@@ -57,8 +58,9 @@ func _ready():
 	var cam := player.get_node_or_null("Camera2D")
 	for s in SPOTS:
 		player.global_position = Vector2(s[1].x * 16.0 + 8.0, s[1].y * 16.0 + 8.0)
-		if cam != null and float(s[2]) > 0.0:
-			cam.zoom = Vector2(float(s[2]), float(s[2]))
+		if cam != null:
+			var z := float(s[2])
+			cam.zoom = Vector2(z, z) if z > 0.0 else Vector2(3, 3)   # 每机位显式设 zoom（0=默认3）
 		await _wait(1.4)
 		await _shot(str(s[0]))
 	if cam != null:

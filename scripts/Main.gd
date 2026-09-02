@@ -123,6 +123,18 @@ func _ensure_textures():
 			gen2.generate_city_props()
 			gen2.queue_free()
 			print("[Main] Big buildings regenerated")
+	# 城镇样板区 prefab（P2：sprites/demo/*.png 缺失时生成，立项书 §4.1 Prefab 库）
+	# 检测任一关键 PNG（函数内逐 kind 幂等跳过，新增配套纹理自动补生成）
+	if not FileAccess.file_exists("res://sprites/demo/demo_house.png") \
+			or not FileAccess.file_exists("res://sprites/demo/demo_fence.png"):
+		var gen_script4 = load("res://scripts/texture_generator.gd")
+		if gen_script4:
+			var gen4 = Node.new()
+			gen4.set_script(gen_script4)
+			add_child(gen4)
+			gen4.generate_demo_buildings()
+			gen4.queue_free()
+			print("[Main] Demo buildings regenerated")
 	# 打坐专用坐姿帧（meditate_down_0/1，程序化生成；素材包无坐姿）
 	if not FileAccess.file_exists("res://sprites/player/meditate_down_0.png"):
 		var gen_script3 = load("res://scripts/texture_generator.gd")

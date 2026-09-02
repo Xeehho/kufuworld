@@ -1902,3 +1902,231 @@ func _draw_meditate_pose(img: Image, frame: int):
 	_mrect(img, 29, 18 + bob, 34, 22 + bob, M_HAIR)    # 发髻
 	_mrect(img, 29, 21 + bob, 34, 21 + bob, M_RIBBON)  # 朱红发带
 	_mpx(img, 28, 19 + bob, M_HAIR); _mpx(img, 35, 19 + bob, M_HAIR)
+
+# ============ 城镇样板区 prefab（材质包 1:1 欧式木框架乡村屋，docs/立项-城镇样板区重构.md P2） ============
+# 风格：人字形瓦顶（正面视角梯形屋面）+木框抹灰墙+石砌烟囱+门窗台——区别于中式反曲顶 _compose_big_building
+# 素材弹药：Walls.png 抹灰底 / Roofs.png 瓦楞纹样（_roof_pat 调制）/ Props.png 门窗
+
+func generate_demo_buildings():
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://sprites/demo"))
+	if _roof_pat == null:
+		var roofs_img: Image = _pack_image("Environment/Structures/Buildings/Roofs.png")
+		_roof_pat = _crop_tile(roofs_img, 11, 11) if roofs_img != null else null
+	var defs := {
+		"demo_house": {"size": Vector2i(64, 52), "roof": "teal"},   # 农舍 4x3
+		"demo_long":  {"size": Vector2i(96, 62), "roof": "teal"},   # 长屋 6x4
+		"demo_barn":  {"size": Vector2i(96, 78), "roof": "red"},    # 谷仓 6x5（大门+干草窗）
+		"demo_green": {"size": Vector2i(80, 62), "roof": "glass"},  # 温室 5x4（玻璃顶）
+		"demo_shop":  {"size": Vector2i(64, 58), "roof": "red"},    # 杂货铺 4x3（出檐+货台）
+	}
+	for kind in defs:
+		var path := "res://sprites/demo/%s.png" % kind
+		if FileAccess.file_exists(path):
+			continue
+		var d: Dictionary = defs[kind]
+		var img := _compose_demo_house(d["size"].x, d["size"].y, d["roof"])
+		img.save_png(ProjectSettings.globalize_path(path))
+		print("[TextureGen] demo building: ", kind, " ", d["size"])
+	# P3 配套：32px 双格栅栏单元（prop 数减半控预算）+ 菜圃棚架
+	var extras := {"demo_fence": _fence_unit_img(), "demo_trellis": _trellis_img()}
+	for k in extras:
+		var p2 := "res://sprites/demo/%s.png" % k
+		if not FileAccess.file_exists(p2):
+			extras[k].save_png(ProjectSettings.globalize_path(p2))
+			print("[TextureGen] demo extra: ", k)
+
+func _fence_unit_img() -> Image:
+	"""32x20 双格栅栏单元：3 柱+双横杆（水平放置盖 2 格；竖排 rotation 90°）。"""
+	var W := 32
+	var H := 20
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var wood := Color(0.48, 0.34, 0.20)
+	var wood_d := Color(0.36, 0.25, 0.15)
+	var cap := Color(0.58, 0.44, 0.28)
+	for px in [1, 14, 28]:                       # 三柱（各 2px 宽，y1..16）
+		for x in range(px, px + 2):
+			for y in range(2, 17):
+				img.set_pixel(x, y, wood_d if x == px + 1 else wood)
+			img.set_pixel(x, 1, cap)
+	for y in [6, 7, 12, 13]:                     # 双横杆贯通
+		for x in range(0, W):
+			img.set_pixel(x, y, wood_d if y == 7 or y == 13 else wood)
+	return img
+
+func _trellis_img() -> Image:
+	"""16x26 菜圃棚架：双竖柱+四道横杆+顶部交叉格。"""
+	var W := 16
+	var H := 26
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var wood := Color(0.46, 0.33, 0.19)
+	var wood_d := Color(0.34, 0.24, 0.14)
+	for x in [2, 3, 12, 13]:
+		for y in range(3, 25):
+			img.set_pixel(x, y, wood_d if x == 3 or x == 12 else wood)
+	for y in [5, 10, 15, 20, 24]:
+		for x in range(1, 15):
+			img.set_pixel(x, y, wood)
+	for i in range(5):                           # 顶部斜格
+		img.set_pixel(4 + i * 2, 4 + i, wood_d)
+		img.set_pixel(11 - i * 2, 4 + i, wood_d)
+	return img
+
+func _compose_demo_house(W: int, H: int, style: String) -> Image:
+	"""样板区 prefab 通用合成器（每栋 ≥4 要素：木框抹灰墙/瓦顶+烟囱/门窗台/台基台阶）。
+	style: teal=青瓦（民居）/ red=红棕瓦（谷仓·商铺）/ glass=玻璃顶（温室）。"""
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var glass_roof := style == "glass"
+	var roof_base := Color(0.42, 0.56, 0.50) if style == "teal" else (Color(0.70, 0.84, 0.81) if glass_roof else Color(0.64, 0.37, 0.24))
+	var edge := Color(0.20, 0.16, 0.12)
+	var plaster := Color(0.93, 0.89, 0.78)     # 抹灰暖白
+	var timber := Color(0.34, 0.23, 0.13)      # 深木框
+	var timber_d := timber.darkened(0.3)
+	var stone := Color(0.55, 0.53, 0.50)
+	var glass := Color(0.72, 0.85, 0.86)       # 窗玻璃淡青
+	var hay := Color(0.82, 0.68, 0.30)         # 干草（谷仓草窗）
+	var cxm := (W - 1) * 0.5
+	var ridge_y := 1
+	var roof_h := int(H * 0.42)
+	var eave_row := roof_h
+	var ridge_half := W * 0.24
+	# ---- 屋面：梯形前坡（脊 24%W → 檐 100%W），瓦纹/玻璃格 ----
+	for y in range(ridge_y, eave_row + 1):
+		var t := float(y - ridge_y) / maxf(1.0, float(eave_row - ridge_y))
+		var half := ridge_half + (W * 0.5 - ridge_half) * t
+		for x in range(maxi(0, int(cxm - half)), mini(W - 1, int(cxm + half)) + 1):
+			var c: Color
+			if glass_roof:
+				var lx := x - int(cxm - half)
+				var ly := y - ridge_y
+				if lx % 12 < 2 or ly % 7 < 1 or y == eave_row:
+					c = timber   # 玻璃格木框
+				else:
+					var gl := 0.90 + 0.09 * float(((x * 31 + y * 17) % 5) / 4.0)
+					c = Color(0.60 * gl, 0.82 * gl, 0.79 * gl)
+			else:
+				var hh := float(((x * 73856093) ^ (y * 19349663)) % 997) / 997.0
+				var vv := 0.95 + 0.07 * hh
+				var stripe := 1.0 if (x % 4) < 2 else 0.88
+				c = Color(minf(roof_base.r * vv * stripe, 1.0), minf(roof_base.g * vv * stripe, 1.0), minf(roof_base.b * vv * stripe, 1.0))
+				if _roof_pat != null:
+					var tp := _roof_pat.get_pixel(x % 16, y % 16)
+					var f2 := 0.80 + ((tp.r + tp.g + tp.b) / 3.0) * 0.45
+					c = Color(minf(c.r * f2, 1.0), minf(c.g * f2, 1.0), minf(c.b * f2, 1.0))
+			if float(x) < cxm - half + 1.5 or float(x) > cxm + half - 1.5:
+				c = edge
+			img.set_pixel(x, y, c)
+	# 屋脊横条
+	for x in range(maxi(0, int(cxm - ridge_half) - 1), mini(W - 1, int(cxm + ridge_half) + 2)):
+		img.set_pixel(x, 0, edge.lightened(0.12))
+	# ---- 石砌烟囱（右侧 28% 处，前坡伸出+深色烟囱口） ----
+	var chx := int(cxm + W * 0.28)
+	var ch_w := 7
+	var ch_bot := int(roof_h * 0.62)
+	for y in range(1, ch_bot + 1):
+		for x in range(chx, chx + ch_w):
+			if x < W:
+				img.set_pixel(x, y, stone.darkened(0.12) if (x * 3 + y) % 4 == 0 else stone)
+	for x in range(chx - 1, mini(W, chx + ch_w + 1)):
+		img.set_pixel(x, 0, Color(0.24, 0.21, 0.19))
+		img.set_pixel(x, 1, Color(0.32, 0.28, 0.26))
+	# ---- 墙体：暖抹灰 + 檐下投影行 ----
+	var wall_top := eave_row + 1
+	var wall_bot := H - 5
+	for x in range(3, W - 3):
+		var cs := plaster.darkened(0.35)
+		img.set_pixel(x, wall_top, cs)   # 檐下阴影行
+	for x in range(3, W - 3):
+		for y in range(wall_top + 1, wall_bot + 1):
+			var h := float(((x * 73856093) ^ (y * 19349663)) % 997) / 997.0
+			var f := 0.96 + 0.05 * h
+			img.set_pixel(x, y, Color(minf(plaster.r * f, 1.0), minf(plaster.g * f, 1.0), minf(plaster.b * f, 1.0)))
+	# 木框：顶梁 2 行 + 角柱 3px + 等分竖柱 2px + 竖柱间斜撑
+	for y in range(wall_top + 1, wall_top + 3):
+		for x in range(3, W - 3):
+			img.set_pixel(x, y, timber if y == wall_top + 1 else timber_d)
+	for y in range(wall_top + 1, wall_bot + 1):
+		for k in range(3):
+			img.set_pixel(3 + k, y, timber if k < 2 else timber_d)
+			img.set_pixel(W - 6 + k, y, timber if k > 0 else timber_d)
+	var bays := maxi(2, int(W / 26))               # 开间数（每 ~26px 一柱）
+	for b in range(1, bays):
+		var px := 3 + int((W - 6) * float(b) / float(bays)) - 1
+		for y in range(wall_top + 3, wall_bot + 1):
+			img.set_pixel(px, y, timber)
+			img.set_pixel(px + 1, y, timber_d)
+		# V 形斜撑（柱与墙底间）
+		for yy in range(wall_top + 4, wall_bot - 2):
+			var tt := float(yy - wall_top - 4) / maxf(1.0, float(wall_bot - 6 - wall_top))
+			var sx := px + 2 + int(tt * 5.0)
+			if sx < W - 7:
+				img.set_pixel(sx, yy, timber_d)
+	# ---- 台基（底部 4 行石作）+ 中央台阶 ----
+	for x in range(2, W - 2):
+		for y in range(H - 4, H):
+			var sc := stone
+			if y == H - 4:
+				sc = Color(0.64, 0.62, 0.59)
+			elif y == H - 1:
+				sc = Color(0.42, 0.40, 0.38)
+			img.set_pixel(x, y, sc)
+	var st_w := 12
+	var st_x0 := int(cxm) - st_w / 2
+	for x in range(st_x0, st_x0 + st_w):
+		for y in range(H - 4, H):
+			img.set_pixel(x, y, Color(0.70, 0.68, 0.64) if y < H - 1 else Color(0.58, 0.56, 0.54))
+	# ---- 门（中央板门：竖板拼缝+木框+石门槛）----
+	var barn := style == "red" and W >= 90
+	var dw := 22 if barn else 13
+	var dh := mini(wall_bot - (wall_top + 5), 26)
+	var dx0 := int(cxm) - int(dw / 2.0)
+	var dy0 := wall_bot - dh
+	for x in range(dx0, dx0 + dw):
+		for y in range(dy0, wall_bot + 1):
+			var seam := (x - dx0) % 4 == 0
+			var dc := Color(0.42, 0.29, 0.17) if (x == dx0 or x == dx0 + dw - 1) else (Color(0.30, 0.20, 0.12) if seam else Color(0.36, 0.25, 0.15))
+			if barn and (x - dx0) == dw / 2:
+				dc = Color(0.20, 0.13, 0.08)   # 大门双开中缝
+			img.set_pixel(x, y, dc)
+	for x in range(dx0 - 1, dx0 + dw + 1):
+		img.set_pixel(x, dy0 - 1, timber)
+	# ---- 窗（双侧木框方窗+淡青玻璃；W>=90 三窗；谷仓=上部干草方格窗）----
+	var win_y := wall_top + 5
+	var win_h := 9
+	var win_w := 9
+	var slots := [int(cxm - W * 0.30), int(cxm + W * 0.30) - win_w]
+	if W >= 90:
+		slots = [int(cxm - W * 0.36), int(cxm) - win_w / 2, int(cxm + W * 0.36) - win_w]
+	for wx in slots:
+		if barn:
+			continue   # 谷仓侧墙无窗（草窗在门上方）
+		var wxi: int = wx
+		for x in range(wxi, wxi + win_w):
+			for y in range(win_y, win_y + win_h):
+				var frame: bool = x == wxi or x == wxi + win_w - 1 or y == win_y or y == win_y + win_h - 1
+				var mull: bool = x == wxi + int(win_w / 2.0) or y == win_y + int(win_h / 2.0)
+				img.set_pixel(x, y, timber if frame or mull else glass)
+		img.set_pixel(wxi - 1, win_y + win_h, stone)   # 窗台石
+		img.set_pixel(wxi + win_w, win_y + win_h, stone)
+	if barn:
+		# 大门上方干草方格窗
+		var hx0 := int(cxm) - 7
+		for x in range(hx0, hx0 + 14):
+			for y in range(wall_top + 4, wall_top + 4 + 8):
+				var grid := x == hx0 or x == hx0 + 13 or y == wall_top + 4 or y == wall_top + 11
+				img.set_pixel(x, y, timber if grid else (hay if (x + y) % 3 != 0 else hay.darkened(0.15)))
+	# ---- 杂货铺：出檐（屋檐下挑 3 行瓦沿）+ 门侧货台 ----
+	if style == "red" and W < 90:
+		for x in range(1, W - 1):
+			for y in range(eave_row + 1, eave_row + 4):
+				var sc3 := roof_base.darkened(0.25) if y > eave_row + 2 else roof_base
+				if x <= 2 or x >= W - 3:
+					sc3 = edge
+				img.set_pixel(x, y, sc3)
+		for y in range(H - 8, H - 4):
+			for x in range(4, 16):
+				var plank := y == H - 8 or y == H - 4 or (x - 4) % 5 == 0
+				img.set_pixel(x, y, timber if plank else Color(0.48, 0.34, 0.20))
+	return img
