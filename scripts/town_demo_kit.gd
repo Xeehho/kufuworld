@@ -87,26 +87,35 @@ func build():
 	_lay_gate_road()   # P0：官道→区口（2 宽）
 	_lay_roads()       # P1：连接巷+主巷蜿蜒+支巷+广场（2 宽主巷/1 宽支巷三级）
 	_stamp_farm_ridges()  # P3：菜圃垄行农田瓦（override，必须先于 chunk 预载）
+	print("[DemoKit] stage: override 层完成（平整/路网/垄）")
 	_load_zone_chunks()
+	print("[DemoKit] stage: chunks 预载完成")
 	_place_buildings() # P2：建筑 prefab 落位（prop 不依赖瓦片上漆，chunks 后任意时机）
 	_place_yards()     # P3：前院门径/围栏/作物精灵/稻草人棚架
 	_place_decor_density()  # P4：果树带疏林+道具组+花簇补密度+量化统计
 	_mark_boundary()
 	_place_sign()
+	print("[DemoKit] stage: prop 层完成（建筑/院落/装点/边界）")
 	built = true
 	print("[DemoKit] 样板区建成：P0 骨架+P1 路网+P2 建筑+P3 院落菜圃+P4 装点（%d 地块）" % plots.size())
 
+const FLATTEN_MARGIN := 4   # 区缘视觉缓冲带（P5 终验用户反馈：区外离散山崖砖块观感）——
+			# 区外 4 格内的离散山崖/雪山一并平整为草地（水保留=image2 河畔意象；崖清除=碰撞减少，可达性只增）
+
 func _flatten_ground():
-	"""区内自然地理瓦片（山3/水5/雪山7）平整为群系地面——村建谷地，呼应 §三"接现状水域"。
-	只写 override（在受影响 chunk 加载前执行，_load_chunk 上漆时生效）；碰撞随之消失=可达性只增不减。"""
+	"""区内+区缘缓冲带的山/雪山平整为群系地面——村建谷地，呼应 §三"接现状水域"。
+	水(5)保留（河畔意象）；只写 override（在受影响 chunk 加载前执行，上漆时生效）；
+	崖(3)有碰撞，清除后可达性只增不减。离散崖块成因=_paint_ground 群系过渡 dither 撒点
+	（世界通用逻辑），材质包无此观感，故缓冲带内清成草地、远景山体保留。"""
 	var n := 0
-	for yy in range(rect.position.y, rect.end.y):
-		for xx in range(rect.position.x, rect.end.x):
+	for yy in range(rect.position.y - FLATTEN_MARGIN, rect.end.y + FLATTEN_MARGIN):
+		for xx in range(rect.position.x - FLATTEN_MARGIN, rect.end.x + FLATTEN_MARGIN):
 			var c := Vector2i(xx, yy)
-			if wg.get_tile_id(xx, yy) in GEO_TILES:
+			var t: int = wg.get_tile_id(xx, yy)
+			if t == 3 or t == 7:   # 山/雪山平整；水(5)保留
 				wg.override_cells[c] = wg._palette_at(xx, yy)["ground"]
 				n += 1
-	print("[DemoKit] 平整地理瓦片 %d 格（山/水/雪山→群系地面）" % n)
+	print("[DemoKit] 平整山/雪山 %d 格（含区缘 %d 格视觉缓冲带；水保留）" % [n, FLATTEN_MARGIN])
 
 # ---- P1 路网与地块（立项书 §三 布局总图，局部坐标 56x44，区口北缘 lx=52） ----
 
@@ -161,24 +170,25 @@ func _lay_roads():
 # ---- P2 建筑 Prefab 落位（纹理由 texture_generator.generate_demo_buildings 生成，Main._ensure_textures 接线） ----
 
 const DEMO_BUILDINGS := {
-	"demo_barn":  {"png": "res://sprites/demo/demo_barn.png",  "fp": Vector2i(6, 5)},
-	"demo_long":  {"png": "res://sprites/demo/demo_long.png",  "fp": Vector2i(6, 4)},
-	"demo_green": {"png": "res://sprites/demo/demo_green.png", "fp": Vector2i(5, 4)},
-	"demo_shop":  {"png": "res://sprites/demo/demo_shop.png",  "fp": Vector2i(4, 3)},
-	"demo_house": {"png": "res://sprites/demo/demo_house.png", "fp": Vector2i(4, 3)},
+	"demo_barn":  {"png": "res://sprites/demo/demo_barn.png",  "fp": Vector2i(8, 6)},
+	"demo_long":  {"png": "res://sprites/demo/demo_long.png",  "fp": Vector2i(7, 5)},
+	"demo_green": {"png": "res://sprites/demo/demo_green.png", "fp": Vector2i(6, 5)},
+	"demo_shop":  {"png": "res://sprites/demo/demo_shop.png",  "fp": Vector2i(5, 4)},
+	"demo_house": {"png": "res://sprites/demo/demo_house.png", "fp": Vector2i(5, 4)},
 	"demo_well":  {"png": "res://sprites/buildings/well.png",  "fp": Vector2i(1, 1)},
 }
 
 func _place_buildings():
 	"""P2：按 plots 落位 prefab（锚点=局部坐标表，占位居地块内偏北留前院）；
+	P5 反馈放大一档（谷仓 8x6/长屋 7x5/民居商铺 5x4/温室 6x5）。
 	落位后重算 plot.door=建筑底缘中点（门朝南），供 P3 门前小径接巷。"""
 	var anchor := {
-		"barn":       ["demo_barn", Vector2i(6, 2)],
+		"barn":       ["demo_barn", Vector2i(5, 2)],
 		"well_plaza": ["demo_well", Vector2i(27, 7)],
-		"greenhouse": ["demo_green", Vector2i(43, 4)],
+		"greenhouse": ["demo_green", Vector2i(43, 2)],
 		"house_a":    ["demo_house", Vector2i(7, 17)],
-		"longhouse":  ["demo_long", Vector2i(20, 17)],
-		"house_b":    ["demo_house", Vector2i(34, 17)],
+		"longhouse":  ["demo_long", Vector2i(19, 17)],
+		"house_b":    ["demo_house", Vector2i(33, 17)],
 		"shop":       ["demo_shop", Vector2i(45, 17)],
 	}
 	var n := 0
@@ -360,7 +370,30 @@ func _place_decor_density():
 	var n_tree := _stamp_orchard()
 	var n_prop := _scatter_props()
 	var n_flower := _scatter_flowers()
+	n_prop += _stamp_riverbank()
 	_report_density(n_tree, n_prop, n_flower)
+
+func _stamp_riverbank() -> int:
+	"""P4.5 河畔小景：西缘临区外水域侧（v5 终验发现水面-绿地硬切突兀）——
+	crate/barrel/花簇还原材质包 image2"河畔堆物"意象，软化过渡。区内侧摆放，零碰撞。"""
+	var n := 0
+	var props := [
+		"res://sprites/buildings/crate.png", Vector2i(15, 55),
+		"res://sprites/buildings/barrel.png", Vector2i(16, 57),
+		"res://sprites/buildings/crate.png", Vector2i(15, 61),
+		FLOWERS_PNG, Vector2i(15, 53),
+		FLOWERS_PNG, Vector2i(16, 59),
+		FLOWERS_PNG, Vector2i(15, 63),
+	]
+	var i := 0
+	while i < props.size():
+		var c: Vector2i = _g(props[i + 1])
+		if _cell_free(c):
+			_stamp_prop(props[i], c)
+			occupied[c] = true
+			n += 1
+		i += 2
+	return n
 
 func _cell_free(c: Vector2i) -> bool:
 	"""P4 撒点闸门：非占用（建筑/围栏/已放 prop）且非铺装/垄（平整后的地面格允许）。"""
@@ -372,6 +405,27 @@ func _cell_free(c: Vector2i) -> bool:
 			return false
 	var t: int = wg.get_tile_id(c.x, c.y)
 	return not (t in BUILD_TILES) and not (t in GEO_TILES)
+
+func _near_paved(c: Vector2i, r: int = 1) -> bool:
+	"""冠幅避让：锚点周围 r 格内有铺装/垄 override → 树冠（64px）会悬伸压到石板/路上，拒种。
+	（P5 终验用户反馈：v9 放大见果树冠压水井广场石板——锚点在草地但冠幅越格。）"""
+	for dx in range(-r, r + 1):
+		for dy in range(-r, r + 1):
+			var n: Vector2i = c + Vector2i(dx, dy)
+			if wg.override_cells.has(n) and wg.override_cells[n] != wg._palette_at(n.x, n.y)["ground"]:
+				return true
+	return false
+
+func _near_blocked(c: Vector2i, r: int = 1) -> bool:
+	"""果树冠幅避让（P5 反馈扩展）：周围 r 格内有铺装/垄 **或已占用（含围栏）** → 拒种，
+	杜绝"树冠压石板/树种在栅栏上"的视觉冲突。"""
+	if _near_paved(c, r):
+		return true
+	for dx in range(-r, r + 1):
+		for dy in range(-r, r + 1):
+			if occupied.has(c + Vector2i(dx, dy)):
+				return true
+	return false
 
 func _stamp_orchard() -> int:
 	"""果树带疏林：北带（局部 y≤8）6%、南缘（y≥38）1.5%、其余 0——橡树 4x2 变体 sheet。"""
@@ -385,7 +439,7 @@ func _stamp_orchard() -> int:
 			if n >= 30:
 				return n
 			var c := _g(Vector2i(lx, ly))
-			if not _cell_free(c):
+			if not _cell_free(c) or _near_blocked(c):
 				continue
 			var dens := 0.06 if ly <= 8 else (0.015 if ly >= 38 else 0.0)
 			var cr := fposmod(wg.detail_noise.get_noise_2d(c.x * 2.3 + 7.7, c.y * 3.1 + 3.3) + 1.0, 1.0)
@@ -673,6 +727,7 @@ func _stamp_prop(png: String, cell: Vector2i, glow: bool = false) -> bool:
 		light.texture_scale = 2.0
 		light.position = Vector2(0, -tex.get_height() * 0.5)
 		spr.add_child(light)
+		_glow_lights.append(light)
 	var sh := TextureGen.make_shadow_sprite(clampf(tex.get_width() * 0.85, 14.0, 44.0), 0.24)
 	sh.position = Vector2(0, -2)
 	spr.add_child(sh)
@@ -680,6 +735,20 @@ func _stamp_prop(png: String, cell: Vector2i, glow: bool = false) -> bool:
 	return true
 
 var _glow_tex: ImageTexture = null
+var _glow_lights: Array = []   # glow 灯光列表——_process 按昼夜调 energy（白天 add 光斑过曝）
+
+func _process(_delta):
+	"""昼夜自适应灯效：18:00~6:30 满亮度，白天熄灭（PointLight2D 白天加法光斑过曝，P5 终验发现）。"""
+	if _glow_lights.is_empty():
+		return
+	var wc := get_node_or_null("/root/Main/World/WeatherController")
+	if wc == null:
+		return
+	var h: float = wc.current_hour
+	var e := 1.5 if (h >= 18.0 or h < 6.5) else 0.0
+	for l in _glow_lights:
+		if is_instance_valid(l):
+			l.energy = e
 
 func _glow_texture() -> ImageTexture:
 	"""灯笼光晕径向渐变（96x96，运行时内存生成不落盘）。"""

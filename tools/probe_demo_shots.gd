@@ -5,12 +5,17 @@ extends Node
 const LOG := "C:/Learn/my-godot-project/tools/probe_demo_shots_log.txt"
 const OUT := "C:/Learn/my-godot-project/docs/shots/"
 
-# [名称, 全局瓦片位, zoom(0=默认3), nofix(1=不覆盖光照/天气，夜景用)]
+# [名称, 全局瓦片位, zoom(0=默认3), nofix(1=不覆盖光照/天气)]
 const SPOTS := [
-	["p1_overview", Vector2i(43, 65), 1.1, 0],  # 全区俯瞰（zoom-out 全景）
-	["p4_orchard", Vector2i(30, 47), 0, 0],     # 北带果树带+谷仓
-	["p4_props_e", Vector2i(55, 62), 0, 0],     # 东段道具组+民居
-	["p4_night", Vector2i(43, 55), 0, 1],       # 夜景（默认光照，灯笼亮度检查）
+	["v1_gate", Vector2i(67, 43), 0, 0],      # 区口：立牌+入口路+连接巷
+	["v2_main_w", Vector2i(24, 52), 0, 0],    # 谷仓+主巷西段（围栏/门径）
+	["v3_plaza", Vector2i(42, 50), 0, 0],     # 水井广场+果树带
+	["v4_green", Vector2i(60, 51), 0, 0],     # 温室+主巷东段
+	["v5_house", Vector2i(24, 63), 0, 0],     # 农舍A前院（四要素+围栏）
+	["v6_farm", Vector2i(26, 73), 0, 0],      # 菜圃A（垄行/稻草人/棚架）
+	["v7_south", Vector2i(43, 70), 0, 0],     # 南带围栏全景
+	["v8_overview", Vector2i(43, 65), 1.1, 0],# 全区俯瞰
+	["v9_dark_zoom", Vector2i(32, 47), 5.0, 0],  # P5 待定位暗物放大
 ]
 
 func _log(m):
@@ -54,6 +59,12 @@ func _ready():
 		get_tree().quit()
 		return
 	var cam := player.get_node_or_null("Camera2D")
+	# P5 性能项：样板区新增节点数（立项书预算 ≤400）
+	var kit := get_node_or_null("/root/Main/World/WorldGenerator/TownDemoKit")
+	if kit != null:
+		_log("[P5] TownDemoKit 节点数=%d（预算<=400）" % kit.get_child_count())
+	else:
+		_log("[P5] TownDemoKit 未找到")
 	for s in SPOTS:
 		player.global_position = Vector2(s[1].x * 16.0 + 8.0, s[1].y * 16.0 + 8.0)
 		if cam != null:

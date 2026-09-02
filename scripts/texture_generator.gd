@@ -1913,11 +1913,11 @@ func generate_demo_buildings():
 		var roofs_img: Image = _pack_image("Environment/Structures/Buildings/Roofs.png")
 		_roof_pat = _crop_tile(roofs_img, 11, 11) if roofs_img != null else null
 	var defs := {
-		"demo_house": {"size": Vector2i(64, 52), "roof": "teal"},   # 农舍 4x3
-		"demo_long":  {"size": Vector2i(96, 62), "roof": "teal"},   # 长屋 6x4
-		"demo_barn":  {"size": Vector2i(96, 78), "roof": "red"},    # 谷仓 6x5（大门+干草窗）
-		"demo_green": {"size": Vector2i(80, 62), "roof": "glass"},  # 温室 5x4（玻璃顶）
-		"demo_shop":  {"size": Vector2i(64, 58), "roof": "red"},    # 杂货铺 4x3（出檐+货台）
+		"demo_house": {"size": Vector2i(80, 68), "roof": "teal"},   # 农舍 5x4（P5 反馈放大）
+		"demo_long":  {"size": Vector2i(112, 76), "roof": "teal"},  # 长屋 7x5
+		"demo_barn":  {"size": Vector2i(128, 94), "roof": "red"},   # 谷仓 8x6（大门+干草窗）
+		"demo_green": {"size": Vector2i(96, 74), "roof": "glass"},  # 温室 6x5（玻璃顶）
+		"demo_shop":  {"size": Vector2i(80, 70), "roof": "red"},    # 杂货铺 5x4（出檐+货台）
 	}
 	for kind in defs:
 		var path := "res://sprites/demo/%s.png" % kind
@@ -2020,20 +2020,18 @@ func _compose_demo_house(W: int, H: int, style: String) -> Image:
 	var glass := Color(0.72, 0.85, 0.86)       # 窗玻璃淡青
 	var hay := Color(0.82, 0.68, 0.30)         # 干草（谷仓草窗）
 	var cxm := (W - 1) * 0.5
-	var ridge_y := 1
-	var roof_h := int(H * 0.42)
-	var eave_row := roof_h
-	var ridge_half := W * 0.24
-	# ---- 屋面：梯形前坡（脊 24%W → 檐 100%W），瓦纹/玻璃格 ----
-	for y in range(ridge_y, eave_row + 1):
-		var t := float(y - ridge_y) / maxf(1.0, float(eave_row - ridge_y))
-		var half := ridge_half + (W * 0.5 - ridge_half) * t
+	var eave_row := int(H * 0.52)        # 大屋顶占比 0.52（image2 屋顶主导体量）
+	var ridge_half := W * 0.28           # 顶宽 28%W（上窄下宽梯形坡）
+	var halfw := W * 0.5
+	# ---- 屋面：等腰梯形坡（上窄下宽），横向瓦层 + 上暗下亮受光——image2 画法 ----
+	for y in range(0, eave_row + 1):
+		var t := float(y) / maxf(1.0, float(eave_row))
+		var half := ridge_half + (halfw - ridge_half) * t
 		for x in range(maxi(0, int(cxm - half)), mini(W - 1, int(cxm + half)) + 1):
 			var c: Color
 			if glass_roof:
-				var lx := x - int(cxm - half)
-				var ly := y - ridge_y
-				if lx % 12 < 2 or ly % 7 < 1 or y == eave_row:
+				var lx: int = x - int(cxm - half)
+				if lx % 12 < 2 or y % 7 < 1 or y >= eave_row:
 					c = timber   # 玻璃格木框
 				else:
 					var gl := 0.90 + 0.09 * float(((x * 31 + y * 17) % 5) / 4.0)
@@ -2041,22 +2039,29 @@ func _compose_demo_house(W: int, H: int, style: String) -> Image:
 			else:
 				var hh := float(((x * 73856093) ^ (y * 19349663)) % 997) / 997.0
 				var vv := 0.95 + 0.07 * hh
-				var stripe := 1.0 if (x % 4) < 2 else 0.88
-				c = Color(minf(roof_base.r * vv * stripe, 1.0), minf(roof_base.g * vv * stripe, 1.0), minf(roof_base.b * vv * stripe, 1.0))
+				var layer := 1.0 if (y % 6) < 4 else 0.86   # 横向瓦层线（材质包横纹）
+				c = Color(minf(roof_base.r * vv * layer, 1.0), minf(roof_base.g * vv * layer, 1.0), minf(roof_base.b * vv * layer, 1.0))
 				if _roof_pat != null:
 					var tp := _roof_pat.get_pixel(x % 16, y % 16)
-					var f2 := 0.80 + ((tp.r + tp.g + tp.b) / 3.0) * 0.45
+					var f2 := 0.82 + ((tp.r + tp.g + tp.b) / 3.0) * 0.40
 					c = Color(minf(c.r * f2, 1.0), minf(c.g * f2, 1.0), minf(c.b * f2, 1.0))
 			if float(x) < cxm - half + 1.5 or float(x) > cxm + half - 1.5:
-				c = edge
+				c = edge                                  # 左右侧檐边
+			var sun := 0.97 + 0.08 * t                    # 上暗下亮微渐变
+			c = Color(minf(c.r * sun, 1.0), minf(c.g * sun, 1.0), minf(c.b * sun, 1.0))
 			img.set_pixel(x, y, c)
-	# 屋脊横条
-	for x in range(maxi(0, int(cxm - ridge_half) - 1), mini(W - 1, int(cxm + ridge_half) + 2)):
-		img.set_pixel(x, 0, edge.lightened(0.12))
+	# 檐口厚度条（坡底 3px 深檐板+底缘亮线——屋顶"盖子"厚度）
+	for x in range(1, W - 1):
+		for k in range(3):
+			var yy := eave_row + k
+			var cc := roof_base.darkened(0.45 - k * 0.15)
+			if k == 2:
+				cc = roof_base.lightened(0.08)
+			img.set_pixel(x, yy, cc)
 	# ---- 石砌烟囱（右侧 28% 处，前坡伸出+深色烟囱口） ----
 	var chx := int(cxm + W * 0.28)
 	var ch_w := 7
-	var ch_bot := int(roof_h * 0.62)
+	var ch_bot := int(eave_row * 0.55)
 	for y in range(1, ch_bot + 1):
 		for x in range(chx, chx + ch_w):
 			if x < W:
@@ -2064,8 +2069,8 @@ func _compose_demo_house(W: int, H: int, style: String) -> Image:
 	for x in range(chx - 1, mini(W, chx + ch_w + 1)):
 		img.set_pixel(x, 0, Color(0.24, 0.21, 0.19))
 		img.set_pixel(x, 1, Color(0.32, 0.28, 0.26))
-	# ---- 墙体：暖抹灰 + 檐下投影行 ----
-	var wall_top := eave_row + 1
+	# ---- 墙体：暖抹灰，墙顶接檐口厚度条之下 ----
+	var wall_top := eave_row + 3
 	var wall_bot := H - 5
 	for x in range(3, W - 3):
 		var cs := plaster.darkened(0.35)
@@ -2109,10 +2114,10 @@ func _compose_demo_house(W: int, H: int, style: String) -> Image:
 	for x in range(st_x0, st_x0 + st_w):
 		for y in range(H - 4, H):
 			img.set_pixel(x, y, Color(0.70, 0.68, 0.64) if y < H - 1 else Color(0.58, 0.56, 0.54))
-	# ---- 门（中央板门：竖板拼缝+木框+石门槛）----
+	# ---- 门（中央板门：竖板拼缝+木框+石门槛；谷仓双开大门+X 斜撑）----
 	var barn := style == "red" and W >= 90
-	var dw := 22 if barn else 13
-	var dh := mini(wall_bot - (wall_top + 5), 26)
+	var dw := 26 if barn else (15 if W >= 76 else 13)
+	var dh := clampi(wall_bot - (wall_top + 5), 12, 34)
 	var dx0 := int(cxm) - int(dw / 2.0)
 	var dy0 := wall_bot - dh
 	for x in range(dx0, dx0 + dw):
@@ -2124,13 +2129,25 @@ func _compose_demo_house(W: int, H: int, style: String) -> Image:
 			img.set_pixel(x, y, dc)
 	for x in range(dx0 - 1, dx0 + dw + 1):
 		img.set_pixel(x, dy0 - 1, timber)
-	# ---- 窗（双侧木框方窗+淡青玻璃；W>=90 三窗；谷仓=上部干草方格窗）----
+	if barn:   # 大门 X 斜撑（对角木条）
+		for i in range(dh - 4):
+			var xs := dx0 + 3 + i
+			var xe := dx0 + dw - 4 - i
+			if xs < xe:
+				img.set_pixel(xs, dy0 + 2 + i, timber_d)
+				img.set_pixel(xe, dy0 + 2 + i, timber_d)
+	# ---- 门板气窗（门上部 5x3 亮格——墙高不敷门楣窗，改嵌入门板）----
+	if not barn:
+		for x in range(dx0 + 3, dx0 + dw - 3):
+			for y in range(dy0 + 2, dy0 + 5):
+				img.set_pixel(x, y, glass)
+	# ---- 窗（双侧木框方窗+淡青玻璃+窗台石；W>=90 加宽跨距防撞门；谷仓=上部干草方格窗）----
 	var win_y := wall_top + 5
-	var win_h := 9
-	var win_w := 9
+	var win_h := 11
+	var win_w := 11
 	var slots := [int(cxm - W * 0.30), int(cxm + W * 0.30) - win_w]
 	if W >= 90:
-		slots = [int(cxm - W * 0.36), int(cxm) - win_w / 2, int(cxm + W * 0.36) - win_w]
+		slots = [int(cxm - W * 0.34), int(cxm + W * 0.34) - win_w]
 	for wx in slots:
 		if barn:
 			continue   # 谷仓侧墙无窗（草窗在门上方）
@@ -2149,11 +2166,11 @@ func _compose_demo_house(W: int, H: int, style: String) -> Image:
 			for y in range(wall_top + 4, wall_top + 4 + 8):
 				var grid := x == hx0 or x == hx0 + 13 or y == wall_top + 4 or y == wall_top + 11
 				img.set_pixel(x, y, timber if grid else (hay if (x + y) % 3 != 0 else hay.darkened(0.15)))
-	# ---- 杂货铺：出檐（屋檐下挑 3 行瓦沿）+ 门侧货台 ----
+	# ---- 杂货铺：出檐（檐口横带下挑 3 行瓦沿）+ 门侧货台 ----
 	if style == "red" and W < 90:
 		for x in range(1, W - 1):
-			for y in range(eave_row + 1, eave_row + 4):
-				var sc3 := roof_base.darkened(0.25) if y > eave_row + 2 else roof_base
+			for y in range(eave_row + 3, eave_row + 6):
+				var sc3 := roof_base.darkened(0.25) if y > eave_row + 5 else roof_base
 				if x <= 2 or x >= W - 3:
 					sc3 = edge
 				img.set_pixel(x, y, sc3)
