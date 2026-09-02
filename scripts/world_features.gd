@@ -22,4 +22,8 @@ const FLAG := {
 ## v2 = W8 任务重启：quest_available_zero → quest_available_positive + 新增 story_started
 ## v3 = W8 观感修复：desert 直方图排除河畔绿洲带（临水≤12 格合法绿洲，探针 oasis_skipped）+
 ##   桥水侧不变量（陆上裸 17 降级 path）+ POI 避让镇建成区 + 渡亭选址前置验证（登记见进度日志 §二·J）
-const WORLD_RULES_VERSION := 3
+## v4 = v4 城镇全量重构 M0（docs/立项-v4城镇全量重构.md §3.5）：is_in_settlement 改净空登记制
+##   （镇心欧氏 13/城 cheby half+2/门派 cheby r 硬编码废除，统一读 _town_clear_rects）+
+##   回归断言登记制升级（城坐标/采样圆改读登记表）+ 新增 door_on_lane/footprint_no_overlap/
+##   prop_node_budget 断言
+const WORLD_RULES_VERSION := 4

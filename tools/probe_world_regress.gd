@@ -183,7 +183,8 @@ func _ready():
 		var dp: Vector2 = binfo[key]["door_px"]
 		var dt2 := Vector2i(int(floor(dp.x / 16.0)), int(floor(dp.y / 16.0)))
 		doors_ok[key] = reach.has(dt2)
-	data["city"] = {"gates": gates_ok, "doors": doors_ok}
+	data["city"] = {"gates": gates_ok, "doors": doors_ok,
+		"center": [city_c.x, city_c.y], "half": ch}   # v4 M0：城心/半边登记制输出（废 python 硬编码）
 
 	# ---- 4b) W2 唐制城：坊/市存在性 + 坊内连通（中巷格可达）+ 坊内房间距≥2 ----
 	var wards: Array = wg.city_info.get("wards", [])
@@ -295,15 +296,55 @@ func _ready():
 				treach[n2] = true
 				tq.append(n2)
 		var tdoors_ok := {}
+		var tdoor_lane := {}
 		var tjobs: Array = []
 		for bkey2 in t["buildings"]:
 			var b3: Dictionary = t["buildings"][bkey2]
 			var dp2: Vector2 = b3["door_px"]
-			tdoors_ok[str(bkey2)] = treach.has(Vector2i(int(floor(dp2.x / 16.0)), int(floor(dp2.y / 16.0))))
+			var dcell := Vector2i(int(floor(dp2.x / 16.0)), int(floor(dp2.y / 16.0)))
+			tdoors_ok[str(bkey2)] = treach.has(dcell)
+			# v4 关系断言（立项书 §六.2"门在巷边"，对齐样板区标准"door 4 格内有巷"）：
+			# door cheby≤4 内有巷瓦（path1/雪径42/广场35/桥17）。
+			# legacy 象限撒点不保证（南象限门径穿 footprint、河岸 6 不可铺）→ since=M1 生效
+			var lane := false
+			for ddx in range(-4, 5):
+				for ddy in range(-4, 5):
+					var nc: Vector2i = dcell + Vector2i(ddx, ddy)
+					if wg.get_tile_id(nc.x, nc.y) in [1, 42, 35, 17]:
+						lane = true
+						break
+				if lane:
+					break
+			tdoor_lane[str(bkey2)] = lane
 			if str(b3.get("job", "")) != "":
 				tjobs.append(str(b3["job"]))
+		# v4 M1 预埋：同镇建筑 footprint 膨胀 1 格两两不相交（防火巷，城 room_spacing 同款；
+		# 现行象限撒点未保证间距 → since=M1 PENDING）
+		var tover: Array = []
+		var trects: Array = []
+		for bkey3 in t["buildings"]:
+			var b4: Dictionary = t["buildings"][bkey3]
+			var br2 := Rect2i(Vector2i(b4["anchor"]), Vector2i(b4["fp"])).grow(1)
+			for other2 in trects:
+				if br2.intersects(other2):
+					tover.append(str(bkey3))
+					break
+			trects.append(br2)
+		# v4 密度报告（info）：镇圈自然格碎屑瓦片占比（prop 占用不在瓦片层，仅供参考）
+		var deco_n := 0
+		var nat_n := 0
+		for dx4 in range(-half2, half2 + 1):
+			for dy4 in range(-half2, half2 + 1):
+				var tc4 := tc2 + Vector2i(dx4, dy4)
+				var tid5: int = wg.get_tile_id(tc4.x, tc4.y)
+				if tid5 in [2, 10, 11, 12, 15, 16, 17, 33, 35, 39, 40, 41, 42, 43, 3, 5, 7]:
+					continue
+				nat_n += 1
+				if tid5 in [13, 55, 56, 57, 58, 59, 60, 61, 62, 63]:
+					deco_n += 1
 		towns.append({"center": [tc2.x, tc2.y], "template": str(t["template"]), "half": half2,
 			"buildings": t["buildings"].size(), "jobs": tjobs, "doors": tdoors_ok,
+			"door_lane": tdoor_lane, "overlaps": tover, "deco_ratio": float(deco_n) / maxf(1.0, float(nat_n)),
 			"has_ferry": t["buildings"].has("ferry1"), "has_shrine": t["buildings"].has("shrine")})
 	data["towns"] = towns
 
@@ -437,9 +478,13 @@ func _ready():
 			if wg.collision_tiles.has(wg.get_tile_id(c.x, c.y)) and not exempt.has(t):
 				zone_bad.append(["city", c.x, c.y, t])
 	for tc in wg.town_centers:
-		for dx in range(-13, 14):
-			for dy in range(-13, 14):
-				if Vector2(dx, dy).length() >= 13.0:
+		# v4 M0：镇采样圆参数化 r=max(13, half+4)——镇 half 扩大后仍全覆盖（W6 硬编码 13 废除）
+		var tk: Vector2i = Vector2i(int(tc.x), int(tc.y))
+		var th2: int = int(wg.town_info[tk]["half"]) if wg.town_info.has(tk) else 8
+		var tr: float = maxf(13.0, float(th2 + 4))
+		for dx in range(-int(tr) - 1, int(tr) + 2):
+			for dy in range(-int(tr) - 1, int(tr) + 2):
+				if Vector2(dx, dy).length() >= tr:
 					continue
 				var c2 := Vector2i(int(tc.x) + dx, int(tc.y) + dy)
 				zone_checked += 1
@@ -543,6 +588,16 @@ func _ready():
 		covered_n = covered.size()
 	data["walk6"]["reach1"] = r1.size()
 	data["walk6"]["reach2_covered"] = covered_n
+
+	# ---- 12) v4 M0 预算：全图 prop 节点计量（建筑/树/装饰/桥/样板区；上限断言 M2 生效） ----
+	var prop_stat := {"building": get_tree().get_nodes_in_group("building_prop").size(),
+		"tree": get_tree().get_nodes_in_group("tree_prop").size(),
+		"city": get_tree().get_nodes_in_group("city_prop").size(),
+		"bridge": get_tree().get_nodes_in_group("bridge_prop").size(),
+		"demo": get_tree().get_nodes_in_group("demo_building").size()}
+	prop_stat["total"] = int(prop_stat["building"]) + int(prop_stat["tree"]) + int(prop_stat["city"]) \
+			+ int(prop_stat["bridge"]) + int(prop_stat["demo"])
+	data["props"] = prop_stat
 
 	_write(data)
 	_log("[RegressProbe] data written: zones=%d adj_pairs=%d reach=%d" % [zones.size(), adj.size(), spawn_reach.size()])

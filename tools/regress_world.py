@@ -13,7 +13,7 @@ jp = os.path.join(proj, "tools", "regress_world_data.json")
 MARKER = 'ProbeWorldRegress="*res://tools/probe_world_regress.gd"'
 
 results = []  # (group, name, ok, detail, since)
-CURRENT_STAGE = "W8"
+CURRENT_STAGE = "M0"
 
 def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
@@ -99,8 +99,10 @@ def main():
     # W1 起生效：河流改道（源高山终湖海+避城轨迹）后河水不再进入城圈。
     # W0 现状为第三轮成果"穿城河+水门街桥"（规划 §3.2 保留语义），基线豁免。
     # W2 起城 half=30（方形）：水距城心用切比雪夫距离 ≥32（欧氏会放过城角内的水）
-    check("water", "river_not_through_city", w["min_dist_city"] >= 32.0,
-          f"min_dist_city(cheby)={w['min_dist_city']:.1f} (city_half+2=32)", since="W2")
+    # v4 M0：city_half 改读登记表（原硬编码 30 废除）；水组先于城组执行，直取 data["city"]
+    CITY_HALF = data["city"]["half"]
+    check("water", "river_not_through_city", w["min_dist_city"] >= CITY_HALF + 2.0,
+          f"min_dist_city(cheby)={w['min_dist_city']:.1f} (city_half+2={CITY_HALF + 2})", since="W2")
     check("water", "city_interior_dry", w["city_water"] == 0, f"cells={w['city_water']}", since="W1")
 
     # W1 新增：湖泊存在、河源在山、干流终湖/海（规划 §2.1/§5.1 自然规律）
@@ -147,12 +149,14 @@ def main():
     # ---------- 断言组：sect（W3 门派领地） ----------
     sects = data.get("sects", [])
     check("sect", "sect_count_5", len(sects) == 5, f"sects={len(sects)}", since="W3")
-    city_half = 30
+    # v4 M0：城心/半边改读登记表 city_info（原硬编码 (75,0)/city_half=30 废除）
+    CCX, CCY = c["center"]
+    CITY_HALF = c["half"]
     for s in sects:
         n = s["name"]
-        dc = max(abs(s["center"][0] - 75), abs(s["center"][1] - 0))
-        check("sect", f"sect_{n}_dist_city", dc >= city_half + 4 + s["radius"],
-              f"cheby={dc} need>={city_half + 4 + s['radius']}", since="W3")
+        dc = max(abs(s["center"][0] - CCX), abs(s["center"][1] - CCY))
+        check("sect", f"sect_{n}_dist_city", dc >= CITY_HALF + 4 + s["radius"],
+              f"cheby={dc} need>={CITY_HALF + 4 + s['radius']}", since="W3")
         check("sect", f"sect_{n}_hall_placed", s["hall_ok"], "", since="W3")
         check("sect", f"sect_{n}_stele_ring", s["stele_ok"],
               f"samples={s['stele_samples']}/8", since="W3")
@@ -167,7 +171,7 @@ def main():
     check("walk", "spawn_reach_large", data["reach_count"] >= 8000,
           f"reach={data['reach_count']}")
 
-    # ---------- 断言组：town（W4 村镇 v2 一圈一团一水） ----------
+    # ---------- 断言组：town（W4 村镇 v2 一圈一团一水；v4 M0 关系断言登记制） ----------
     towns = data.get("towns", [])
     check("town", "towns_count_ge6", len(towns) >= 6, f"towns={len(towns)}", since="W4")
     tpl_seen = set()
@@ -177,12 +181,23 @@ def main():
         tpl_seen.add(t["template"])
         bad_doors = [k for k, ok in t["doors"].items() if not ok]
         check("town", f"town_{tag}_doors", len(bad_doors) == 0, f"failed={bad_doors}", since="W4")
+        # v4 关系断言（M1 生效）：每栋门 4 格内有巷（"门在巷边"，废坐标隐式依赖）。
+        # legacy 象限撒点不保证（南象限门径穿 footprint/河岸 6 不可铺）→ M0 登记 PENDING 暴露缺口
+        bad_lane = [k for k, ok in t.get("door_lane", {}).items() if not ok]
+        check("town", f"town_{tag}_door_on_lane", len(bad_lane) == 0,
+              f"no_lane={bad_lane}", since="M1")
+        # v4 M1 预埋：同镇建筑间距 ≥2（footprint 膨胀1 两两不相交；现行象限撒点未保证）
+        check("town", f"town_{tag}_footprint_no_overlap", len(t.get("overlaps", [])) == 0,
+              f"overlap={t.get('overlaps', [])}", since="M1")
         check("town", f"town_{tag}_chief", "村正" in t["jobs"], f"jobs={t['jobs']}", since="W4")
         check("town", f"town_{tag}_shrine", t["has_shrine"], "", since="W4")
         if t["template"] == "ferry":
             check("town", f"town_{tag}_ferry_pavilion", t["has_ferry"], "", since="W4")
     check("town", "town_templates_variety", len(tpl_seen) >= 2,
           f"seen={sorted(tpl_seen)}", since="W4")
+    dens_info = "; ".join(f"{t['template']}@{t['center'][0]},{t['center'][1]}:"
+                          f"{t.get('deco_ratio', 0):.2f}" for t in towns)
+    print(f"[info] town deco tile ratios (半圈, info only): {dens_info}")
 
     # ---------- 断言组：npc（W4 驻留制落位） ----------
     npc = data.get("npc", {})
@@ -249,8 +264,18 @@ def main():
     check("walk", "corridor_2x2_coverage", r1 > 0 and r2cov >= r1 * 0.80,
           f"reach2_covered={r2cov}/reach1={r1}", since="W6")
 
+    # ---------- 断言组：budget（v4 M0 预算：v4 装点 prop 计量；树 prop=世界自然植被按
+    # chunk 加载，量级大且非 v4 增量，只打印不计上限——立项书 §3.7 口径=building/装饰/桥/样板区） ----------
+    pb = data.get("props", {})
+    v4_props = pb.get("building", 0) + pb.get("city", 0) + pb.get("bridge", 0) + pb.get("demo", 0)
+    check("budget", "prop_node_budget", 0 <= v4_props <= 3000,
+          f"v4_props={v4_props} building={pb.get('building', 0)} city={pb.get('city', 0)} "
+          f"bridge={pb.get('bridge', 0)} demo={pb.get('demo', 0)} tree(info)={pb.get('tree', 0)} "
+          f"（上限 3000，M2 全镇装点后收紧）", since="M0")
+
     # ---------- 报告 ----------
-    STAGE_ORDER = ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8"]
+    STAGE_ORDER = ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8",
+                   "M0", "M1", "M2", "M3", "M4", "M5"]   # v4 全量重构里程碑（立项书 §四）
     cur_i = STAGE_ORDER.index(CURRENT_STAGE)
 
     def verdict(r):
@@ -263,7 +288,7 @@ def main():
 
     fails = [r for r in results if verdict(r) == "FAIL"]
     print("=" * 62)
-    print("REGRESS WORLD REPORT  (rules v%s, stage %s)" % ("1", CURRENT_STAGE))
+    print("REGRESS WORLD REPORT  (rules v4, stage %s)" % CURRENT_STAGE)
     print("=" * 62)
     groups_seen = []
     for g, n, ok, d, s in results:

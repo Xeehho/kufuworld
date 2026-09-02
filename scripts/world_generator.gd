@@ -1670,17 +1670,12 @@ func _build_sect_territory(sname: String, def: Dictionary, c: Vector2i, r: int):
 
 
 func is_in_settlement(p: Vector2) -> bool:
-	"""2026-08-31：判定某像素点是否落在青石城/城镇范围内（MobSpawner营地避让用）"""
+	"""2026-08-31：判定某像素点是否落在青石城/城镇范围内（MobSpawner营地避让用）
+	v4 M0：改净空登记制——城/镇/门派样板区统一读 _town_clear_rects（注册制，各类聚落
+	自身登记 half+5 净空方），废除镇心欧氏 13 硬编码（镇 half 扩大后自动跟随）。"""
 	var t := Vector2i(int(p.x / 16.0), int(p.y / 16.0))
-	if absi(t.x - CITY_POS.x) <= city_half + 2 and absi(t.y - CITY_POS.y) <= city_half + 2:
+	if _in_town_clearance(t.x, t.y):
 		return true
-	# W3 门派领地（界碑环内=聚落）
-	for s in sect_info.values():
-		if maxi(absi(t.x - s["center"].x), absi(t.y - s["center"].y)) <= int(s["radius"]):
-			return true
-	for tc in town_centers:
-		if Vector2(t.x, t.y).distance_to(tc) < 13.0:
-			return true
 	# 城镇样板区（P0：营地/野怪避让，mob.gd/_resolve_camp_center 经此继承）
 	if demo_zone_rect.size.x > 0 and demo_zone_rect.has_point(t):
 		return true
