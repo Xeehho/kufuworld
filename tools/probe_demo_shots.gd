@@ -5,14 +5,12 @@ extends Node
 const LOG := "C:/Learn/my-godot-project/tools/probe_demo_shots_log.txt"
 const OUT := "C:/Learn/my-godot-project/docs/shots/"
 
-# [名称, 全局瓦片位, zoom(0=默认3)]
+# [名称, 全局瓦片位, zoom(0=默认3), nofix(1=不覆盖光照/天气，夜景用)]
 const SPOTS := [
-	["p1_overview", Vector2i(43, 65), 1.1],  # 全区俯瞰（zoom-out 全景）
-	["p3_farm_a", Vector2i(26, 74), 0],      # 菜圃A特写（垄行+作物+稻草人棚架）
-	["p3_farm_b", Vector2i(43, 74), 0],      # 菜圃B特写
-	["p3_yard_house", Vector2i(24, 65), 0],  # 农舍A前院（门径+围栏）
-	["p3_yard_barn", Vector2i(24, 51), 0],   # 谷仓前院
-	["p3_fence_s", Vector2i(43, 69), 0],     # 南带围栏+横巷
+	["p1_overview", Vector2i(43, 65), 1.1, 0],  # 全区俯瞰（zoom-out 全景）
+	["p4_orchard", Vector2i(30, 47), 0, 0],     # 北带果树带+谷仓
+	["p4_props_e", Vector2i(55, 62), 0, 0],     # 东段道具组+民居
+	["p4_night", Vector2i(43, 55), 0, 1],       # 夜景（默认光照，灯笼亮度检查）
 ]
 
 func _log(m):
@@ -42,9 +40,9 @@ func _ready():
 		world = get_node_or_null("/root/Main/World")
 	await _wait(3.0)
 	var cm := get_node_or_null("/root/Main/World/CanvasModulate")
-	if cm:
-		cm.color = Color(1, 1, 1)
+	var cm_default: Color = cm.color if cm != null else Color(1, 1, 1)
 	var wc := get_node_or_null("/root/Main/World/WeatherController")
+	var wt_default: float = wc.world_time if wc != null else 0.0
 	if wc:
 		wc.set_process(false)
 		for c in wc.get_children():
@@ -61,10 +59,19 @@ func _ready():
 		if cam != null:
 			var z := float(s[2])
 			cam.zoom = Vector2(z, z) if z > 0.0 else Vector2(3, 3)   # 每机位显式设 zoom（0=默认3）
+		var nofix: bool = int(s[3]) == 1
+		if cm != null:
+			cm.color = cm_default if nofix else Color(1, 1, 1)       # 夜景机位保留游戏光照
+		if wc != null and nofix:
+			wc.world_time = 22.0 * 60.0 * wc.time_scale              # 固定 22 点（陷阱27：直接改 world_time）
 		await _wait(1.4)
 		await _shot(str(s[0]))
 	if cam != null:
 		cam.zoom = Vector2(3, 3)
+	if cm != null:
+		cm.color = cm_default
+	if wc != null:
+		wc.world_time = wt_default
 	_log("ALL_SHOTS_DONE")
 	await _wait(0.3)
 	get_tree().quit()

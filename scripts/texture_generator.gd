@@ -1928,7 +1928,7 @@ func generate_demo_buildings():
 		img.save_png(ProjectSettings.globalize_path(path))
 		print("[TextureGen] demo building: ", kind, " ", d["size"])
 	# P3 配套：32px 双格栅栏单元（prop 数减半控预算）+ 菜圃棚架
-	var extras := {"demo_fence": _fence_unit_img(), "demo_trellis": _trellis_img()}
+	var extras := {"demo_fence": _fence_unit_img(), "demo_trellis": _trellis_img(), "demo_flowers": _flower_cluster_img()}
 	for k in extras:
 		var p2 := "res://sprites/demo/%s.png" % k
 		if not FileAccess.file_exists(p2):
@@ -1971,6 +1971,38 @@ func _trellis_img() -> Image:
 	for i in range(5):                           # 顶部斜格
 		img.set_pixel(4 + i * 2, 4 + i, wood_d)
 		img.set_pixel(11 - i * 2, 4 + i, wood_d)
+	return img
+
+func _flower_cluster_img() -> Image:
+	"""32x18 花簇（P4 装点）：5 朵小花（粉/黄/白）+草叶底座——前院/空地密度补足 prop。"""
+	var W := 32
+	var H := 18
+	var img := Image.create(W, H, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+	var grass := Color(0.30, 0.52, 0.22)
+	var grass_d := Color(0.24, 0.42, 0.18)
+	var petals := [Color(0.88, 0.55, 0.68), Color(0.92, 0.82, 0.36), Color(0.92, 0.92, 0.88),
+			Color(0.80, 0.45, 0.60), Color(0.90, 0.72, 0.30)]
+	var hearts := [Color(0.70, 0.30, 0.42), Color(0.75, 0.62, 0.20), Color(0.72, 0.72, 0.60),
+			Color(0.60, 0.26, 0.40), Color(0.72, 0.52, 0.18)]
+	var spots := [[5, 9], [12, 6], [19, 10], [25, 7], [15, 13]]
+	for i in range(spots.size()):
+		var cx2: int = spots[i][0]
+		var cy2: int = spots[i][1]
+		for y in range(cy2 + 1, cy2 + 5):        # 茎+草叶
+			img.set_pixel(cx2, y, grass if y % 2 == 0 else grass_d)
+		img.set_pixel(cx2 - 1, cy2 + 3, grass_d)
+		img.set_pixel(cx2 + 1, cy2 + 2, grass)
+		for dx in range(-1, 2):                  # 花瓣十字
+			for dy in range(-1, 2):
+				if absi(dx) + absi(dy) < 2:
+					img.set_pixel(cx2 + dx, cy2 + dy, petals[i])
+		img.set_pixel(cx2, cy2, hearts[i])
+	for x in range(2, 30):                       # 底部草丛连线
+		if x % 3 != 0:
+			img.set_pixel(x, 16, grass_d)
+			if x % 4 == 1:
+				img.set_pixel(x, 15, grass)
 	return img
 
 func _compose_demo_house(W: int, H: int, style: String) -> Image:

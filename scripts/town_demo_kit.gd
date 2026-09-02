@@ -90,10 +90,11 @@ func build():
 	_load_zone_chunks()
 	_place_buildings() # P2：建筑 prefab 落位（prop 不依赖瓦片上漆，chunks 后任意时机）
 	_place_yards()     # P3：前院门径/围栏/作物精灵/稻草人棚架
+	_place_decor_density()  # P4：果树带疏林+道具组+花簇补密度+量化统计
 	_mark_boundary()
 	_place_sign()
 	built = true
-	print("[DemoKit] 样板区建成：P0 骨架+P1 路网+P2 建筑+P3 院落菜圃（%d 地块）" % plots.size())
+	print("[DemoKit] 样板区建成：P0 骨架+P1 路网+P2 建筑+P3 院落菜圃+P4 装点（%d 地块）" % plots.size())
 
 func _flatten_ground():
 	"""区内自然地理瓦片（山3/水5/雪山7）平整为群系地面——村建谷地，呼应 §三"接现状水域"。
@@ -207,6 +208,9 @@ func _stamp_building(kind: String, a: Vector2i) -> bool:
 		push_warning("[DemoKit] demo 建筑纹理缺失: " + kind)
 		return false
 	var fp: Vector2i = def["fp"]
+	for dx in range(fp.x):
+		for dy in range(fp.y):
+			occupied[Vector2i(a.x + dx, a.y + dy)] = true   # P4 撒点避让
 	var bw := fp.x * 16.0
 	var bh := fp.y * 16.0
 	var base_cx := (a.x + fp.x * 0.5) * 16.0
@@ -342,7 +346,133 @@ func _stamp_fence(cell: Vector2i, vertical: bool):
 	else:
 		spr.position = Vector2(cell.x * 16.0 + 8.0, (cell.y + 1) * 16.0 - 2.0)
 		spr.offset = Vector2(0, -tex.get_height() * 0.5)
+	occupied[cell] = true
 	add_child(spr)
+
+# ---- P4 装点与密度（§1.2 量化：装饰≥25%、道具每8×8≥1组、果树带疏林；纯 prop 零瓦片语义） ----
+
+const ORCHARD_SHEET := "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_01/Size_02.png"  # 橡树 sheet（4x2 变体，帧 64x64）
+const FLOWERS_PNG := "res://sprites/demo/demo_flowers.png"
+var occupied := {}   # 已占用格（建筑 footprint/围栏/树/道具/花簇）——P4 撒点避让
+
+func _place_decor_density():
+	"""P4 总入口：果树带疏林 + 8×8 道具组 + 花簇补密度 + 量化统计打印。"""
+	var n_tree := _stamp_orchard()
+	var n_prop := _scatter_props()
+	var n_flower := _scatter_flowers()
+	_report_density(n_tree, n_prop, n_flower)
+
+func _cell_free(c: Vector2i) -> bool:
+	"""P4 撒点闸门：非占用（建筑/围栏/已放 prop）且非铺装/垄（平整后的地面格允许）。"""
+	if occupied.has(c):
+		return false
+	if wg.override_cells.has(c):
+		var ov: int = wg.override_cells[c]
+		if ov != wg._palette_at(c.x, c.y)["ground"]:   # 平整产物=可种，铺装/垄=拒
+			return false
+	var t: int = wg.get_tile_id(c.x, c.y)
+	return not (t in BUILD_TILES) and not (t in GEO_TILES)
+
+func _stamp_orchard() -> int:
+	"""果树带疏林：北带（局部 y≤8）6%、南缘（y≥38）1.5%、其余 0——橡树 4x2 变体 sheet。"""
+	var sheet := TextureGen.load_png_texture(ORCHARD_SHEET)
+	if sheet == null:
+		push_warning("[DemoKit] 果树 sheet 缺失，跳过疏林")
+		return 0
+	var n := 0
+	for ly in range(0, H):
+		for lx in range(0, W):
+			if n >= 30:
+				return n
+			var c := _g(Vector2i(lx, ly))
+			if not _cell_free(c):
+				continue
+			var dens := 0.06 if ly <= 8 else (0.015 if ly >= 38 else 0.0)
+			var cr := fposmod(wg.detail_noise.get_noise_2d(c.x * 2.3 + 7.7, c.y * 3.1 + 3.3) + 1.0, 1.0)
+			if cr > dens:
+				continue
+			_stamp_tree(c, sheet)
+			n += 1
+	return n
+
+func _stamp_tree(c: Vector2i, sheet: Texture2D):
+	"""橡树 prop：AtlasTexture 切变体（**仅上排 0..3 春夏绿树**——下排是雪/枯冬季变体，
+	暖色样板区混入会季节错乱），脚底入土锚定（world_generator 树 prop 同款）。"""
+	var variant := int(fposmod(wg.detail_noise.get_noise_2d(c.x * 5.1, c.y * 7.3) + 1.0, 1.0) * 4.0) % 4
+	var atlas := AtlasTexture.new()
+	atlas.atlas = sheet
+	atlas.region = Rect2(float(variant % 4) * 64.0, float(variant / 4) * 64.0, 64.0, 64.0)
+	var spr := Sprite2D.new()
+	spr.texture = atlas
+	spr.z_index = 2
+	spr.position = Vector2(c.x * 16.0 + 8.0, c.y * 16.0 + 20.0)
+	spr.offset = Vector2(0, -32.0)
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var sh := TextureGen.make_shadow_sprite(40.0, 0.30)
+	sh.position = Vector2(0, -4)
+	sh.z_index = -1
+	spr.add_child(sh)
+	add_child(spr)
+	occupied[c] = true
+
+func _scatter_props() -> int:
+	"""8×8 网格道具组：42% 网格放灯笼或桶+箱组合（桶箱相邻双 prop）。"""
+	var n := 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 424242
+	for gy in range(0, int(H / 8.0) + 1):
+		for gx in range(0, int(W / 8.0) + 1):
+			if rng.randf() > 0.42:
+				continue
+			var base := Vector2i(gx * 8 + 3 + rng.randi() % 3, gy * 8 + 3 + rng.randi() % 3)
+			var c1 := _g(base)
+			if not _cell_free(c1):
+				continue
+			if rng.randi() % 3 == 0:
+				_stamp_prop("res://sprites/buildings/lantern.png", c1, true)   # glow：夜景常亮
+			else:
+				_stamp_prop("res://sprites/buildings/barrel.png", c1)
+				var c2 := _g(base + Vector2i(1, 0))
+				if _cell_free(c2):
+					_stamp_prop("res://sprites/buildings/crate.png", c2)
+			occupied[c1] = true
+			n += 1
+	return n
+
+func _scatter_flowers() -> int:
+	"""花簇：区内空格 5% 噪声撒（上限 35 簇），补装饰密度。"""
+	var n := 0
+	for ly in range(0, H):
+		for lx in range(0, W):
+			if n >= 35:
+				return n
+			var c := _g(Vector2i(lx, ly))
+			if not _cell_free(c):
+				continue
+			var cr := fposmod(wg.detail_noise.get_noise_2d(c.x * 4.9 + 1.7, c.y * 2.9 + 8.8) + 1.0, 1.0)
+			if cr > 0.05:
+				continue
+			_stamp_prop(FLOWERS_PNG, c)
+			occupied[c] = true
+			n += 1
+	return n
+
+func _report_density(n_tree: int, n_prop: int, n_flower: int):
+	"""§1.2 量化：装饰密度=（碎屑瓦片格+占用格）/自然格（铺装/垄除外）；目标 ≥25%。"""
+	var deco_tiles := [13, 55, 56, 57, 58, 59, 60, 61, 62, 63]
+	var natural := 0
+	var decorated := 0
+	for ly in range(0, H):
+		for lx in range(0, W):
+			var c := _g(Vector2i(lx, ly))
+			var t: int = wg.get_tile_id(c.x, c.y)
+			if t in BUILD_TILES or t in GEO_TILES or wg.override_cells.has(c):
+				continue
+			natural += 1
+			if t in deco_tiles or occupied.has(c):
+				decorated += 1
+	var dens := float(decorated) / maxf(1.0, float(natural)) * 100.0
+	print("[DemoKit] P4 密度：装饰 %.1f%%（目标≥25%%）树 %d 道具组 %d 花簇 %d" % [dens, n_tree, n_prop, n_flower])
 
 # ---- 选址检查（返回否决原因码，""=通过） ----
 
@@ -497,7 +627,7 @@ func _mark_boundary():
 		Vector2i(rect.end.x - 1, my),
 	]
 	for p in pts:
-		_stamp_prop("res://sprites/buildings/lantern.png", p)
+		_stamp_prop("res://sprites/buildings/lantern.png", p, true)   # 边界灯柱夜景常亮
 
 func _place_sign():
 	"""立牌："· 样 板 村 ·"（同青石城城名标样式）+ 区口旁灯柱。"""
@@ -518,10 +648,12 @@ func _place_sign():
 	lbl.z_index = 20
 	lbl.position = Vector2(sign_cell.x * 16.0 + 8.0 - 26.0, sign_cell.y * 16.0 - 12.0)
 	add_child(lbl)
-	_stamp_prop("res://sprites/buildings/lantern.png", sign_cell)
+	_stamp_prop("res://sprites/buildings/lantern.png", sign_cell, true)   # 立牌灯柱夜景常亮
 
-func _stamp_prop(png: String, cell: Vector2i) -> bool:
-	"""脚底锚定装饰道具（原点=贴图底缘，z=2 并入 World 递归 Y-sort；不占格不碰撞）。"""
+func _stamp_prop(png: String, cell: Vector2i, glow: bool = false) -> bool:
+	"""脚底锚定装饰道具（原点=贴图底缘，z=2 并入 World 递归 Y-sort；不占格不碰撞）。
+	glow=true 挂 PointLight2D 暖光晕（加法混合提亮灯身与周围——CanvasModulate 夜色下灯笼常亮，
+	P4 亮度检查项；注意 UNSHADED 免疫不了 CanvasModulate，必须走 Light2D）。"""
 	var tex := TextureGen.load_png_texture(png)
 	if tex == null:
 		return false
@@ -533,8 +665,31 @@ func _stamp_prop(png: String, cell: Vector2i) -> bool:
 	spr.offset = Vector2(0, -tex.get_height() * 0.5)
 	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	spr.set_meta("base_y", pos.y)
+	if glow:
+		var light := PointLight2D.new()
+		light.texture = _glow_texture()
+		light.energy = 1.5
+		light.color = Color(1.0, 0.72, 0.38)
+		light.texture_scale = 2.0
+		light.position = Vector2(0, -tex.get_height() * 0.5)
+		spr.add_child(light)
 	var sh := TextureGen.make_shadow_sprite(clampf(tex.get_width() * 0.85, 14.0, 44.0), 0.24)
 	sh.position = Vector2(0, -2)
 	spr.add_child(sh)
 	add_child(spr)
 	return true
+
+var _glow_tex: ImageTexture = null
+
+func _glow_texture() -> ImageTexture:
+	"""灯笼光晕径向渐变（96x96，运行时内存生成不落盘）。"""
+	if _glow_tex != null:
+		return _glow_tex
+	var img := Image.create(96, 96, false, Image.FORMAT_RGBA8)
+	for y in range(96):
+		for x in range(96):
+			var d := Vector2(x - 48.0, y - 48.0).length() / 48.0
+			var a := clampf(1.0 - d, 0.0, 1.0)
+			img.set_pixel(x, y, Color(1, 1, 1, a * a * 0.9))
+	_glow_tex = ImageTexture.create_from_image(img)
+	return _glow_tex
