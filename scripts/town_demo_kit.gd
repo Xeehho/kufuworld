@@ -22,6 +22,7 @@ var wg                         # WorldGenerator 引用（无类型，避免依�
 var rect := Rect2i(0, 0, 0, 0) # 选定区域（瓦片坐标）
 var gate_in := Vector2i.ZERO   # 区口（rect 内侧 3 格，P1 主巷由此延续）
 var road_set := {}             # 官道格集合（选址避让走廊）
+var plots: Array = []          # P1 地块记录制：[{kind, bounds:Rect2i(全局), door:Vector2i(全局)}]
 var built := false
 
 func setup(world_gen) -> bool:
@@ -73,7 +74,8 @@ func _gate_reachable(r: Rect2i) -> bool:
 	return best <= 55 * 55
 
 func build():
-	"""P0 总入口：登记→平整→chunk→入口路→边界→立牌（P1 起在 _lay_roads/_stamp_plots 等扩展）。"""
+	"""总入口：登记→平整→地块划分→入口路→路网→chunk→边界→立牌。
+	⚠️ 顺序契约：override 写入（平整/铺路）必须先于 _load_zone_chunks——上漆只发生在 _load_chunk。"""
 	if rect.size == Vector2i.ZERO:
 		return
 	wg.demo_zone_rect = rect   # 营地/野怪经 is_in_settlement 自动避让
@@ -81,12 +83,14 @@ func build():
 	wg._register_town_clearance(rect.position.x + rect.size.x / 2,
 			rect.position.y + rect.size.y / 2, maxi(rect.size.x, rect.size.y) / 2 + 1)
 	_flatten_ground()
-	_lay_gate_road()   # 铺路必须先于 chunk 预载——override 上漆只发生在 _load_chunk，后写不上屏
+	_stamp_plots()     # P1：地块划分（记录制，供 P2 建筑/P3 院落消费）
+	_lay_gate_road()   # P0：官道→区口（2 宽）
+	_lay_roads()       # P1：连接巷+主巷蜿蜒+支巷+广场（2 宽主巷/1 宽支巷三级）
 	_load_zone_chunks()
 	_mark_boundary()
 	_place_sign()
 	built = true
-	print("[DemoKit] 样板区 P0 骨架建成：入口路+边界灯柱+立牌")
+	print("[DemoKit] 样板区建成：P0 骨架（入口路/灯柱/立牌）+ P1 路网地块（%d 地块）" % plots.size())
 
 func _flatten_ground():
 	"""区内自然地理瓦片（山3/水5/雪山7）平整为群系地面——村建谷地，呼应 §三"接现状水域"。
@@ -99,6 +103,56 @@ func _flatten_ground():
 				wg.override_cells[c] = wg._palette_at(xx, yy)["ground"]
 				n += 1
 	print("[DemoKit] 平整地理瓦片 %d 格（山/水/雪山→群系地面）" % n)
+
+# ---- P1 路网与地块（立项书 §三 布局总图，局部坐标 56x44，区口北缘 lx=52） ----
+
+func _g(p: Vector2i) -> Vector2i:
+	"""局部坐标 → 全局瓦片坐标。"""
+	return rect.position + p
+
+func _stamp_plots():
+	"""P1 地块划分（记录制）：布局对齐立项书 §三——北带谷仓/水井广场/温室，主巷南缘
+	农舍A/长屋/农舍B/杂货铺（门直接贴巷），南带菜圃A/B。bounds 供建筑落位+院围+密度量化。"""
+	plots = [
+		{"kind": "barn",       "bounds": Rect2i(_g(Vector2i(4, 1)), Vector2i(11, 9)),   "door": _g(Vector2i(9, 9))},
+		{"kind": "well_plaza", "bounds": Rect2i(_g(Vector2i(22, 1)), Vector2i(12, 11)), "door": _g(Vector2i(27, 11))},
+		{"kind": "greenhouse", "bounds": Rect2i(_g(Vector2i(40, 1)), Vector2i(12, 8)),  "door": _g(Vector2i(45, 8))},
+		{"kind": "house_a",    "bounds": Rect2i(_g(Vector2i(4, 13)), Vector2i(11, 13)), "door": _g(Vector2i(14, 13))},
+		{"kind": "longhouse",  "bounds": Rect2i(_g(Vector2i(17, 13)), Vector2i(12, 13)), "door": _g(Vector2i(22, 13))},
+		{"kind": "house_b",    "bounds": Rect2i(_g(Vector2i(31, 13)), Vector2i(10, 13)), "door": _g(Vector2i(35, 13))},
+		{"kind": "shop",       "bounds": Rect2i(_g(Vector2i(43, 13)), Vector2i(10, 13)), "door": _g(Vector2i(47, 13))},
+		{"kind": "farm_a",     "bounds": Rect2i(_g(Vector2i(5, 28)), Vector2i(14, 10)),  "door": _g(Vector2i(9, 27))},
+		{"kind": "farm_b",     "bounds": Rect2i(_g(Vector2i(23, 28)), Vector2i(12, 10)), "door": _g(Vector2i(26, 27))},
+	]
+	for p in plots:
+		print("[DemoKit]   地块[%s] bounds=%s door=%s" % [p["kind"], str(p["bounds"]), str(p["door"])])
+
+func _lay_roads():
+	"""P1 三级路网：连接巷(2宽)→主巷(2宽 4段折线蜿蜒横贯)→支巷(1宽 纵3+横1通菜圃)+水井广场石板。
+	全部无碰撞瓦片（path=1 / plaza=35）；必须在 _load_zone_chunks 前调用（override 上漆一次性）。"""
+	# 1 连接巷：区口（局部52,0，接 P0 入口路）向南下到主巷东端，2 宽 x=52,53
+	for ly in range(0, 10):
+		_pave(_g(Vector2i(52, ly)))
+		_pave(_g(Vector2i(53, ly)))
+	# 2 主巷：3 段大弯蜿蜒（弯幅 3 格对齐材质包样图走势；2 宽=(x,y)+(x,y+1)，段间竖向过渡 2 宽）
+	for s in [[3, 20, 9], [21, 38, 12], [39, 52, 9]]:
+		for lx in range(int(s[0]), int(s[1]) + 1):
+			_pave(_g(Vector2i(lx, int(s[2]))))
+			_pave(_g(Vector2i(lx, int(s[2]) + 1)))
+	for tx in [21, 22, 39, 40]:        # 弯折竖向过渡（y 9→12→9）
+		for ly in range(9, 13):
+			_pave(_g(Vector2i(tx, ly)))
+	# 3 支巷（1 宽）：北带谷仓门已邻主巷段1 y=9；南带纵巷×3（地块间隙）+横巷（菜圃带）
+	for lx in [15, 29, 41]:            # 纵巷：主巷南缘 y=14 穿地块间隙至横巷
+		for ly in range(14, 28):
+			_pave(_g(Vector2i(lx, ly)))
+	for lx in range(9, 48):            # 横巷 y=27：连纵巷与菜圃 A/B 北门
+		_pave(_g(Vector2i(lx, 27)))
+	# 4 水井广场（石板 35）：局部 (24..31, 4..11)，南缘 y=11 邻主巷段2 y=12
+	for lx in range(24, 32):
+		for ly in range(4, 12):
+			wg.override_cells[_g(Vector2i(lx, ly))] = 35
+	print("[DemoKit] 三级路网铺装完成：连接巷+主巷3段大弯(2宽)+纵巷3/横巷1(1宽)+水井广场")
 
 # ---- 选址检查（返回否决原因码，""=通过） ----
 

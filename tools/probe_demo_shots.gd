@@ -1,15 +1,17 @@
 extends Node
 
-## 城镇样板区 P0 验收截图（临时 autoload 注入，run_demo_shots.py 调度）
-## 机位基于 2026-09-02 实测选址 rect=[P:(15,43) S:(56,44)]，区口 (67,43)
+## 城镇样板区验收截图（临时 autoload 注入，run_demo_shots.py 调度）
+## 机位基于 2026-09-02 实测选址 rect=[P:(15,43) S:(56,44)]，区口 (67,43)，主巷 y≈53-54 全局
 const LOG := "C:/Learn/my-godot-project/tools/probe_demo_shots_log.txt"
 const OUT := "C:/Learn/my-godot-project/docs/shots/"
 
+# [名称, 全局瓦片位, zoom(0=默认3)]
 const SPOTS := [
-	["p0_gate", Vector2i(67, 43)],     # 区口：立牌+入口路+北侧边界
-	["p0_center", Vector2i(43, 65)],   # 区中心俯瞰
-	["p0_corner_sw", Vector2i(15, 86)],# 西南角界碑灯柱
-	["p0_corner_se", Vector2i(70, 86)],# 东南角界碑灯柱
+	["p0_gate", Vector2i(67, 43), 0],        # 区口：立牌+入口路+连接巷
+	["p1_overview", Vector2i(43, 65), 1.1],  # 全区俯瞰（zoom-out 全景，P1 路网 DoD）
+	["p1_road_main_w", Vector2i(25, 57), 0], # 主巷西段：谷仓/农舍A 门脸
+	["p1_road_main_e", Vector2i(61, 48), 0], # 主巷东段：连接巷/温室/广场
+	["p1_cross_south", Vector2i(37, 70), 0], # 横巷+菜圃北门
 ]
 
 func _log(m):
@@ -52,10 +54,15 @@ func _ready():
 		_log("FATAL: player not found")
 		get_tree().quit()
 		return
+	var cam := player.get_node_or_null("Camera2D")
 	for s in SPOTS:
 		player.global_position = Vector2(s[1].x * 16.0 + 8.0, s[1].y * 16.0 + 8.0)
+		if cam != null and float(s[2]) > 0.0:
+			cam.zoom = Vector2(float(s[2]), float(s[2]))
 		await _wait(1.4)
 		await _shot(str(s[0]))
+	if cam != null:
+		cam.zoom = Vector2(3, 3)
 	_log("ALL_SHOTS_DONE")
 	await _wait(0.3)
 	get_tree().quit()
