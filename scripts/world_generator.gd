@@ -3,6 +3,7 @@ extends Node2D
 const TextureGen = preload("res://scripts/texture_generator.gd")
 const TilesetGen = preload("res://scripts/tileset_generator.gd")
 const TownDemoKit = preload("res://scripts/town_demo_kit.gd")   # 城镇样板区（立项书 §4.3）
+const TownLayoutKit = preload("res://scripts/town_layout_kit.gd")   # v4 聚落布局工具（立项书 §3.1）
 
 const CHUNK_SIZE = 16
 const TILE_SIZE_PX = 16
@@ -1169,6 +1170,8 @@ func _register_town_clearance(cx: int, cy: int, half: int):
 	_town_clear_rects.append(Rect2i(cx - m, cy - m, 2 * m + 1, 2 * m + 1))
 
 var town_info: Dictionary = {}
+# v4 M1：镇灯笼 glow 灯列表（_build_farm_town_v4 收集，_process 昼夜调能——P5.4 同款）
+var town_glow_lights: Array = []
 
 # W7：legacy 村镇路径（TOWN_TEMPLATES/象限撒点）已删，本函数为唯一村镇生成路径。
 func _generate_towns():
@@ -1234,7 +1237,7 @@ func _generate_towns():
 				if _area_has_cliff(tx, ty, 10):
 					continue
 				town_centers.append(Vector2(tx, ty))
-				_generate_single_town_v2(tx, ty, k, rng)
+				_generate_single_town_v2(tx, ty, k, i)   # M1：传镇序号（布局 rng 镇级隔离）
 				placed += 1
 				done = true
 				break
@@ -1252,9 +1255,21 @@ func _water_in_band(cx: int, cy: int, r0: int, r1: int) -> bool:
 					return true
 	return false
 
-func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, rng: RandomNumberGenerator):
+func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, town_index: int):
+	# M1（v4 立项书 §3.2）：布局 rng 镇级隔离（seed 由镇序派生）——布局改动对其他镇/选址零外溢；
+	# 选址仍消费 _generate_towns 主 rng（跨镇序列）。farm 模板自此走 v4 地块式布局（半边 8→10）。
+	var rng := RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 4000 + (town_index + 1) * 7919
 	var tpl: Dictionary = WorldData.TOWN_TEMPLATES_V2[tpl_key]
-	var half := 9 if tpl_key == "market" else 8
+	var half := 10 if tpl_key == "farm" else (9 if tpl_key == "market" else 8)
+	var info := {"template": tpl_key, "center": Vector2i(cx, cy), "half": half, "buildings": {}}
+	town_info[Vector2i(cx, cy)] = info
+	if tpl_key == "farm":
+		_build_farm_town_v4(cx, cy, half, rng, info)
+		_log_town_jobs(tpl_key, cx, cy, half, info)
+		_register_town_clearance(cx, cy, half)
+		return
+	# ---- market/ferry：legacy 布局（M2 重排），仅 rng 换镇级源 ----
 	# 十字土路（逐格避水，同 legacy）
 	for dx in range(-half, half + 1):
 		var rc := Vector2i(cx + dx, cy)
@@ -1264,8 +1279,6 @@ func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, rng: RandomNumb
 		var rc2 := Vector2i(cx, cy + dy)
 		if get_tile_id(rc2.x, rc2.y) != 5:
 			override_cells[rc2] = _palette_at(rc2.x, rc2.y)["path"]
-	var info := {"template": tpl_key, "center": Vector2i(cx, cy), "half": half, "buildings": {}}
-	town_info[Vector2i(cx, cy)] = info
 	# 市镇中央石板广场
 	if tpl_key == "market":
 		for dx in range(-2, 3):
@@ -1276,23 +1289,6 @@ func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, rng: RandomNumb
 	# 模板建筑组（key 与 NPC_JOBS.building 对齐；job 空串=无岗位纯民居/功能）
 	# 祠堂：首选 temple；山缘镇 7x5 摆不下时回退 hut 小筑祠堂（村正岗位必须落位）
 	match tpl_key:
-		"farm":
-			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
-				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
-			_place_town_building(cx, cy, half, "farm1", "hut", "农人", rng, info)
-			_place_town_building(cx, cy, half, "farm2", "hut", "农人", rng, info)
-			if rng.randf() < 0.5:
-				_place_town_building(cx, cy, half, "smithy", "shop_a", "铁匠", rng, info)
-			else:
-				_place_town_building(cx, cy, half, "grocer", "shop_b", "货郎", rng, info)
-			# 环状农带（L 形两邻边各 2 宽；避路/避水/避建筑）
-			for dx in range(-half + 1, -half + 3):
-				for dy in range(-half + 1, half):
-					_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
-			for dy in range(half - 2, half):
-				for dx in range(-half + 1, half):
-					_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
-			# 农带装点由 _dress_farm_bands 全局统一处理（P4b）
 		"market":
 			if not _place_town_building(cx, cy, half, "shrine", "temple", "村正", rng, info):
 				_place_town_building(cx, cy, half, "shrine", "hut", "村正", rng, info)
@@ -1313,13 +1309,94 @@ func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, rng: RandomNumb
 	for i in range(want):
 		var kind := "house" if rng.randf() < 0.4 else "hut"
 		_place_town_building(cx, cy, half, "house%d" % i, kind, "", rng, info)
+	_log_town_jobs(tpl_key, cx, cy, half, info)
 	# 登记净空区
 	_register_town_clearance(cx, cy, half)
+
+func _log_town_jobs(tpl_key: String, cx: int, cy: int, half: int, info: Dictionary):
 	var jobs: Array = []
 	for key in info["buildings"]:
 		if str(info["buildings"][key]["job"]) != "":
 			jobs.append(str(info["buildings"][key]["job"]))
 	print("[WorldGen] TownV2[%s] @(%d,%d) half=%d buildings=%d jobs=%s" % [tpl_key, cx, cy, half, info["buildings"].size(), str(jobs)])
+
+# ---- v4 M1：farm 模板地块式布局（docs/立项-v4城镇全量重构.md §3.2） ----
+# 表驱动确定性锚点：选址规则保证镇体 cheby≤10 无水/无崖（_area_has_water(13)/_area_has_cliff(10)）
+# → cheby≤9 的固定锚点必然可放（无随机试锚）。三级路网 + 围栏地块 + 门径（override 层，P3 契约）；
+# 语义槽位与 legacy 一致：祠堂(村正)/farm1·farm2(农人)/smithy|grocer(铁匠|货郎)/民居4~6（登记
+# deviation：槽位固定 6 席 house/hut 各半，legacy 为 4~6 随机 40/60 混合）；农带保留 L 形 tile16
+# （_dress_farm_bands 全局装点链不动）。
+const TOWN_FARM_SLOTS := [
+	# [key, kind, job, anchor(局部), plot(局部 Rect2i：建筑北1/东西1 余量，南含门径+前院)]
+	["shrine", "temple", "村正", Vector2i(-9, -9), Rect2i(-9, -10, 7, 7)],
+	["farm1", "hut", "农人", Vector2i(2, -8), Rect2i(2, -9, 5, 6)],
+	["farm2", "hut", "农人", Vector2i(7, -8), Rect2i(7, -9, 4, 6)],
+]
+const TOWN_FARM_SHOP_SLOT := ["smithy", "shop_a", Vector2i(2, -2), Rect2i(2, -2, 5, 5)]
+const TOWN_FARM_HOUSE_SLOTS := [
+	# house/hut 各半（替代 legacy 40/60 随机）；南带 door 距支巷 y=+3 恰 4 格（样板区 door≤4 标准）
+	["house1", "house", Vector2i(-8, -2), Rect2i(-8, -2, 6, 5)],
+	["house2", "hut", Vector2i(8, 0), Rect2i(8, -1, 3, 4)],
+	["house3", "house", Vector2i(-9, 4), Rect2i(-9, 4, 6, 5)],
+	["house4", "hut", Vector2i(-3, 5), Rect2i(-3, 4, 3, 5)],
+	["house5", "hut", Vector2i(2, 5), Rect2i(2, 4, 4, 5)],
+	["house6", "hut", Vector2i(7, 5), Rect2i(7, 4, 4, 5)],
+]
+
+func _build_farm_town_v4(cx: int, cy: int, half: int, rng: RandomNumberGenerator, info: Dictionary):
+	"""v4 farm 地块式布局总入口。kit host=World（prop 并入 World 递归 Y-sort，与建筑道具同层）。"""
+	var body := Rect2i(cx - half, cy - half, half * 2 + 1, half * 2 + 1)
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), body)
+	# 1 三级路网（override 层）：主巷 2 宽 x∈{0,1} 纵贯 + 支巷 1 宽 y=±3 横贯
+	for ly in range(-half, half + 1):
+		kit.pave(Vector2i(cx, cy + ly))
+		kit.pave(Vector2i(cx + 1, cy + ly))
+	for lx in range(-half + 1, half):
+		kit.pave(Vector2i(cx + lx, cy - 3))
+		kit.pave(Vector2i(cx + lx, cy + 3))
+	# 2 语义槽位建筑（39 语义）+ 门径/平台（override）+ 围栏（prop）
+	for s in TOWN_FARM_SLOTS:
+		_v4_place_plot(kit, cx, cy, s[0], s[1], s[2], s[3], s[4], info)
+	if rng.randf() < 0.5:
+		_v4_place_plot(kit, cx, cy, "smithy", "shop_a", "铁匠",
+				TOWN_FARM_SHOP_SLOT[2], TOWN_FARM_SHOP_SLOT[3], info)
+	else:
+		_v4_place_plot(kit, cx, cy, "grocer", "shop_b", "货郎",
+				TOWN_FARM_SHOP_SLOT[2], TOWN_FARM_SHOP_SLOT[3], info)
+	# 3 民居补足 4~6（槽位顺序取；空槽留白地）
+	var want := rng.randi_range(4, 6)
+	for i in range(want):
+		var h: Array = TOWN_FARM_HOUSE_SLOTS[i]
+		_v4_place_plot(kit, cx, cy, h[0], h[1], "", h[2], h[3], info)
+	# 4 农带（L 形两邻边各 2 宽 tile16，避路/建筑 override——_dress_farm_bands 全局装点）
+	for dx in range(-half + 1, -half + 3):
+		for dy in range(-half + 1, half):
+			_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
+	for dy in range(half - 2, half):
+		for dx in range(-half + 1, half):
+			_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
+	# 5 装点密度（道具组/花簇；道具组草籽=镇坐标派生，确定性；花簇走 detail_noise 天然确定）
+	kit.scatter_props(body, 0.30, 4242 + cx * 31 + cy)
+	kit.scatter_flowers(body, 0.04, 20)
+	town_glow_lights.append_array(kit.glow_lights)   # 灯笼 glow 收口 wg._process 昼夜调能
+	kit.report_density(body, "farm@%d,%d" % [cx, cy])
+
+func _v4_place_plot(kit, cx: int, cy: int, key: String, kind: String, job: String,
+		anchor_local: Vector2i, plot_local: Rect2i, info: Dictionary) -> void:
+	"""v4 地块槽位：39 建筑落位 + job 登记 + 门径/平台（override 层）+ 围栏（prop 南缘留口）。
+	锚点确定性可放（选址规则保证 cheby≤10 无水无崖、槽位表已避路/避建筑）；door 朝南。"""
+	var a := Vector2i(cx, cy) + anchor_local
+	if not kit.place_building_39(kind, a):
+		push_warning("[WorldGen] v4 town slot[%s %s] placement failed @%s（锚点表与路网/槽位冲突？）" % [key, kind, str(a)])
+		return
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+	var door := a + Vector2i(int(fp.x / 2.0), fp.y)
+	var plot := Rect2i(Vector2i(cx, cy) + plot_local.position, plot_local.size)
+	kit.yard_ground({"bounds": plot, "door": door})
+	kit.yard_fence({"bounds": plot, "door": door})
+	info["buildings"][key] = {"kind": kind, "anchor": a, "fp": fp,
+		"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": job}
 
 func _stamp_farm_cell(cell: Vector2i):
 	"""农带单格：不覆已有铺设（路/广场/建筑占格）与水面"""
@@ -1476,12 +1553,13 @@ func _generate_sect_territories():
 		var site := Vector2i.ZERO
 		var found := false
 		var dbg := {"climate": 0, "ring": 0, "city": 0, "town": 0, "gap": 0, "wet": 0, "bound": 0}
-		# 2400 attempts：湖畔派（药王谷）合格带是"距湖心窄环 × 避镇弧"交集，命中率低（W8 观感轮实测）
-		for _attempt in range(2400):
+		# 4800 attempts（v4 规则 v4：2400→4800）：湖畔派（药王谷）合格带是"距湖心环 × 避镇弧"
+		# 交集，命中率低（W8 观感轮实测）；M1 镇级 rng 隔离重排后 town 否决 947/2400 曾全灭
+		for _attempt in range(4800):
 			var x: int
 			var y: int
 			if def["climate"] == "lakeside_bamboo" and lake_centers.size() > 0 and _attempt % 3 != 2:
-				# 湖锚定搜索（朝世界中心 ±45° 锥形，dist r+10~16）。
+				# 湖锚定搜索（v4：全向环带锚定，dist r+12~30 见下）。
 				# 候选湖先做四角采样窗预检：湖贴边（如西湖偏西南）时 r 方向采样点必然越出 R-6，
 				# 这类湖的锚定 attempts 全部无效（dbg ring 曾 398~402/1200）——预检剔除。
 				var lakes_ok: Array = []
@@ -1499,11 +1577,15 @@ func _generate_sect_territories():
 					dbg["ring"] += 1
 					continue
 				var l: Dictionary = lakes_ok[_attempt % lakes_ok.size()]
-				var to_center: float = (Vector2.ZERO - Vector2(l["pos"])).angle()
-				var ang: float = to_center + rng.randf_range(-PI / 4, PI / 4)
-				# dist 带 r+12~24：覆盖"距湖心窄环→外环"全程（气候环 r+30，核心干窗距湖 ≥13），
+				# v4 规则 v4：全向锚定（原"朝世界中心 ±45° 锥"——远心侧湖畔从未被探索，
+				# M1 镇重排后近心侧被城/镇封死 dbg 4800 全灭；远心侧距城更远天然合格，
+				# 越界由下方 bound/R-6 检查过滤）
+				var ang: float = rng.randf_range(0.0, TAU)
+				# dist 带 r+12~30（v4 规则 v4：对齐气候环 near_lake<r+30——原 r+24 与气候环的
+				# 24~30 环带缺口使外环候选从未被生成；M1 镇重排后内环被镇封死、外环补位）：
+				# 覆盖"距湖心窄环→外环"全程（核心干窗距湖 ≥13），
 				# 随机镇贴湖封内环时外环仍有候选（W8 观感轮 dbg town 1611/2400 教训）
-				var dist := rng.randf_range(float(l["r"]) + 12.0, float(l["r"]) + 24.0)
+				var dist := rng.randf_range(float(l["r"]) + 12.0, float(l["r"]) + 30.0)
 				x = l["pos"].x + int(cos(ang) * dist)
 				y = l["pos"].y + int(sin(ang) * dist)
 				if absi(x) > int(WORLD_RADIUS) - 30 or absi(y) > int(WORLD_RADIUS) - 30:
@@ -2608,6 +2690,16 @@ func _process(_delta):
 	if pc != player_chunk:
 		player_chunk = pc
 		_update_chunks()
+	# v4 镇灯笼昼夜调能（M1：镇布局器是 RefCounted 无节点，glow 调节收口到 wg——
+	# 同样板区 P5.4 修复：白天 PointLight2D 加法光斑过曝）
+	if not town_glow_lights.is_empty():
+		var wc := get_node_or_null("../WeatherController")
+		if wc:
+			var h: float = wc.current_hour
+			var e := 1.5 if (h >= 18.0 or h < 6.5) else 0.0
+			for l in town_glow_lights:
+				if is_instance_valid(l):
+					l.energy = e
 
 func _initial_load():
 	# 加载玩家初始位置周围的chunk

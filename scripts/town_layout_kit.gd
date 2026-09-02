@@ -182,7 +182,10 @@ func fence_ring(b: Rect2i, skip: Dictionary = {}) -> void:
 		cy += 2
 
 func _stamp_fence(cell: Vector2i, vertical: bool):
-	"""栅栏单元：横排底缘锚定（Y-sort 正确）；竖排格中心锚定+90° 旋转（中心对称免 offset 偏移）。"""
+	"""栅栏单元：横排底缘锚定（Y-sort 正确）；竖排格中心锚定+90° 旋转（中心对称免 offset 偏移）。
+	occupied 守卫：建筑/既有 prop 格跳过（紧凑地块防围栏穿墙角）。"""
+	if occupied.has(cell):
+		return
 	var tex := TextureGen.load_png_texture(FENCE_PNG)
 	if tex == null:
 		return
