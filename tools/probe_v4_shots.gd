@@ -14,6 +14,9 @@ const SPOTS := [
 	["ferry1_overview", Vector2i(-117, 88), 1.0],    # ferry 渡口村全景（19×19 体，M2）
 	["ferry1_close", Vector2i(-117, 85), 2.0],       # 北带地块特写
 	["city_ward", Vector2i(55, 8), 2.0],             # M3：西坊内檐下道具/坊巷灯笼特写
+	["sect_qingfeng", Vector2i(-124, -18), 1.5],     # M4：青峰剑宗殿堂庭院（中轴/配殿/山门）
+	["sect_yaowang", Vector2i(165, 5), 1.5],         # M4：药王谷（湖畔派庭院+药圃）
+	["sect_youming", Vector2i(7, -97), 1.5],         # M4：幽冥教（雪原殿堂）
 	["farm3_close", Vector2i(128, 8), 2.5],          # farm 北带门径/围栏放大（M1 回归样本）
 ]
 

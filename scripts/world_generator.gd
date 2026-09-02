@@ -1775,6 +1775,31 @@ func _build_sect_territory(sname: String, def: Dictionary, c: Vector2i, r: int):
 	var ha := c + Vector2i(-3, -6)
 	_force_place_building_prop(hk, ha)
 	var hfp: Vector2i = BUILDING_PROPS[hk]["fp"]
+	# 2.5) v4 M4 殿堂庭院化（立项书 §3.4）：前坪石板（中轴贯通门→演武场）+ 配殿 hut×2
+	# （轴对称，镜像 ±6..8）+ 石灯笼×4（glow 收口昼夜调能）+ 山门（南轴端 gate_tower 纯视觉）。
+	# 主殿锚点/npc_anchors/演武场/界碑环/后山崖带零改动。
+	var door_y: int = ha.y + hfp.y   # 主殿门行（相对）
+	for px in range(-2, 3):
+		for py in range(door_y, 3):
+			var pc := c + Vector2i(px, py)
+			if get_tile_id(pc.x, pc.y) != 5:
+				override_cells[pc] = 35
+	_force_place_building_prop("hut", c + Vector2i(-8, -6))   # 左配殿（镜像轴 x=0）
+	_force_place_building_prop("hut", c + Vector2i(6, -6))    # 右配殿
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), Rect2i(c.x - 12, c.y - 12, 25, 25))
+	for lx in [-2, 2]:
+		for ly in [door_y, 1]:
+			kit.stamp_prop("res://sprites/buildings/lantern.png", c + Vector2i(lx, ly), true, "city_prop")
+	town_glow_lights.append_array(kit.glow_lights)
+	var gtex2 = TextureGen.load_png_texture("res://sprites/buildings/gate_tower.png")
+	if gtex2:
+		var sp2 := Sprite2D.new()
+		sp2.texture = gtex2
+		sp2.position = Vector2(c.x * 16.0 + 8.0, (c.y + 8) * 16.0 + 8.0)
+		sp2.offset = Vector2(0, -26)
+		sp2.z_index = 3
+		get_parent().add_child(sp2)
 	# 3) 弟子舍 ×2
 	_force_place_building_prop("hut", c + Vector2i(-10, -1))
 	_force_place_building_prop("hut", c + Vector2i(7, -1))
