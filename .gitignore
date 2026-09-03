@@ -18,3 +18,6 @@ Godot/
 
 # Godot编辑器本地缓存
 .godot/
+
+# MCP client session cache
+tools/_mcp_state/

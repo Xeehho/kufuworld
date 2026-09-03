@@ -2692,6 +2692,34 @@ func get_tile_id(x: int, y: int) -> int:
 			_: return 0
 	return tid
 
+# ---- 山地类型纯化（遗留候选#6 山地半：崖/石/枯草同场环带掺杂治理）----
+# mass=崖壁质量场（r>0.62），配无状态形态学清理：高频 octave 抖出的单格孤崖回谷、
+# mass 内单格孔洞补崖——崖壁成块势，不再有离散砖块。全部为噪声场纯函数，逐格调用安全。
+func _mtn_r(x: int, y: int) -> float:
+	return fposmod(detail_noise.get_noise_2d(x, y) + 1.0, 1.0)
+
+func _mtn_is_mass(x: int, y: int) -> bool:
+	var mass := _mtn_r(x, y) > 0.62
+	var nb := 0
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _mtn_r(x + d.x, y + d.y) > 0.62:
+			nb += 1
+	if mass and nb == 0:
+		return false   # 孤崖回谷（单格崖=离散砖块观感源头）
+	if not mass and nb >= 3:
+		return true    # 孤谷补崖（mass 内单格沙孔）
+	return mass
+
+func _mtn_near_mass(x: int, y: int) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _mtn_is_mass(x + d.x, y + d.y):
+			return true
+	return false
+
+func _mtn_scree_gate(x: int, y: int) -> bool:
+	"""碎石裙门控（独立低频噪声，破掉旧版同场环带）：~55% 外缘带成簇出石"""
+	return fposmod(detail_noise.get_noise_2d(x * 3.7 + 71.0, y * 4.1 + 43.0) + 1.0, 1.0) > 0.45
+
 func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 	# W1：树密度=f(湿度)——dens∈[0.35,1.0]，阈值随 dens 调制（沙漠0树/雪原稀雪松/竹林需湿>0.6由气候判定保证）
 	var hum := _climate_hum(x, y)
@@ -2715,14 +2743,16 @@ func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
 			elif r > 0.30: return 56
 			return _ground_of(x, y)
 		"mountain":
-			# demo2风：深色崖壁成势(r高→山体)，谷地土路走廊(r<=0.40)天然可穿行
-			# 画面改造P1.3：谷地散落枯枝/干草
-			if r > 0.80: return 3
-			elif r > 0.70: return 14
-			elif r > 0.62: return 3
-			elif r > 0.40: return 14
-			elif r > 0.36: return 61
-			elif r > 0.31: return 62
+			# 山地类型纯化（遗留候选#6 山地半）：崖壁成势（mass 形态学）+ 散石只贴崖外缘成裙
+			# + 谷地净面稀疏碎屑——治 W1 demo2 风"崖3/石14/枯61·62 同场逐格环带掺杂"
+			if _mtn_is_mass(x, y):
+				return 3
+			if _mtn_near_mass(x, y) and r > 0.50 and _mtn_scree_gate(x, y):
+				return 14
+			# 谷地碎屑：独立低频门控（~6%），不再占谷地主体
+			var vg := fposmod(detail_noise.get_noise_2d(x * 2.9 + 131.0, y * 3.3 + 57.0) + 1.0, 1.0)
+			if vg > 0.94: return 61
+			elif vg > 0.90: return 62
 			return _ground_of(x, y)
 		"desert":
 			# W1 自然规律：沙漠零树；W6 岩石改 WILD 贴山聚簇表（不再全图 singles）
@@ -2923,7 +2953,10 @@ func _get_ground_tile(x: int, y: int) -> int:
 	var t = get_terrain(x, y)
 	match t:
 		Terrain.WATER: return 5
-		Terrain.MOUNTAIN: return 1  # 山区谷地铺碎石土路（demo2棕土走廊）
+		Terrain.MOUNTAIN:
+			# 山地类型纯化：谷地地面归群系调色板（干土族6+变体），与裸格同源——
+			# 旧 demo2"碎石土路1"把人工路砖混进自然山地面（装饰格下/裸格双轨制=拼色掺杂）
+			return _ground_of(x, y)
 		_:
 			# 其余群系走过渡带感知地面（雪=34、沙=6、竹=18、草=0，边界带 dither 混铺）
 			return _ground_of(x, y)
