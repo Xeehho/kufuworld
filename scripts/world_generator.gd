@@ -208,6 +208,8 @@ func _ready():
 	_scatter_pois()
 	_apply_poi_terrain()
 	_restore_official_roads()	# W5/W6：POI 铺地可能覆盖官道格——按登记 cells 重放
+	_carve_mountain_passes()	# W9：山口垭口网格——崖壁穿线必开3宽沙口（治山地死路迷宫）
+	_strip_mountain_dead_ends()	# W9：绝径归崖——山/雪WILD死路子树叶子剥离填崖
 	_ensure_connectivity()	# Phase F6: 打通所有封闭区域（石中沙地等孤岛开路）
 	_ensure_corridor_width()	# W6：走廊宽度感知（窄喉口袋 2 宽开路，限量）
 	_place_bridge_props()	# W5：连通性收尾后统一扫描17段→石拱桥prop（纯视觉z1）
@@ -2636,6 +2638,136 @@ func _ensure_corridor_width():
 		print("[WorldGen] corridor width: carved=%d (%d 组窄喉已拓 %d宽)" % [carved, fixed_groups, corridor_w])
 	else:
 		print("[WorldGen] corridor width: no narrow-throat pocket >=20 (WILD)")
+
+# ============ W9 山地可行域规划（2026-09-03 用户验收反馈：山地谷地全是死路） ============
+# 根因：崖壁=质量场噪声(r>0.62)的负空间即"路网"，无任何通过性规划；_ensure_connectivity
+# 只保拓扑可达（1宽刻线），死路体验原样保留。取证（run_mtn_probe.py before）：山地可行格
+# 21175 个中死路子树 403 格，仅 33.7% 距出口≤8 格——半数谷地深入绝境。
+# 规划两条硬规则（规划 §6 可行域政策的山地区域细化）：
+#   1) 山口垭口网格：纵横粗网格线（间距24±抖动）穿崖必开 3 宽沙口——任何谷地到最近山口
+#      ≤约14格，山口=通过承诺，谷与谷经山口互达，山体区块不再封闭；
+#   2) 绝径归崖：山/雪 WILD 死路子树（叶子剥离闭包，度≤1迭代至不动点）填崖 3——绝径消失、
+#      崖壁成势更完整；剥叶子不破坏剩余图连通（度≤1非割点）。
+# 两者均只写 override_cells，避城圈/镇圈/领地/官道/POI（walk6 零碰撞承诺区不被侵犯）。
+
+const MTN_PASS_SPACING := 18
+var mtn_pass_cells: Dictionary = {}    # W9 山口格登记（探针/调试查询）
+var mtn_fill_cells: Dictionary = {}    # W9 绝径归崖格登记
+
+func _mtn_protected(x: int, y: int) -> bool:
+	"""W9 山地动土禁区：城圈/镇圈/门派领地/官道带/城镇净空（对齐 walk6 零碰撞承诺区）"""
+	if _in_town_clearance(x, y):
+		return true
+	if absi(x - CITY_POS.x) <= city_half + 2 and absi(y - CITY_POS.y) <= city_half + 2:
+		return true
+	for tc in town_centers:
+		if Vector2(x, y).distance_to(tc) < 16.0:
+			return true
+	for s in sect_info.values():
+		if maxi(absi(x - s["center"].x), absi(y - s["center"].y)) <= int(s["radius"]) + 2:
+			return true
+	if _near_official_road(x, y, 2):
+		return true
+	return false
+
+func _carve_mountain_passes():
+	mtn_pass_cells.clear()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 9001
+	var R := int(WORLD_RADIUS) - 8
+	var carved := 0
+	# axis=0 纵线（定x走y）/ axis=1 横线（定y走x）；逐线抖动破网格观感
+	for axis in range(2):
+		var line := -R + rng.randi_range(-5, 5)
+		while line <= R:
+			for t in range(-R, R + 1):
+				for w in range(-1, 2):
+					var x: int = line + w if axis == 0 else t
+					var y: int = t if axis == 0 else line + w
+					carved += _carve_pass_at(x, y)
+			line += MTN_PASS_SPACING + rng.randi_range(-5, 5)
+	print("[WorldGen] mountain passes: %d cells (3宽垭口网格 间距%d±5)" % [carved, MTN_PASS_SPACING])
+
+func _carve_pass_at(x: int, y: int) -> int:
+	"""单格山口开凿：崖壁质量格→沙径，贴门散石一并开成沙（防垭口被14收窄成1宽）"""
+	if absi(x) > WORLD_RADIUS - 8 or absi(y) > WORLD_RADIUS - 8:
+		return 0
+	var c := Vector2i(x, y)
+	if override_cells.has(c) or mtn_pass_cells.has(c):
+		return 0
+	if _biome_kind(x, y) != "mountain" or not _mtn_is_mass(x, y):
+		return 0
+	if _mtn_protected(x, y):
+		return 0
+	override_cells[c] = _palette_at(x, y)["channel"]
+	mtn_pass_cells[c] = true
+	var n := 1
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var q: Vector2i = c + d
+		if override_cells.has(q) or mtn_pass_cells.has(q):
+			continue
+		if get_tile_id(q.x, q.y) == 14 and not _mtn_protected(q.x, q.y):
+			override_cells[q] = _palette_at(q.x, q.y)["channel"]
+			mtn_pass_cells[q] = true
+			n += 1
+	return n
+
+func _strip_mountain_dead_ends():
+	mtn_fill_cells.clear()
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var R := int(WORLD_RADIUS) - 8
+	# 1) 候选=山/雪 WILD 可行格（碰撞瓦片/override=官道/POI/桥/山口全部排除）
+	var cand := {}
+	for y in range(-R, R + 1):
+		for x in range(-R, R + 1):
+			var k := _biome_kind(x, y)
+			if k != "mountain" and k != "snow":
+				continue
+			var c := Vector2i(x, y)
+			if override_cells.has(c) or _mtn_protected(x, y):
+				continue
+			if get_tile_id(x, y) in collision_tiles:
+				continue
+			cand[c] = true
+	var tile_cache := {}
+	for c in cand:
+		if not tile_cache.has(c):
+			tile_cache[c] = get_tile_id(c.x, c.y)
+		for d in dirs:
+			var n: Vector2i = c + d
+			if not tile_cache.has(n):
+				tile_cache[n] = get_tile_id(n.x, n.y)
+	# 3) 叶子剥离闭包：度≤1（剥离格视作崖）迭代至不动点——死路子树整体归崖
+	var dead := {}
+	var rounds := 0
+	var changed := true
+	while changed and rounds < 96 and dead.size() < 20000:
+		changed = false
+		rounds += 1
+		var mark: Array = []
+		for c in cand:
+			if dead.has(c):
+				continue
+			var dcount := 0
+			for d in dirs:
+				var n: Vector2i = c + d
+				if dead.has(n):
+					continue
+				if int(tile_cache.get(n, 5)) in collision_tiles:
+					continue
+				dcount += 1
+			if dcount <= 1:
+				mark.append(c)
+		if mark.is_empty():
+			break
+		for c in mark:
+			dead[c] = true
+		changed = true
+	mtn_fill_cells = dead
+	for c in dead:
+		override_cells[c] = 3
+	print("[WorldGen] mountain dead-end strip: %d cells -> cliff (%d rounds, cand=%d)"
+		% [dead.size(), rounds, cand.size()])
 
 # ============ 地形生成（含边界和覆盖） ============
 
