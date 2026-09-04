@@ -83,6 +83,37 @@ func _load_avatar():
 		var img = full_tex.get_image()
 		var head_img = img.get_region(Rect2i(HEAD_CROP_X, HEAD_CROP_Y, HEAD_CROP_W, HEAD_CROP_H))
 		avatar_texture = ImageTexture.create_from_image(head_img)
+	_add_avatar_click_button()
+
+# 头像可点击 → 打开统一角色面板（用户要求：点击页面左侧顶部头像展示）
+func _add_avatar_click_button():
+	var btn := Button.new()
+	btn.flat = true
+	btn.position = Vector2(CENTER_X - AVATAR_R, CENTER_Y - AVATAR_R)
+	btn.size = Vector2(AVATAR_R * 2.0, AVATAR_R * 2.0)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.tooltip_text = "查看侠者（V）"
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	for st in ["normal", "hover", "pressed", "focus"]:
+		var sb := StyleBoxEmpty.new()
+		btn.add_theme_stylebox_override(st, sb)
+	btn.pressed.connect(_on_avatar_clicked)
+	add_child(btn)
+
+func _on_avatar_clicked():
+	var cp = get_node_or_null("/root/Main/World/UI/CharacterPanel")
+	if cp == null or cp.is_open():
+		return
+	# 与V键打开守卫一致：对话/商店/建造/奇遇面板优先
+	if DialogManager.is_dialog_open() or GameManager.is_build_mode:
+		return
+	var shop_hud = get_node_or_null("/root/Main/World/UI/ShopHUD")
+	if shop_hud and shop_hud.is_open:
+		return
+	var quick_menu = get_node_or_null("/root/Main/World/UI/QuickMenu")
+	if quick_menu and quick_menu.is_panel_open():
+		return
+	cp.open()
 
 func _create_name_label():
 	name_label = Label.new()
@@ -116,6 +147,31 @@ func _create_resource_labels():
 		UITheme.style_label(lbl, 11, resources[i][2])
 		chip.add_child(lbl)
 		resource_labels[resources[i][0]] = lbl
+	_create_hand_chip()
+
+# 手持指示chip：实时显示当前工具/空手（用户反馈：手里的工具看不到）
+func _create_hand_chip():
+	var chip = Panel.new()
+	chip.name = "HandChip"
+	chip.position = Vector2(2, 202)
+	chip.size = Vector2(130, 22)
+	chip.add_theme_stylebox_override("panel", UITheme.inset_style())
+	add_child(chip)
+	var lbl = Label.new()
+	lbl.name = "HandLabel"
+	lbl.position = Vector2(10, 2)
+	lbl.size = Vector2(116, 18)
+	UITheme.style_label(lbl, 11, Color(0.55, 0.9, 0.95))
+	lbl.text = "手持：徒手"
+	chip.add_child(lbl)
+	# 连接玩家手持变化信号（Player为场景静态节点，此刻已就绪）
+	var pl = get_node_or_null("/root/Main/World/Player")
+	if pl and pl.has_signal("tool_changed"):
+		pl.tool_changed.connect(func(tool_name: String):
+			lbl.text = "手持：" + tool_name)
+	elif pl:
+		# 兜底：信号未广播前先读一次初始值
+		lbl.text = "手持：" + pl._tool_name(pl.equipped_tool)
 
 func _create_help_section():
 	# 左下角操作指南（可折叠）
@@ -141,7 +197,7 @@ func _create_help_section():
 	help_text.position = Vector2(10, 8)
 	help_text.size = Vector2(230, 194)
 	UITheme.style_label(help_text, 11, UITheme.TEXT_MAIN)
-	help_text.text = "WASD / 方向键  移动\n左键  轻击/使用工具    右键  重击\nQ  格挡    空格  闪避    Shift  疾跑\nE  打坐修炼    F  交谈/站台合成\nB  建造    K  商店    V  人物面板    I  背包\nM  小地图    左键点路人/古堡  查看信息\n数字键1-4  锄头/水壶/菜种/采集\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  查看  T  背叛门派\nN  任务日志(展开时1-9接取)\nESC  关闭面板    Tab  商店买/卖"
+	help_text.text = "WASD / 方向键  移动\n左键  轻击/使用工具    右键  重击\nQ  格挡    空格  闪避    Shift  疾跑\nE  打坐修炼    F  交谈/站台合成\nB  建造    K  商店    V  人物面板    I  背包\nM  舆图    左键点路人/古堡  查看信息\n数字键1-5  锄/壶/种/采集/斧头\n(砍树须持斧 · 再按同键收回 · 遇袭自动收)\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  查看  T  背叛门派\nN  任务日志(展开时1-9接取)\nESC  关闭面板    Tab  商店买/卖"
 	help_panel.add_child(help_text)
 
 func _toggle_help():

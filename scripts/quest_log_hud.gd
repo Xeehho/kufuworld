@@ -170,6 +170,13 @@ func _switch_tab(idx: int):
 	_sfx("ui")
 	refresh()
 
+func open_to_available():
+	"""打开面板并切到"可接取"页签（主线待接取卡点击入口）"""
+	if not expanded:
+		toggle_panel()
+	current_tab = 1
+	refresh()
+
 func _qs() -> Node:
 	var a = get_node_or_null("/root/Main/QuestSystem")
 	if a != null:
@@ -205,11 +212,20 @@ func refresh():
 			for i in range(tasks.size()):
 				list_box.add_child(_make_card(tasks[i], 0, i))
 		1:
+			var story: Array = qs.get_pending_story_quests()
 			var avail: Array = qs.get_available_quests()
-			count_lbl.text = "告示板上的委托：%d" % avail.size()
-			if avail.is_empty():
-				_empty_hint("暂无可接取的委托\n按 N 刷新告示板")
-			for i in range(min(avail.size(), 8)):
+			count_lbl.text = "主线待接取：%d   告示板委托：%d" % [story.size(), avail.size()]
+			if story.is_empty() and avail.is_empty():
+				# W4 任务冻结期：空态文案改为"江湖暂无委托"
+				if WorldFeatures.FLAG["quests_disabled"]:
+					_empty_hint("江湖暂无委托")
+				else:
+					_empty_hint("暂无可接取的委托\n按 N 刷新告示板")
+			# 主线待接取卡置顶展示（mode 3：金色主线样式 + 接取按钮）
+			for i in range(story.size()):
+				list_box.add_child(_make_card(story[i], 3, i))
+			var slots: int = maxi(3, 8 - story.size())
+			for i in range(min(avail.size(), slots)):
 				list_box.add_child(_make_card(avail[i], 1, i))
 		2:
 			var done: Array = qs.completed_quests
@@ -236,6 +252,7 @@ const CAT_COLORS := {
 	"寻宝": Color(1.0, 0.85, 0.4), "讨伐": Color(0.95, 0.6, 0.3),
 	"比武": Color(0.65, 0.75, 1.0), "暗杀": Color(0.7, 0.5, 0.9),
 	"采药": Color(0.5, 0.9, 0.55), "传功": Color(0.9, 0.75, 0.5),
+	"主线": Color(1.0, 0.72, 0.25),
 }
 
 func _make_card(q: Object, mode: int, index: int) -> Control:
@@ -337,13 +354,16 @@ func _make_card(q: Object, mode: int, index: int) -> Control:
 		UITheme.style_button(ab, 9)
 		ab.pressed.connect(_on_abandon.bind(q.quest_id))
 		foot.add_child(ab)
-	elif mode == 1:
+	elif mode == 1 or mode == 3:
 		var ac := Button.new()
 		ac.text = "接 取"
 		ac.custom_minimum_size = Vector2(56, 20)
 		UITheme.style_button(ac, 10)
 		ac.add_theme_color_override("font_color", UITheme.GOLD)
-		ac.pressed.connect(_on_accept.bind(index))
+		if mode == 3:
+			ac.pressed.connect(_on_accept_story.bind(q.quest_id))
+		else:
+			ac.pressed.connect(_on_accept.bind(index))
 		foot.add_child(ac)
 	return card
 
@@ -351,6 +371,13 @@ func _on_accept(index: int):
 	var qs = _qs()
 	if qs:
 		qs.accept_quest(index)
+		_sfx("craft_ok")
+		refresh()
+
+func _on_accept_story(quest_id: String):
+	var qs = _qs()
+	if qs:
+		qs.accept_story_quest(quest_id)
 		_sfx("craft_ok")
 		refresh()
 

@@ -14,7 +14,7 @@ const TRACK_W := 236.0
 const CARD_H := 38.0
 const CARD_SEP := 5
 const MAX_SHOW := 3
-const HEADER_Y := 210.0
+const HEADER_Y := 238.0   # BugFix: 210会压住SurvivalHUD手持chip(y202-224)，下移让出
 
 func _ready():
 	# AGENTS规范：全屏根节点 set_anchors_and_offsets_preset + mouse_filter IGNORE
@@ -61,13 +61,17 @@ func _qs() -> Node:
 	return get_node_or_null("/root/QuestSystem")
 
 func _tracked_quests() -> Array:
-	"""钉选优先、其余按接取序补位；空pinned时自动展示前3个进行中任务"""
+	"""待接取主线置顶 → 钉选 → 接取序补位；上限MAX_SHOW"""
 	var qs = _qs()
 	if qs == null:
 		return []
+	var out: Array = []
+	# 主线待接取卡（is_active=false）：常驻显示引导玩家按N接取
+	for q in qs.get_pending_story_quests():
+		out.append(q)
+		if out.size() >= MAX_SHOW:
+			return out
 	var active: Array = qs.get_active_quests()
-	if active.is_empty():
-		return []
 	var pinned: Array = []
 	var rest: Array = []
 	for q in active:
@@ -75,7 +79,11 @@ func _tracked_quests() -> Array:
 			pinned.append(q)
 		else:
 			rest.append(q)
-	return (pinned + rest).slice(0, MAX_SHOW)
+	for q in (pinned + rest):
+		if out.size() >= MAX_SHOW:
+			break
+		out.append(q)
+	return out
 
 func _still_tracked(tracked: Array, qid: String) -> bool:
 	for q in tracked:
@@ -98,10 +106,21 @@ func refresh():
 			entry = _make_card()
 			cards[q.quest_id] = entry
 			list_box.add_child(entry["panel"])
-		entry["title"].text = "【%s】%s" % [q.category, q.title]
-		entry["bar"].max_value = maxf(1.0, float(q.target_count))
-		entry["bar"].value = float(q.current_count)
-		entry["cnt"].text = "%d/%d" % [q.current_count, q.target_count]
+		if not q.is_active:
+			# 主线待接取卡：无进度条，金色标题+接取引导
+			entry["title"].text = "【主线·待接取】%s" % q.title
+			entry["title"].add_theme_color_override("font_color", UITheme.GOLD)
+			entry["bar"].visible = false
+			entry["cnt"].text = "按N接取"
+			entry["cnt"].add_theme_color_override("font_color", UITheme.GOLD)
+		else:
+			entry["title"].text = "【%s】%s" % [q.category, q.title]
+			entry["title"].add_theme_color_override("font_color", UITheme.TEXT_MAIN)
+			entry["bar"].visible = true
+			entry["bar"].max_value = maxf(1.0, float(q.target_count))
+			entry["bar"].value = float(q.current_count)
+			entry["cnt"].text = "%d/%d" % [q.current_count, q.target_count]
+			entry["cnt"].add_theme_color_override("font_color", UITheme.JADE)
 	var has := tracked.size() > 0
 	header_btn.visible = has
 	list_box.visible = has and not collapsed
@@ -156,7 +175,15 @@ func _on_card_gui_input(event: InputEvent, _panel: Control):
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		var ql = get_node_or_null("/root/Main/World/UI/QuestLogHUD")
 		if ql and not ql.expanded:
-			ql.toggle_panel()
+			# 有点击的卡是待接取主线时直接切到"可接取"页签
+			if qs_has_pending():
+				ql.open_to_available()
+			else:
+				ql.toggle_panel()
+
+func qs_has_pending() -> bool:
+	var qs = _qs()
+	return qs != null and not qs.get_pending_story_quests().is_empty()
 
 func _sfx(n: String):
 	var ac = get_node_or_null("/root/Main/World/AudioController")

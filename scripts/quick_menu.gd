@@ -17,6 +17,7 @@ var _showing_result: bool = false
 
 var oath_panel: Panel = null
 var oath_list_label: Label = null
+var oath_tip_label: Label = null
 
 var encounter_btn: Button = null
 var _flash_tween: Tween = null
@@ -207,8 +208,8 @@ func _force_open_encounter():
 	var quest_log = get_node_or_null("/root/Main/World/UI/QuestLogHUD")
 	if quest_log and quest_log.expanded:
 		quest_log.toggle_panel()
-	# 4. 关人物档案
-	var sheet = get_node_or_null("/root/Main/World/UI/CharacterSheet")
+	# 4. 关统一角色面板（旧CharacterSheet已由CharacterPanel替代）
+	var sheet = get_node_or_null("/root/Main/World/UI/CharacterPanel")
 	if sheet and sheet.visible:
 		sheet.close()
 	# 5. 关NPC交互菜单
@@ -320,23 +321,25 @@ func _create_oath_panel():
 		box.add_child(btn)
 
 	var tip = Label.new()
-	tip.text = "（同时只能持有一个誓言，立新誓将放弃旧誓）"
+	tip.text = "（同时只能持有一个誓言；未竟之誓不可更换，与道行相悖的善誓将自动解除）"
 	tip.position = Vector2(24, 246)
-	tip.size = Vector2(472, 18)
+	tip.size = Vector2(472, 34)
+	tip.autowrap_mode = TextServer.AUTOWRAP_WORD
 	tip.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UITheme.style_label(tip, 11, UITheme.TEXT_DIM)
 	oath_panel.add_child(tip)
+	oath_tip_label = tip
 
 	var div = Label.new()
 	div.text = "—— 当前誓言 ——"
-	div.position = Vector2(24, 292)
+	div.position = Vector2(24, 294)
 	div.size = Vector2(472, 20)
 	div.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UITheme.style_label(div, 12, UITheme.GOLD_DIM)
 	oath_panel.add_child(div)
 
 	oath_list_label = Label.new()
-	oath_list_label.position = Vector2(24, 316)
+	oath_list_label.position = Vector2(24, 318)
 	oath_list_label.size = Vector2(472, 96)
 	oath_list_label.autowrap_mode = TextServer.AUTOWRAP_WORD
 	oath_list_label.clip_text = true
@@ -361,7 +364,15 @@ func _on_oath_btn():
 func _on_oath_choice(choice: String):
 	var os = get_node_or_null("/root/Main/OathSystem")
 	if os:
-		os.create_oath(choice)
+		var res = os.create_oath(choice)
+		# 立誓被拒（未竟之誓不可换/善誓与道行相斥）：面板内即时反馈
+		if oath_tip_label:
+			if bool(res.get("ok", true)):
+				oath_tip_label.text = "✅ " + str(res.get("msg", "立誓成功"))
+				oath_tip_label.add_theme_color_override("font_color", UITheme.JADE)
+			else:
+				oath_tip_label.text = "❌ " + str(res.get("msg", "立誓失败"))
+				oath_tip_label.add_theme_color_override("font_color", UITheme.DANGER)
 	_refresh_oath_list()
 
 func _refresh_oath_list():

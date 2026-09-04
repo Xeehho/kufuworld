@@ -1,5 +1,7 @@
 # 本地工作区（工作日志/参考图/临时分析产物），禁止提交
 .trae/
+.zcode/gameWork.md
+.zcode/tasks/
 
 # Python缓存
 __pycache__/
@@ -18,3 +20,6 @@ Godot/
 
 # Godot编辑器本地缓存
 .godot/
+
+# MCP client session cache
+tools/_mcp_state/

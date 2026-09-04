@@ -12,6 +12,8 @@ func _init() -> void:
 	gen._tile_sand()
 	gen._tile_mountain()
 	gen._tile_mountain_snow()
+	gen._tile_snow_farmland()   # 2026-08-31 群系调色板新瓦片
+	gen._tile_snow_path()       # 2026-08-31 群系调色板新瓦片
 	gen._tile_tree_pine()
 	gen._tile_tree_oak()
 	gen._tile_tree_bamboo()

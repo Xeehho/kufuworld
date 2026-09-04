@@ -2,6 +2,8 @@ extends Node2D
 
 const TextureGen = preload("res://scripts/texture_generator.gd")
 const TilesetGen = preload("res://scripts/tileset_generator.gd")
+const TownDemoKit = preload("res://scripts/town_demo_kit.gd")   # 城镇样板区（立项书 §4.3）
+const TownLayoutKit = preload("res://scripts/town_layout_kit.gd")   # v4 聚落布局工具（立项书 §3.1）
 
 const CHUNK_SIZE = 16
 const TILE_SIZE_PX = 16
@@ -9,8 +11,8 @@ const CHUNK_PX = CHUNK_SIZE * TILE_SIZE_PX
 const LOAD_RADIUS = 3
 const WORLD_SEED = 12345
 
-# 世界边界半径（瓦片坐标）——Phase G重构扩至160，配合素材包风格大世界
-const WORLD_RADIUS = 160
+# 世界边界半径（瓦片坐标）——扩至200：为青石城（玩法锚点主城）腾出东侧疆域
+const WORLD_RADIUS = 200
 
 enum Terrain {WATER, SAND, GRASS, GRASS_DARK, FOREST, MOUNTAIN, SNOW}
 
@@ -26,8 +28,8 @@ var world_cells: Dictionary = {}
 
 # 河流和城镇的覆盖数据（瓦片坐标 -> tile_id）
 var override_cells: Dictionary = {}
-# 需要碰撞的瓦片集合（39=大建筑footprint占位）
-var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 39]
+# 需要碰撞的瓦片集合（39=大建筑footprint占位，40=青石城城墙，43=唐制坊墙）
+var collision_tiles: Array = [5, 3, 7, 2, 10, 11, 12, 14, 15, 39, 40, 43]
 # ---- Phase F5: 大型建筑道具（星露谷比例，Sprite+StaticBody，替代16px瓦片房）----
 # fp=footprint占格(瓦片)；纹理由 texture_generator.generate_big_buildings() 生成到 sprites/buildings/
 const BUILDING_PROPS := {
@@ -36,6 +38,22 @@ const BUILDING_PROPS := {
 	"manor":  {"png": "res://sprites/buildings/manor.png",  "fp": Vector2i(6, 4)},
 	"temple": {"png": "res://sprites/buildings/temple.png", "fp": Vector2i(7, 5)},
 	"castle": {"png": "res://sprites/buildings/castle.png", "fp": Vector2i(8, 4)},
+	# ---- 青石城功能建筑/市集道具 ----
+	"yamen":      {"png": "res://sprites/buildings/yamen.png",      "fp": Vector2i(7, 5)},   # 府衙
+	"tavern":     {"png": "res://sprites/buildings/tavern.png",     "fp": Vector2i(6, 5)},   # 酒楼
+	"apothecary": {"png": "res://sprites/buildings/apothecary.png", "fp": Vector2i(5, 4)},   # 药坊
+	"shop_a":     {"png": "res://sprites/buildings/shop_a.png",     "fp": Vector2i(4, 3)},   # 铁匠铺/杂货铺
+	"shop_b":     {"png": "res://sprites/buildings/shop_b.png",     "fp": Vector2i(4, 3)},   # 布庄
+	"stall_red":  {"png": "res://sprites/buildings/stall_red.png",  "fp": Vector2i(1, 1)},   # 市摊（红棚）
+	"stall_teal": {"png": "res://sprites/buildings/stall_teal.png", "fp": Vector2i(1, 1)},   # 市摊（青棚）
+	"well":       {"png": "res://sprites/buildings/well.png",       "fp": Vector2i(1, 1)},   # 水井
+	"ferry":      {"png": "res://sprites/buildings/ferry.png",      "fp": Vector2i(2, 2)},   # W4 渡亭（渡口村）
+	# ---- W3 门派主殿（accent=门派主色，hall_xx 见 BIG_BUILDING_DEFS）----
+	"hall_qf": {"png": "res://sprites/buildings/hall_qf.png", "fp": Vector2i(7, 5)},
+	"hall_ts": {"png": "res://sprites/buildings/hall_ts.png", "fp": Vector2i(6, 4)},
+	"hall_gc": {"png": "res://sprites/buildings/hall_gc.png", "fp": Vector2i(7, 5)},
+	"hall_yw": {"png": "res://sprites/buildings/hall_yw.png", "fp": Vector2i(6, 4)},
+	"hall_ym": {"png": "res://sprites/buildings/hall_ym.png", "fp": Vector2i(7, 5)},
 }
 # 虚拟占位tile id：footprint格子写入override_cells，参与碰撞/可达性但不在TileMap绘制
 const TILE_BUILDING_RESERVE := 39
@@ -58,7 +76,41 @@ const TREE_SHEETS := {
 	9: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_02/Size_03.png", "cell": Vector2i(48, 80)},   # 竹/细高树 3x2=6变体
 }
 var _tree_sheet_cache: Dictionary = {}
-var _tree_shadow_tex: ImageTexture = null
+
+# 画面改造P4.4 季节树：变体索引→季节表（tools/analyze_tree_variants.py 逐格主导色实测）
+# 松4: 0-1春 2-3枯 4-7秋；橡8: 0春 1枯 2/4/5/6秋 3/7雪；竹9: 0/1/3/4春 2枯（5近空格不用）
+const TREE_SEASONS := {
+	4: {"spring": [0, 1], "autumn": [4, 5, 6, 7], "bare": [2, 3], "snow": []},
+	8: {"spring": [0], "autumn": [2, 4, 5, 6], "bare": [1], "snow": [3, 7]},
+	9: {"spring": [0, 1, 3, 4], "autumn": [], "bare": [2], "snow": []},
+}
+
+func _pick_tree_variant(tid: int, wx: int, wy: int) -> int:
+	"""按群系选树变体：森/原野以春为主点缀秋色，雪原用雪覆/春+冷色调制，竹林全春。
+	旧逻辑对全变体均匀取模——森林里 2/8 概率出枯树、6/8 概率出秋红松，四季混乱。"""
+	var grid := _tree_grid(tid)
+	var total := grid.x * grid.y
+	var table: Dictionary = TREE_SEASONS.get(tid, {})
+	if table.is_empty():
+		return abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % total
+	var r := fposmod(detail_noise.get_noise_2d(wx * 9.7 + 3.1, wy * 6.1 + 8.7) + 1.0, 1.0)
+	var season := "spring"
+	match _biome_kind(wx, wy):
+		"forest":
+			season = "autumn" if r > 0.85 else "spring"
+		"plains", "lake":
+			season = "autumn" if r > 0.90 else "spring"
+		"mountain":
+			season = "bare" if r > 0.5 else "spring"
+		"desert":
+			season = "bare"
+		"snow":
+			season = "snow" if not (table["snow"] as Array).is_empty() else "spring"
+		_: season = "spring"
+	var pool: Array = table.get(season, table["spring"])
+	if (pool as Array).is_empty():
+		pool = table["spring"]
+	return int(pool[abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % pool.size()])
 
 func _get_tree_sheet_texture(tid: int) -> Texture2D:
 	if _tree_sheet_cache.has(tid):
@@ -67,22 +119,9 @@ func _get_tree_sheet_texture(tid: int) -> Texture2D:
 	_tree_sheet_cache[tid] = tex
 	return tex
 
-# Phase B-3：树底椭圆软阴影（径向衰减白椭圆，modulate压黑半透明），提升落地感
+# Phase B-3：树底椭圆软阴影（画面改造P2起逻辑收口到TextureGen.get_shadow_texture全场景共享）
 func _get_tree_shadow_texture() -> ImageTexture:
-	if _tree_shadow_tex != null:
-		return _tree_shadow_tex
-	var img = Image.create(48, 20, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	for x in range(48):
-		for y in range(20):
-			var dx = (x - 23.5) / 23.5
-			var dy = (y - 9.5) / 9.5
-			var d = sqrt(dx * dx + dy * dy)
-			if d < 1.0:
-				var a := clampf(1.0 - d, 0.0, 1.0)
-				img.set_pixel(x, y, Color(1, 1, 1, pow(a, 1.35)))
-	_tree_shadow_tex = ImageTexture.create_from_image(img)
-	return _tree_shadow_tex
+	return TextureGen.get_shadow_texture()
 
 func _tree_grid(tid: int) -> Vector2i:
 	"""树表真实网格列×行（Phase G2连通分量实测，供变体索引取模）"""
@@ -117,13 +156,16 @@ func _spawn_tree_prop(wx: int, wy: int, tid: int) -> bool:
 		return false
 	var cell: Vector2i = info["cell"]
 	var grid := _tree_grid(tid)
-	var variant: int = abs(int(detail_noise.get_noise_2d(wx * 7.3, wy * 11.9) * 100.0)) % (grid.x * grid.y)
+	var variant: int = _pick_tree_variant(tid, wx, wy)   # 画面改造P4.4：按群系季节选变体
 	var atlas = AtlasTexture.new()
 	atlas.atlas = sheet
 	atlas.region = Rect2(float(variant % grid.x) * cell.x, float(variant / grid.x) * cell.y, cell.x, cell.y)
 	var prop = Sprite2D.new()
 	prop.texture = atlas
 	prop.z_index = 2  # 与玩家/NPC/Mob统一实体层z=2，交给World递归Y-sort交融（G4）
+	# 雪原树木加冷霜色调（2026-08-31：素材包原树偏秋红，乘法染色降温增雪意）
+	if _biome_kind(wx, wy) == "snow":
+		prop.modulate = Color(0.78, 0.87, 1.0)
 	# Phase G4基点锚定：节点原点=树干脚底(瓦片底缘+4px入土)，贴图用offset上移半高。
 	# Y-sort按节点y排序，锚在脚底才能正确表现"人在树前/树后"
 	var jitter_x: float = fposmod(detail_noise.get_noise_2d(wx * 3.1, wy * 5.7), 1.0) * 6.0 - 3.0
@@ -154,14 +196,31 @@ func _ready():
 	_setup_tilemap_parent()
 	_setup_poi_templates()
 	_generate_rivers()
+	_generate_city()	# 青石城：先于城镇/POI写入override，后续选址自动避让
+	_generate_official_roads()	# W5：四门官道（宽2，过河段=17桥语义），镇/POI选址自动避让占格
 	# 顺序关键：先定位安全出生点，再以出生点为源做可达性洪泛，
 	# 之后城镇/POI选址必须落在可达区内（修复少林寺入口在海上等问题）
 	_relocate_player_to_safe_spawn()
 	_compute_reachable_region()
 	_generate_towns()
+	_generate_sect_territories()
+	_build_wild_rock_clusters()	# W6：散石聚簇表（desert/snow 装饰层自此查表）
 	_scatter_pois()
 	_apply_poi_terrain()
+	_restore_official_roads()	# W5/W6：POI 铺地可能覆盖官道格——按登记 cells 重放
+	_carve_mountain_passes()	# W9：山口垭口网格——崖壁穿线必开3宽沙口（治山地死路迷宫）
+	_strip_mountain_dead_ends()	# W9：绝径归崖——山/雪WILD死路子树叶子剥离填崖
 	_ensure_connectivity()	# Phase F6: 打通所有封闭区域（石中沙地等孤岛开路）
+	_ensure_corridor_width()	# W6：走廊宽度感知（窄喉口袋 2 宽开路，限量）
+	_place_bridge_props()	# W5：连通性收尾后统一扫描17段→石拱桥prop（纯视觉z1）
+	_dress_farm_bands()	# 画面改造P4b：全局农田装点（作物+栅栏+稻草人，纯视觉零语义）
+	# 城镇样板区（立项书 §4.3：唯一接线点——_ready 尾部、_dress_farm_bands 后；FLAG 门控）
+	if WorldFeatures.FLAG["demo_town"]:
+		var demo_kit := TownDemoKit.new()
+		demo_kit.name = "TownDemoKit"
+		add_child(demo_kit)
+		if demo_kit.setup(self):
+			demo_kit.build()
 	_compute_reachable_region()	# 刷新对外可达查询（NPC/营地选址用最新数据）
 	# 初始加载玩家周围的chunk
 	_initial_load()
@@ -189,40 +248,110 @@ func _setup_noise():
 	detail_noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 	detail_noise.frequency = 0.05
 
-# ---- Phase F6: 饥荒式生物群系区域 ----
-const BIOME_KINDS := ["plains", "forest", "bamboo", "mountain", "desert", "snow", "lake"]
-var biome_seeds: Array = []   # [{"pos":Vector2i, "kind":String}]
+# ---- W1: 气候驱动的群系分布（替换 Voronoi 首府撒点，docs/武侠世界重构规划 §2.1）----
+# 温度场=纬度基线+海拔修正+噪声扰动；湿度场=湿度噪声+临水加湿；群系判定唯一入口 _climate_kind。
+# biome_seeds 语义变更：只存湖泊种子 [{"pos":Vector2i, "kind":"lake", "r":float}]，由 _generate_rivers 登记。
+var biome_seeds: Array = []
+var _water_humid_boost: Dictionary = {}   # 临水加湿标记（河/湖12格内），_generate_rivers 末尾构建
 
 func _setup_biomes():
-	"""环形撒群系首府（两轮全群系=14个）+中央固定平原；瓦片归属=最近首府(带噪声抖动边界)"""
-	var rng = RandomNumberGenerator.new()
-	rng.seed = WORLD_SEED + 777
-	biome_seeds.clear()
-	var count := BIOME_KINDS.size() * 2
-	for i in range(count):
-		var ang := TAU * i / count + rng.randf_range(-0.3, 0.3)
-		var rad := rng.randf_range(30.0, WORLD_RADIUS - 24.0)
-		var pos := Vector2i(int(cos(ang) * rad), int(sin(ang) * rad))
-		var kind: String = BIOME_KINDS[i % BIOME_KINDS.size()]
-		biome_seeds.append({"pos": pos, "kind": kind})
-	biome_seeds.append({"pos": Vector2i.ZERO, "kind": "plains"})	# 出生区必为平原
+	biome_seeds.clear()   # 湖泊种子在 _generate_rivers 生成湖时 append
+
+func _climate_temp(x: int, y: int) -> float:
+	"""温度场：北冷南暖（y越大越暖）+海拔越高越冷+噪声扰动+出生区温和修正"""
+	var lat := (float(y) + float(WORLD_RADIUS)) / (2.0 * float(WORLD_RADIUS))
+	var t := 0.04 + lat * 0.92
+	t -= maxf(get_height(x, y), 0.0) * 0.38
+	t += detail_noise.get_noise_2d(x * 0.9, y * 0.9) * 0.07
+	var d0 := Vector2(x, y).length()
+	if d0 < 26.0:
+		t = lerpf(t, 0.55, clampf(1.2 - d0 / 22.0, 0.0, 0.7))
+	return t
+
+func _climate_hum(x: int, y: int) -> float:
+	"""湿度场：湿度噪声归一 + 临水加湿（河谷竹林/湖畔沃野的自然来源）"""
+	var h: float = get_humidity(x, y) * 0.5 + 0.5
+	if _water_humid_boost.has(Vector2i(x, y)):
+		h = minf(h + 0.2, 1.0)
+	return h
+
+func _climate_kind(x: int, y: int, jitter: float = 0.0) -> String:
+	"""群系判定唯一入口。jitter 供 _ground_of 在阈值边界做锯齿过渡（替代 Voronoi dither）"""
+	for b in biome_seeds:
+		if b["kind"] == "lake":
+			var dist := float(Vector2(b["pos"].x - x, b["pos"].y - y).length())
+			if dist < float(b["r"]) + detail_noise.get_noise_2d(x, y) * 3.0:
+				return "lake"
+	var t := _climate_temp(x, y) + jitter
+	var h := _climate_hum(x, y)
+	if t < 0.25:
+		return "snow"
+	if t < 0.45:
+		return "mountain"
+	if t < 0.7:
+		if h >= 0.62:
+			return "bamboo"
+		if h > 0.45:
+			return "forest"
+		return "plains"
+	# 热带蒸发干旱：起点 t≥0.79（与 forest 上界 0.7 间留 plains 缓冲带，隔断干湿突变咬合）；
+	# 温度越高有效湿度越低（自然规律驱动沙漠分布）
+	if t >= 0.79 and h - maxf(0.0, t - 0.62) * 1.6 < 0.30:
+		return "desert"
+	return "plains"
 
 func _biome_kind(x: int, y: int) -> String:
-	if biome_seeds.is_empty():
-		return "plains"
-	var jitter: float = detail_noise.get_noise_2d(x * 1.7, y * 2.3) * 14.0
-	var best_d := 1e12
-	var best_kind := "plains"
-	for b in biome_seeds:
-		var p: Vector2i = b["pos"]
-		var d := Vector2(p.x - x, p.y - y).length_squared() + jitter * jitter * 0.01
-		if d < best_d:
-			best_d = d
-			best_kind = b["kind"]
-	return best_kind
+	"""全项目群系查询口（W1 起转调气候场，接口不变）"""
+	return _climate_kind(x, y)
 
 func _lake_surface_dist(x: int, y: int, seed_pos: Vector2i) -> float:
 	return Vector2(seed_pos.x - x, seed_pos.y - y).length()
+
+# ============ 群系调色板（2026-08-31：铺设规则群系感知，治"雪地长草"类违和） ============
+# 所有 override 铺设点禁止直接写 0/1/6/16 等硬编码地面瓦片，一律按类别经调色板翻译。
+# 类别语义：ground=基础地面 path=道路 farm=农田 channel=连通开路 plaza=石板广场
+# 41=雪覆农田 / 42=雪径（新瓦片，无碰撞，layer 0）
+const BIOME_PALETTES := {
+	"plains":   {"ground": 0,  "path": 1,  "farm": 16, "channel": 0,  "plaza": 35},
+	"forest":   {"ground": 0,  "path": 1,  "farm": 16, "channel": 0,  "plaza": 35},
+	"bamboo":   {"ground": 18, "path": 1,  "farm": 16, "channel": 18, "plaza": 35},
+	"mountain": {"ground": 6,  "path": 1,  "farm": 16, "channel": 6,  "plaza": 35},
+	"desert":   {"ground": 6,  "path": 6,  "farm": 16, "channel": 6,  "plaza": 35},
+	"snow":     {"ground": 34, "path": 42, "farm": 41, "channel": 34, "plaza": 35},
+	"lake":     {"ground": 0,  "path": 1,  "farm": 16, "channel": 0,  "plaza": 35},
+}
+
+func _palette_at(x: int, y: int) -> Dictionary:
+	"""取指定坐标所属群系的铺设调色板"""
+	return BIOME_PALETTES.get(_biome_kind(x, y), BIOME_PALETTES["plains"])
+
+func _ground_of(x: int, y: int) -> int:
+	"""群系过渡感知的基础地面：判定时 temp 加噪声抖动→阈值边界天然锯齿 dither，消除硬切边。
+	画面改造P1.2：自然地面按细节噪声混入像素变体/深色斑块，消灭纯色平铺（override铺装不经此处，不受影响）"""
+	var k := _climate_kind(x, y, detail_noise.get_noise_2d(x * 1.7, y * 2.3) * 0.045)
+	var base: int = BIOME_PALETTES.get(k, BIOME_PALETTES["plains"])["ground"]
+	return _ground_variant(base, x, y)
+
+func _ground_variant(base: int, x: int, y: int) -> int:
+	"""画面改造P1.2：地面变体抖动——像素变体打散重复纹理，深色斑制造斑驳地表（阈值与树木装饰噪声域隔离）"""
+	var r := fposmod(detail_noise.get_noise_2d(x * 5.3 + 37.7, y * 7.7 + 11.3) + 1.0, 1.0)
+	match base:
+		0:   # 草地：像素变体A/B打散 + 深绿色斑（斑驳草原）
+			if r > 0.93: return 47
+			elif r > 0.80: return 45
+			elif r > 0.67: return 46
+		18:  # 竹林深草
+			if r > 0.86: return 48
+			elif r > 0.72: return 49
+		6:   # 沙地：像素变体 + 干土斑（P4b：低频斑块噪声聚簇，治单格"泼墨"散点）
+			var pn := fposmod(detail_noise.get_noise_2d(x * 0.31 + 91.0, y * 0.27 + 17.0) + 1.0, 1.0)
+			if pn > 0.66 and r > 0.45: return 54
+			elif r > 0.88: return 52
+			elif r > 0.76: return 53
+		34:  # 雪地
+			if r > 0.86: return 50
+			elif r > 0.72: return 51
+	return base
 
 func _load_tileset():
 	# 每次启动在内存中构建TileSet：纹理直接从PNG解码，不依赖import系统与陈旧.tres
@@ -269,89 +398,825 @@ func _get_world_border_tile(x: int, y: int) -> int:
 			return 6  # 沙
 	return -1  # 不覆盖
 
-# ============ 河流系统 ============
+# ============ 河流系统（W1 重写：源—流—汇，docs/武侠世界重构规划 §5.1） ============
+# 河源固定在高山群系内高处，沿 get_height 下坡游走（噪声摆动），汇入湖泊或边界深水；
+# 城市斥力保证河不进城；旧"正弦横穿+等距桥"废弃——桥位由官道接驳(W2)/连通修补/W5 规则化。
+var river_paths: Array = []    # [{"path":Array[Vector2i], "main":bool}]，供回归断言采样
+var lake_centers: Array = []   # [{"pos":Vector2i, "r":float}]
 
 func _generate_rivers():
-	"""使用正弦曲线生成2-3条河流"""
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 3000
+	# 河流先于城生成：斥力/湖泊避城须预知 v2 城规模（half=30）
+	city_half = WorldData.CITY_V2["half"]
+	_generate_lakes(rng)
+	# 干流 2~3 条：源=高山，下坡游走终湖/海
+	var mains := _find_river_sources(rng, 3, 60.0, [])
+	for src in mains:
+		var path := _walk_river(src, rng, true)
+		if path.size() < 40:
+			continue
+		_force_sea_connection(path)
+		_stamp_river(path, 4)
+		_bridge_along(path, 4, 36)
+		river_paths.append({"path": path, "main": true})
+	# 支流 1~2 条：源=另一处高山，触碰干流/湖即并入
+	var used: Array = mains.duplicate()
+	var tribs := _find_river_sources(rng, 2, 70.0, used)
+	for src in tribs:
+		var path := _walk_river(src, rng, false)
+		if path.size() < 30:
+			continue
+		_stamp_river(path, 2)
+		_bridge_along(path, 2, 40)
+		river_paths.append({"path": path, "main": false})
+	_build_water_humid_boost()
+	print("[WorldGen] Rivers: mains=%d tribs=%d lakes=%d" % [mains.size(), tribs.size(), lake_centers.size()])
 
-	var river_count = rng.randi_range(3, 4)
-	for i in range(river_count):
-		var amplitude = rng.randf_range(10.0, 25.0)
-		var frequency = rng.randf_range(0.03, 0.08)
-		var phase = rng.randf_range(0.0, TAU)
-		var offset_y = rng.randi_range(-40, 40)
-		var width = rng.randi_range(3, 5)
-		var horizontal = rng.randf() > 0.5  # 水平或垂直河流
+func _generate_lakes(rng):
+	"""1~2 个显式湖：洼地+暖带+避城/出生区/互距；湖面 override=5+湖缘沙6，登记湖种子"""
+	var placed := 0
+	for _attempt in range(80):
+		if placed >= 2:
+			break
+		var x: int = rng.randi_range(-int(WORLD_RADIUS) + 40, int(WORLD_RADIUS) - 40)
+		var y: int = rng.randi_range(-int(WORLD_RADIUS) + 40, int(WORLD_RADIUS) - 40)
+		if get_height(x, y) > -0.2 or _climate_temp(x, y) < 0.4:
+			continue
+		if Vector2(x, y).length() < 30.0:
+			continue
+		# 避城 62 = 城外接圆 30√2≈42.4 + 湖半径16 + 噪声余量（规划§2.1：湖泊不与城重叠，
+		# 旧 45 只防圆形半径，湖缘会侵入方形城角）
+		if Vector2(x - CITY_POS.x, y - CITY_POS.y).length() < 62.0:
+			continue
+		var ok := true
+		for l in lake_centers:
+			if Vector2(x - l["pos"].x, y - l["pos"].y).length() < 60.0:
+				ok = false
+				break
+		if not ok:
+			continue
+		var r: int = rng.randi_range(9, 13)
+		for dx in range(-r - 4, r + 5):
+			for dy in range(-r - 4, r + 5):
+				var d := Vector2(dx, dy).length()
+				# 观感修复：缘噪声低频采样（原逐格高频 detail 噪声→相邻格判定翻转，水/沙棋盘锯齿缘；
+				# 0.18 步长≈5.5 格相关尺度→波状岸线。湖心 rng 消耗不变，选址零影响）
+				var edge := float(r) + detail_noise.get_noise_2d((x + dx) * 0.18, (y + dy) * 0.18) * 3.0
+				var cell := Vector2i(x + dx, y + dy)
+				if d < edge:
+					override_cells[cell] = 5
+				elif d < edge + 4.0 and not override_cells.has(cell):
+					override_cells[cell] = 6
+		lake_centers.append({"pos": Vector2i(x, y), "r": float(r)})
+		biome_seeds.append({"pos": Vector2i(x, y), "kind": "lake", "r": float(r)})
+		placed += 1
 
-		# 河流路径
-		for t in range(-WORLD_RADIUS, WORLD_RADIUS):
-			var curve_val = offset_y + amplitude * sin(frequency * t + phase)
-			var center: int
-			if horizontal:
-				center = int(round(curve_val))
-			else:
-				center = int(round(curve_val))
+func _find_river_sources(rng, want: int, min_apart: float, exclude: Array) -> Array:
+	"""在高山群系内找高处源点；候选不足时放宽海拔阈值"""
+	var picked: Array = []
+	for h_min in [0.3, 0.15]:
+		var cands: Array = []
+		for y in range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30, 6):
+			for x in range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30, 6):
+				if _climate_kind(x, y) != "mountain" or get_height(x, y) < h_min:
+					continue
+				# 城禁域：源点不得落城墙邻域（曾在城东南角选出源点→河出生即被困）
+				if absi(x - CITY_POS.x) < city_half + 8 and absi(y - CITY_POS.y) < city_half + 8:
+					continue
+				var p := Vector2i(x, y)
+				var bad := false
+				for e in exclude:
+					if Vector2(p - e).length() < 40.0:
+						bad = true
+						break
+				if bad:
+					continue
+				cands.append(p)
+		while cands.size() > 0 and picked.size() < want:
+			var idx: int = rng.randi_range(0, cands.size() - 1)
+			var p2: Vector2i = cands[idx]
+			cands.remove_at(idx)
+			var ok := true
+			for q in picked:
+				if Vector2(p2 - q).length() < min_apart:
+					ok = false
+					break
+			if ok:
+				picked.append(p2)
+		if picked.size() >= want:
+			break
+	return picked
 
-			for w in range(-width / 2, width / 2 + 1):
-				var rx: int
-				var ry: int
-				if horizontal:
-					rx = t
-					ry = center + w
-				else:
-					rx = center + w
-					ry = t
+func _walk_river(src: Vector2i, rng, is_main: bool) -> Array:
+	"""下坡游走：8邻域选 height 最低+噪声摆动；边界引导出海；城市斥力绕城；支流触碰水即并入"""
+	var path: Array = []
+	var cur := src
+	var visited := {src: true}
+	for _guard in range(1000):
+		path.append(cur)
+		var merged := false
+		for l in lake_centers:
+			if Vector2(cur.x - l["pos"].x, cur.y - l["pos"].y).length() < float(l["r"]):
+				merged = true
+				break
+		if merged:
+			return path
+		if Vector2(cur.x, cur.y).length() > WORLD_RADIUS - 8:
+			return path
+		if not is_main and _touches_water(cur):
+			return path
+		# 保底：干流 400 步后未终湖/海 → 径向 d4 冲海（无视 visited：水面自相交无害）
+		var force_out := is_main and path.size() > 400
+		var best := cur
+		if not force_out:
+			var best_score := 1e12
+			for dx in range(-1, 2):
+				for dy in range(-1, 2):
+					if dx == 0 and dy == 0:
+						continue
+					var n := cur + Vector2i(dx, dy)
+					if visited.has(n) or Vector2(n.x, n.y).length() > WORLD_RADIUS - 6:
+						continue
+					# 方向持续性（观感修复·核心）：禁侧后向候选（与上一步夹角 ≥90°）——
+					# 逐格 stamp 下，方向高频交替（含 90° 侧翻 E/N/E/N 阶梯）会把 4 宽水带
+					# 铺成锯齿咬合、岸沙嵌缝成"棋盘碎水"（W8 观感轮实测两轮迭代确认）；
+					# 只许直行/前斜 45° → 河成平滑曲线
+					if path.size() >= 2:
+						var pd2: Vector2i = path[path.size() - 1] - path[path.size() - 2]
+						if Vector2(n - cur).dot(Vector2(pd2)) <= 0.0:
+							continue
+					var score: float = get_height(n.x, n.y) * 8.0 + rng.randf() * 2.5
+					# 边界引导出海；步数越深权重越大（防河困死内陆）
+					score += Vector2(n.x, n.y).length() * (0.012 + path.size() * 0.00008)
+					# 蛇曲抑制（观感修复）：① 紧邻已走格斥力——原 visited 只禁本格，河贴旧河道平行回折，
+					#   强蛇曲河湾互相叠压成"网状碎水带"（南门官道桥群观感根因，459 步挤 92 格直线）
+					var near_visited := 0
+					for ox in range(-1, 2):
+						for oy in range(-1, 2):
+							if (ox != 0 or oy != 0) and visited.has(n + Vector2i(ox, oy)):
+								near_visited += 1
+					score += near_visited * 1.6
+					# 河源语义保护（软引导）：前 15 步离山惩罚——方向过滤让河直行下山，10 格内冲出
+					# 山界会断"源高山"断言；非山格 +30 压过随机项但不硬禁（保底仍可出山）
+					var kind_n := _biome_kind(n.x, n.y)
+					if is_main and path.size() < 15 and not (kind_n in ["mountain", "snow"]):
+						score += 30.0
+					# 城市斥力（方形判定）：城墙邻域绝对拒绝（不进候选，相对排序会被地形差压过），
+					# 外圈软斥力引导绕行——河贴城墙切向绕行
+					var cdx := absi(n.x - CITY_POS.x)
+					var cdy := absi(n.y - CITY_POS.y)
+					var cheby := maxi(cdx, cdy)
+					if cdx < city_half + 2 and cdy < city_half + 2:
+						continue
+					if cheby < city_half + 8:
+						score += (city_half + 8 - cheby) * 4.0
+					if is_main:
+						for l in lake_centers:
+							var dl := Vector2(n.x - l["pos"].x, n.y - l["pos"].y).length()
+							if dl < float(l["r"]) + 14.0:
+								score -= (float(l["r"]) + 14.0 - dl) * 1.5
+					if score < best_score:
+						best_score = score
+						best = n
+		if best == cur:
+			# 洼地/冲海兜底：8 邻径向外推（切向绕行出口更充分；禁回头/禁城禁域；1000 步上限防死循环）
+			var outward := Vector2(cur.x, cur.y)
+			if outward.length() < 1.0:
+				outward = Vector2(1, 0)
+			var cand: Array = []
+			for dx2 in range(-1, 2):
+				for dy2 in range(-1, 2):
+					if dx2 == 0 and dy2 == 0:
+						continue
+					cand.append(Vector2i(dx2, dy2))
+			cand.sort_custom(func(a, b): return Vector2(a.x, a.y).dot(outward) > Vector2(b.x, b.y).dot(outward))
+			var nc := cur
+			for cd in cand:
+				var tc: Vector2i = cur + cd
+				if path.size() >= 2 and tc == Vector2i(path[path.size() - 2]):
+					continue
+				# 避城硬禁域（冲海径向也不许穿城角）
+				if absi(tc.x - CITY_POS.x) < city_half + 2 and absi(tc.y - CITY_POS.y) < city_half + 2:
+					continue
+				nc = tc
+				break
+			cur = nc
+		else:
+			cur = best
+		visited[cur] = true
+	return path
 
-				var cell = Vector2i(rx, ry)
-				# 河流中心是水，边缘是沙
-				if abs(w) <= 1:
-					override_cells[cell] = 5  # 水
-				else:
-					if not override_cells.has(cell):
-						override_cells[cell] = 6  # 沙
+func _touches_water(c: Vector2i) -> bool:
+	for dx in range(-1, 2):
+		for dy in range(-1, 2):
+			var v = override_cells.get(Vector2i(c.x + dx, c.y + dy), -1)
+			if v != null and int(v) == 5:
+				return true
+	return false
 
-		# 在河流上放置桥（每隔一定距离）
-		for t in range(-WORLD_RADIUS + 10, WORLD_RADIUS - 10, 15):
-			var curve_val = offset_y + amplitude * sin(frequency * t + phase)
-			var center: int
-			if horizontal:
-				center = int(round(curve_val))
-			else:
-				center = int(round(curve_val))
+## 干流强制接海：终态非湖/海时，从尾端径向 d4 推进（贴城切向绕行、禁回头）直至出界
+func _force_sea_connection(path: Array):
+	var tail: Vector2i = path[path.size() - 1]
+	if _at_sea(tail) or _at_lake(tail):
+		return
+	var c := tail
+	var prev := tail
+	for _i in range(500):
+		var outward := Vector2(c.x, c.y)
+		if outward.length() < 1.0:
+			outward = Vector2(1, 0)
+		var cand := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+		cand.sort_custom(func(a, b): return Vector2(a.x, a.y).dot(outward) > Vector2(b.x, b.y).dot(outward))
+		var moved := false
+		for cd in cand:
+			var tc: Vector2i = c + cd
+			if tc == prev:
+				continue
+			if absi(tc.x - CITY_POS.x) < city_half + 2 and absi(tc.y - CITY_POS.y) < city_half + 2:
+				continue
+			if Vector2(tc.x, tc.y).length() > WORLD_RADIUS - 6:
+				continue
+			prev = c
+			c = tc
+			moved = true
+			break
+		if not moved:
+			break
+		path.append(c)
+		if _at_sea(c) or _at_lake(c):
+			break
 
-			# 桥横跨河流水面部分（水面固定3格宽：w=-1,0,1）
-			for w in range(-1, 2):
-				var bridge_cell: Vector2i
-				if horizontal:
-					bridge_cell = Vector2i(t, center + w)
-				else:
-					bridge_cell = Vector2i(center + w, t)
-				override_cells[bridge_cell] = 17  # 桥
+func _at_sea(c: Vector2i) -> bool:
+	return Vector2(c.x, c.y).length() > WORLD_RADIUS - 8
 
-			# 桥两端连接河岸铺路
-			if horizontal:
-				override_cells[Vector2i(t, center - 2)] = 1  # 上岸路
-				override_cells[Vector2i(t, center + 2)] = 1  # 下岸路
-			else:
-				override_cells[Vector2i(center - 2, t)] = 1  # 左岸路
-				override_cells[Vector2i(center + 2, t)] = 1  # 右岸路
+func _at_lake(c: Vector2i) -> bool:
+	for l in lake_centers:
+		if Vector2(c.x - l["pos"].x, c.y - l["pos"].y).length() < float(l["r"]):
+			return true
+	return false
 
-	print("[WorldGen] Generated " + str(river_count) + " rivers")
+func _bridge_along(path: Array, water_w: int, period: int):
+	"""沿河稀疏架基本桥（tile 17）保世界基本连通：W2 官道桥/W5 石拱桥再规则化"""
+	var half: int = water_w / 2
+	for i in range(period / 2, path.size() - 1, period):
+		var c: Vector2i = path[i]
+		var dirv := Vector2i(1, 0)
+		if i + 1 < path.size():
+			dirv = path[i + 1] - c
+		elif i > 0:
+			dirv = c - path[i - 1]
+		var perp := Vector2i(signi(-dirv.y), signi(dirv.x))
+		if perp == Vector2i.ZERO:
+			perp = Vector2i(0, 1)
+		for w in range(-half, water_w - half):
+			override_cells[c + perp * w] = 17
+		override_cells[c + perp * (-half - 1)] = 1   # 两岸接路
+		override_cells[c + perp * (water_w - half)] = 1
+
+# ============ W5 四门官道 + 石拱桥（docs/武侠世界重构规划 §5.2，FLAG bridge_prop） ============
+# 官道：四门外宽 2 path 直线外铺（≤48 格），过河段写 17（桥语义），遇崖/建筑占格/边界即停。
+# 石拱桥 prop：_ensure_connectivity 收尾后统一扫描 17 连通块（≥2 格）→ 矩形判定 → prop
+#（桥端石阶外扩 1 格落在岸上；z=1 垫在实体 z2 之下、TileMap z0 之上——World y_sort 下
+#  北半球桥若 z=0 会被 TileMap(y=0) 盖住，z1 是关键）。
+var official_roads: Array = []   # [{gate, cells, bridge_cells}]
+var bridge_props: Array = []     # [{cells, axis, run_rect:[x,y,w,h], prop_rect:[...]}]
+
+func _generate_official_roads():
+	official_roads.clear()
+	var h := city_half
+	var dirs := {"n": Vector2i(0, -1), "s": Vector2i(0, 1), "w": Vector2i(-1, 0), "e": Vector2i(1, 0)}
+	for g in dirs:
+		var d: Vector2i = dirs[g]
+		var perp := Vector2i(-d.y, d.x)
+		var cells: Array = []
+		var bridge_cells: Array = []
+		for step in range(1, 49):
+			var stopped := false
+			for w in [-1, 0]:   # 宽 2：门中缝两侧（gap 4 格中线）
+				var c: Vector2i = Vector2i(CITY_POS.x, CITY_POS.y) + d * (h + step) + perp * w
+				if Vector2(c.x, c.y).length() > WORLD_RADIUS - 10:
+					stopped = true
+					break
+				var tid := get_tile_id(c.x, c.y)
+				if tid == 5:
+					override_cells[c] = 17   # 过河=桥语义（prop 由 _place_bridge_props 统一铺）
+					bridge_cells.append(c)
+				elif int(override_cells.get(c, -1)) == 39:
+					stopped = true   # 建筑/镇体占格即停
+					break
+				elif tid in [3, 7]:
+					# 官道穿崖（山口语义，实测城周环山曾秒断三向官道）——材质同 _carve_cell 纪律
+					override_cells[c] = _palette_at(c.x, c.y)["channel"]
+				elif int(override_cells.get(c, -1)) != 1 and tid != 17:
+					override_cells[c] = _palette_at(c.x, c.y)["path"]
+				cells.append(c)
+			if stopped:
+				break
+		official_roads.append({"gate": g, "cells": cells, "bridge_cells": bridge_cells})
+		print("[WorldGen] 官道[%s] len=%d 过河格=%d" % [g, cells.size(), bridge_cells.size()])
+
+func _place_bridge_props():
+	bridge_props.clear()
+	var R := int(WORLD_RADIUS)
+	var visited := {}
+	var naked_singles := 0   # 单格 17（修补转角/擦边）——保留裸 17 不做 prop
+	var demoted := 0         # 陆上裸桥降级格数（17=跨水桥语义，陆上残留降级为群系 path）
+	for y in range(-R, R + 1):
+		for x in range(-R, R + 1):
+			var c := Vector2i(x, y)
+			if visited.has(c) or get_tile_id(x, y) != 17:
+				continue
+			# 4 连通洪泛整段桥
+			var comp := {c: true}
+			var q: Array = [c]
+			var head := 0
+			visited[c] = true
+			while head < q.size():
+				var cur: Vector2i = q[head]
+				head += 1
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var n2: Vector2i = cur + d
+					if visited.has(n2) or comp.has(n2) or get_tile_id(n2.x, n2.y) != 17:
+						continue
+					comp[n2] = true
+					visited[n2] = true
+					q.append(n2)
+			# 桥水侧不变量（观感修复）：**逐格**校验——8 邻无 override=5 的 17 格=陆上残留
+			# （旧版按"整段任一格邻水"放行，长桥跨陆地时陆上部分照样架桥 → "草地上的桥"）
+			# ——逐格降级为群系 path 后，剩余格才进 prop 铺装
+			for cc in comp.keys():
+				var near_water := false
+				for dx2 in range(-1, 2):
+					for dy2 in range(-1, 2):
+						if int(override_cells.get(cc + Vector2i(dx2, dy2), -1)) == 5:
+							near_water = true
+							break
+					if near_water:
+						break
+				if not near_water and int(override_cells.get(cc, -1)) == 17:
+					override_cells[cc] = _palette_at(cc.x, cc.y)["path"]
+					demoted += 1
+					comp.erase(cc)
+			if demoted > 0:
+				print("[WorldGen] bridge demote: 陆上残留17累计降级 %d 格" % demoted)
+			if comp.is_empty():
+				continue
+			var cells: Array = comp.keys()
+			if cells.size() < 2:
+				naked_singles += 1
+				continue
+			var minc: Vector2i = cells[0]
+			var maxc: Vector2i = cells[0]
+			for cc in cells:
+				minc = Vector2i(mini(minc.x, cc.x), mini(minc.y, cc.y))
+				maxc = Vector2i(maxi(maxc.x, cc.x), maxi(maxc.y, cc.y))
+			var rect := Rect2i(minc, maxc - minc + Vector2i.ONE)
+			if cells.size() == rect.size.x * rect.size.y:
+				# 矩形桥段：整段一座 prop，长边=跨河方向
+				_make_bridge_prop(cells, minc, rect.size, rect.size.x >= rect.size.y)
+				continue
+			# L 形（修补桥转弯）：分解为直段 prop——先横后纵（剩余格）
+			var remaining := {}
+			for cc2 in cells:
+				remaining[cc2] = true
+			for axis in ["h", "v"]:
+				var dv: Vector2i = Vector2i(1, 0) if axis == "h" else Vector2i(0, 1)
+				for cc2 in cells:
+					if not remaining.has(cc2):
+						continue
+					if not remaining.has(cc2 + dv) and not remaining.has(cc2 - dv):
+						continue
+					var a0: int = cc2.x if axis == "h" else cc2.y
+					var a1: int = a0
+					while remaining.has(cc2 + (Vector2i(a0 - 1 - cc2.x, 0) if axis == "h" else Vector2i(0, a0 - 1 - cc2.y))):
+						a0 -= 1
+					while remaining.has(cc2 + (Vector2i(a1 + 1 - cc2.x, 0) if axis == "h" else Vector2i(0, a1 + 1 - cc2.y))):
+						a1 += 1
+					if a1 - a0 + 1 < 2:
+						continue
+					var seg: Array = []
+					var seg_min := Vector2i(a0, cc2.y) if axis == "h" else Vector2i(cc2.x, a0)
+					for t in range(a0, a1 + 1):
+						var sc: Vector2i = cc2 + (Vector2i(t - cc2.x, 0) if axis == "h" else Vector2i(0, t - cc2.y))
+						remaining.erase(sc)
+						seg.append(sc)
+					var seg_size := Vector2i(a1 - a0 + 1, 1) if axis == "h" else Vector2i(1, a1 - a0 + 1)
+					_make_bridge_prop(seg, seg_min, seg_size, axis == "h")
+			# 兜底：两轮直段后仍剩余（阶梯形）——按原连通块延伸（允许与既有 prop 重叠，
+			# 同贴图叠加视觉无痕；审计按 rect 覆盖判定）
+			for cc2 in cells:
+				if not remaining.has(cc2):
+					continue
+				var horizontal3: bool = comp.has(cc2 + Vector2i(1, 0)) or comp.has(cc2 + Vector2i(-1, 0))
+				var dv3: Vector2i = Vector2i(1, 0) if horizontal3 else Vector2i(0, 1)
+				var a3s := 0
+				var a3e := 0
+				while comp.has(cc2 + dv3 * (a3s - 1)):
+					a3s -= 1
+				while comp.has(cc2 + dv3 * (a3e + 1)):
+					a3e += 1
+				var seg3: Array = []
+				var seg3_min: Vector2i = cc2 + dv3 * a3s
+				for t in range(a3s, a3e + 1):
+					seg3.append(cc2 + dv3 * t)
+				var size3 := Vector2i(a3e - a3s + 1, 1) if horizontal3 else Vector2i(1, a3e - a3s + 1)
+				_make_bridge_prop(seg3, seg3_min, size3, horizontal3)
+				for ccc in seg3:
+					remaining.erase(ccc)
+	print("[WorldGen] 石拱桥 prop: %d 座（裸单格 %d，陆上裸桥降级 %d 格）" % [bridge_props.size(), naked_singles, demoted])
+
+func _make_bridge_prop(cells: Array, run_min: Vector2i, run_size: Vector2i, horizontal: bool):
+	"""prop 覆盖 = 桥段沿长轴两端各外扩 1 格（桥端石阶落岸上）；宽=桥段实际宽。
+	z=1：TileMap(z0) 之上、实体(z2) 之下——World y_sort 下北半球桥若 z=0 会被 TileMap(y=0) 盖住"""
+	# 桥水侧不变量（prop 粒度）：本段任一 cell 4 邻无 override=5 = 陆上裸桥段
+	# （L 形桥块整体贴水但分解后的个别直段落在岸上——探针/审计按 prop 判定，观感亦差）
+	# ——该段降级为群系 path，不生成 prop
+	var touches_water := false
+	for cc in cells:
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			if int(override_cells.get(cc + d, -1)) == 5:
+				touches_water = true
+				break
+		if touches_water:
+			break
+	if not touches_water:
+		for cc in cells:
+			if int(override_cells.get(cc, -1)) == 17:
+				override_cells[cc] = _palette_at(cc.x, cc.y)["path"]
+		return
+	var pr: Rect2i
+	if horizontal:
+		pr = Rect2i(run_min + Vector2i(-1, 0), run_size + Vector2i(2, 0))
+	else:
+		pr = Rect2i(run_min + Vector2i(0, -1), run_size + Vector2i(0, 2))
+	var spr := Sprite2D.new()
+	spr.texture = TextureGen.get_bridge_texture(pr.size.x, pr.size.y, horizontal)
+	spr.centered = false
+	spr.position = Vector2(pr.position.x * 16.0, pr.position.y * 16.0)
+	spr.z_index = 1
+	spr.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	spr.add_to_group("bridge_prop")
+	get_parent().add_child(spr)
+	bridge_props.append({"cells": cells, "axis": "h" if horizontal else "v",
+		"run_rect": [run_min.x, run_min.y, run_size.x, run_size.y],
+		"prop_rect": [pr.position.x, pr.position.y, pr.size.x, pr.size.y]})
+
+## W5：官道走廊避让（POI 铺地半径可达 15，bbox 外扩 2 防贴脸）
+func _near_official_road(wx: int, wy: int, margin: int = 2) -> bool:
+	for rd in official_roads:
+		var cells: Array = rd["cells"]
+		if cells.is_empty():
+			continue
+		var c0: Vector2i = cells[0]
+		var c1: Vector2i = cells[cells.size() - 1]
+		if wx >= mini(c0.x, c1.x) - margin and wx <= maxi(c0.x, c1.x) + margin \
+				and wy >= mini(c0.y, c1.y) - margin and wy <= maxi(c0.y, c1.y) + margin:
+			return true
+	return false
+
+func _restore_official_roads():
+	"""官道复原重铺：旧版 POI 铺地（门派山环 3/城镇 POI 等）可能覆盖官道格——
+	按登记 cells 重放铺设逻辑（水→17/崖→channel/其余→path；39 建筑占格让位）"""
+	var restored := 0
+	for rd in official_roads:
+		for c in rd["cells"]:
+			var tid: int = get_tile_id(c.x, c.y)
+			if tid == 5:
+				override_cells[c] = 17
+				restored += 1
+			elif tid == 39:
+				pass   # 建筑占格让位（登记制碰撞）——异常压道由 walk6 断言暴露
+			elif tid in [3, 7]:
+				override_cells[c] = _palette_at(c.x, c.y)["channel"]
+				restored += 1
+			elif tid != 1 and tid != 17:
+				override_cells[c] = _palette_at(c.x, c.y)["path"]
+				restored += 1
+	if restored > 0:
+		print("[WorldGen] 官道复原重铺 %d 格（POI 铺地覆盖回滚）" % restored)
+
+func _stamp_river(path: Array, water_w: int):
+	"""沿中心线铺水（干流带心±2/支流±1），岸沙1格只写空格；先水后沙。
+	W8 观感修复·核心：水格改半径2圆盘（dx²+dy²≤5，去四角）——旧"垂直条带"在河 45° 高频
+	摆动时条带互相咬合露缝、岸沙嵌缝成棋盘碎水（e/s 官道以东大片 WsWs 棋盘实测）；
+	圆盘相邻步重叠 4 格无缝衔接，对任意路径形状输出平滑水带。"""
+	var sands: Array = []
+	var disk: Array = []
+	if water_w >= 4:
+		for dx in range(-2, 3):
+			for dy in range(-2, 3):
+				if dx * dx + dy * dy <= 5:
+					disk.append(Vector2i(dx, dy))
+	else:
+		for dx in range(-1, 2):
+			for dy in range(-1, 2):
+				if dx * dx + dy * dy <= 2:
+					disk.append(Vector2i(dx, dy))
+	for i in range(path.size()):
+		var c: Vector2i = path[i]
+		for dv in disk:
+			var cell: Vector2i = c + dv
+			override_cells[cell] = 5
+			for dd in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var s: Vector2i = cell + dd
+				if not override_cells.has(s):
+					sands.append(s)
+	for s in sands:
+		if not override_cells.has(s):
+			override_cells[s] = 6
+
+func _build_water_humid_boost():
+	"""临水加湿表：河中心线/湖心向外扩12格（O(中心线)构建，运行期O(1)查询）"""
+	_water_humid_boost.clear()
+	var centers: Array = []
+	for l in lake_centers:
+		centers.append({"pos": l["pos"], "r": int(l["r"]) + 12})
+	for rp in river_paths:
+		for c in rp["path"]:
+			centers.append({"pos": c, "r": 13})
+	for c in centers:
+		var p: Vector2i = c["pos"]
+		var r: int = c["r"]
+		for dx in range(-r, r + 1):
+			for dy in range(-r, r + 1):
+				_water_humid_boost[Vector2i(p.x + dx, p.y + dy)] = true
+
+# ============ 青石城（主城）============
+# 玩法锚点城池：围墙圈+四门+十字主街+中央广场+功能建筑（府衙/酒楼/药坊/铁匠铺/布庄/杂货铺/民居）
+# 城内市摊/水井点缀；非门派NPC（商人/手工业者/衙役等）由 npc_spawner 依 city_info 迁入并赋予固定日程
+const TILE_CITY_WALL := 40
+const TILE_WARD_WALL := 43            # W2 唐制坊墙（41/42 已被雪田/雪径占用）
+const CITY_POS := Vector2i(75, 0)     # 城中心（瓦片坐标）：出生点正东
+
+var city_half: int = 30               # 运行时城半边长（唐制城=30，河斥力/聚落判定/探针读它）
+
+var city_info: Dictionary = {}        # v2: {center_px, gates, gate_px, wards, markets, buildings:{key:{anchor,fp,door_px,job}}}
+
+## W2 唐制城池（WorldData.CITY_V2 蓝图施工）：市坊分离/棋盘路网/官署居北/寺观居东北/东西两市
+## W7：legacy 城路径已删，本函数为唯一城生成路径
+func _generate_city():
+	var cx := CITY_POS.x
+	var cy := CITY_POS.y
+	var h: int = WorldData.CITY_V2["half"]
+	city_half = h
+	# 1) 城内地坪压平（避水）；观感修复：统一城心群系基色——原逐格按群系取色，
+	#    城跨 plains/mountain/bamboo 交界时坊间出现草绿/沙黄/深草色块硬拼接（欠账②）
+	var city_ground: int = _palette_at(cx, cy)["ground"]
+	for dx in range(-h + 1, h):
+		for dy in range(-h + 1, h):
+			var cc := Vector2i(cx + dx, cy + dy)
+			if get_tile_id(cc.x, cc.y) == 5:
+				continue
+			override_cells[cc] = city_ground
+	# 2) 城墙圈 + 四门豁口（4格宽对齐主街）
+	for dx in range(-h, h + 1):
+		for dy in range(-h, h + 1):
+			if absi(dx) == h or absi(dy) == h:
+				var wc := Vector2i(cx + dx, cy + dy)
+				override_cells[wc] = (17 if get_tile_id(wc.x, wc.y) == 5 else TILE_CITY_WALL)
+	for g in range(-2, 2):
+		for wc in [Vector2i(cx + g, cy - h), Vector2i(cx + g, cy + h), Vector2i(cx - h, cy + g), Vector2i(cx + h, cy + g)]:
+			override_cells[wc] = (17 if get_tile_id(wc.x, wc.y) == 5 else _palette_at(wc.x, wc.y)["path"])
+	# 3) 主街宽4（x,y∈[-2,1] 全贯）+ 次街宽2（横 y∈[14,15]、纵 x∈[14,15]）
+	for d in range(-h, h + 1):
+		for w in ([-2, -1, 0, 1] + [14, 15]):
+			for sc in [Vector2i(cx + d, cy + w), Vector2i(cx + w, cy + d)]:
+				override_cells[sc] = (17 if get_tile_id(sc.x, sc.y) == 5 else _palette_at(sc.x, sc.y)["path"])
+	# 4) 中央石板广场
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			if get_tile_id(cx + dx, cy + dy) != 5:
+				override_cells[Vector2i(cx + dx, cy + dy)] = 35
+	# 5) 里坊：坊墙一圈(tile 43) + 中横/中纵巷道 + 坊门2格 + 门外接引
+	var wards: Dictionary = WorldData.CITY_V2["wards"]
+	var ward_gate_out := {}   # 坊名 -> 门外接引格（连接主街/次街）
+	for wname in wards:
+		var r: Rect2i = wards[wname]
+		for dx in range(r.position.x, r.end.x):
+			for dy in range(r.position.y, r.end.y):
+				if dx != r.position.x and dx != r.end.x - 1 and dy != r.position.y and dy != r.end.y - 1:
+					continue
+				override_cells[Vector2i(cx + dx, cy + dy)] = TILE_WARD_WALL
+		var mx: int = r.position.x + r.size.x / 2
+		var my: int = r.position.y + r.size.y / 2
+		for dx in range(r.position.x + 1, r.end.x - 1):
+			_ward_path(cx + dx, cy + my)
+		for dy in range(r.position.y + 1, r.end.y - 1):
+			_ward_path(cx + mx, cy + dy)
+		# 坊门：朝主街侧墙中点 2 格；门外接引 2 格接主街/次街
+		var east_side: bool = r.position.x < 0
+		var gx: int = (r.end.x - 1) if east_side else r.position.x
+		var ox: int = gx + (1 if east_side else -1)
+		for gy in [my - 1, my]:
+			_ward_path(cx + gx, cy + gy)
+			_ward_path(cx + ox, cy + gy)
+		ward_gate_out[wname] = Vector2i(ox, my - 1)
+	# 6) 市巷（横 y=26 两市各一条，接主街）
+	for mname in WorldData.CITY_V2["markets"]:
+		var mr: Rect2i = WorldData.CITY_V2["markets"][mname]
+		for dx in range(mr.position.x, mr.end.x):
+			_ward_path(cx + dx, cy + 26)
+	# 7) 功能建筑（规划化摆放，job 供 W4 NPC 岗位）
+	city_info = {
+		"center_px": Vector2(cx * 16.0 + 8.0, cy * 16.0 + 8.0),
+		"gates": WorldData.CITY_V2["gates"],
+		"gate_px": {
+			"n": Vector2(cx * 16.0 + 8.0, (cy - h + 2) * 16.0 + 8.0),
+			"s": Vector2(cx * 16.0 + 8.0, (cy + h - 2) * 16.0 + 8.0),
+			"w": Vector2((cx - h + 2) * 16.0 + 8.0, cy * 16.0 + 8.0),
+			"e": Vector2((cx + h - 2) * 16.0 + 8.0, cy * 16.0 + 8.0),
+		},
+		"wards": [], "markets": [], "buildings": {},
+	}
+	for wname in wards:
+		city_info["wards"].append({"name": wname, "rect": wards[wname]})
+	for mname in WorldData.CITY_V2["markets"]:
+		city_info["markets"].append({"name": mname, "rect": WorldData.CITY_V2["markets"][mname]})
+	# key 命名保持 npc_spawner.city_npc_configs 依赖（tavern/apothecary/smithy/cloth/yamen/house_w/house_ne/stall_w1/stall_e1/well）
+	var bdefs := {
+		"yamen":      ["yamen", Vector2i(-27, -27), "捕头"],
+		"constable":  ["shop_a", Vector2i(-13, -27), "捕快"],
+		"temple":     ["temple", Vector2i(6, -27), "知客僧"],
+		"smithy":     ["shop_a", Vector2i(-16, 22), "铁匠"],
+		"apothecary": ["apothecary", Vector2i(-11, 22), "药师"],
+		"cloth":      ["shop_b", Vector2i(-6, 22), "布庄"],
+		"grocery":    ["shop_a", Vector2i(2, 22), "杂货"],
+		"house_ne":   ["house", Vector2i(7, 22), "商户"],
+		"tavern":     ["tavern", Vector2i(4, 5), "掌柜"],
+		"hut_s1":     ["hut", Vector2i(11, 5), "民"],
+		"hut_s2":     ["hut", Vector2i(4, 12), "民"],
+		"house_w":    ["house", Vector2i(-27, 5), "民居"],
+		"hut_w2":     ["hut", Vector2i(-20, 5), "民"],
+		"house_w3":   ["house", Vector2i(-13, 5), "民居"],
+		"hut_w4":     ["hut", Vector2i(-26, 11), "民"],
+		"house_w5":   ["house", Vector2i(-20, 11), "民居"],
+		"hut_w6":     ["hut", Vector2i(-13, 11), "民"],
+		"house_e1":   ["house", Vector2i(18, 5), "民居"],
+		"hut_e2":     ["hut", Vector2i(24, 5), "民"],
+		"house_se":   ["house", Vector2i(18, 11), "民居"],
+		"hut_e4":     ["hut", Vector2i(24, 11), "民"],
+		"house_e5":   ["house", Vector2i(24, 15), "民居"],
+		"stall_w1":   ["stall_red", Vector2i(-13, 26), "小贩"],
+		"stall_w2":   ["stall_teal", Vector2i(-9, 27), "小贩"],
+		"stall_e1":   ["stall_red", Vector2i(8, 26), "小贩"],
+		"stall_e2":   ["stall_teal", Vector2i(11, 27), "小贩"],
+		"well":       ["well", Vector2i(-4, 28), "井"],
+	}
+	var doors := {}
+	for key in bdefs:
+		var kind: String = bdefs[key][0]
+		var rel: Vector2i = bdefs[key][1]
+		var a := Vector2i(cx + rel.x, cy + rel.y)
+		_force_place_building_prop(kind, a)
+		var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+		var door := Vector2i(a.x + int(fp.x / 2.0), a.y + fp.y)
+		doors[key] = door
+		city_info["buildings"][key] = {"kind": kind, "anchor": a, "fp": fp,
+			"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": bdefs[key][2]}
+	# 8) 门前小径：BFS 连接最近路（主街/次街/坊巷/市巷；阻挡建筑/墙/坊墙/水）
+	var city_lim := Rect2i(cx - h + 2, cy - h + 2, 2 * h - 4, 2 * h - 4)
+	for key in doors:
+		_connect_door_to_road(doors[key], city_lim)
+	# 9) 城门楼（纯视觉 prop，无碰撞，挂四门上方）
+	var gtex = TextureGen.load_png_texture("res://sprites/buildings/gate_tower.png")
+	if gtex:
+		for gp in [Vector2(cx * 16.0 + 8.0, (cy - h) * 16.0 + 8.0), Vector2(cx * 16.0 + 8.0, (cy + h) * 16.0 + 8.0),
+				Vector2((cx - h) * 16.0 + 8.0, cy * 16.0 + 8.0), Vector2((cx + h) * 16.0 + 8.0, cy * 16.0 + 8.0)]:
+			var sp := Sprite2D.new()
+			sp.texture = gtex
+			sp.position = gp
+			sp.offset = Vector2(0, -26)
+			sp.z_index = 3
+			get_parent().add_child(sp)
+	# 10) 城名标（北门上方）
+	var lbl := Label.new()
+	lbl.text = "· 青 石 城 ·"
+	lbl.add_theme_font_size_override("font_size", 5)
+	lbl.add_theme_color_override("font_color", Color(1.0, 0.92, 0.6))
+	lbl.add_theme_color_override("font_outline_color", Color(0.08, 0.06, 0.04))
+	lbl.add_theme_constant_override("outline_size", 2)
+	lbl.z_index = 20
+	lbl.position = Vector2(cx * 16.0 + 8.0 - 26.0, (cy - h) * 16.0 - 12.0)
+	get_parent().add_child(lbl)
+	# 11) 净空区（城墙外余量圈）
+	_register_town_clearance(cx, cy, h)
+	# 12) 画面改造P4.2：街景道具（灯笼/桶箱，纯视觉无碰撞）
+	_place_city_dressing(cx, cy)
+	# 12.5) v4 M3：坊内密度增强（立项书 §3.3——檐下道具/坊巷灯笼/花簇/市摊货台）
+	_dress_city_wards(cx, cy)
+	print("[WorldGen] City[青石城·唐制] @(%d,%d) half=%d wards=%d markets=%d buildings=%d" % [cx, cy, h, city_info["wards"].size(), city_info["markets"].size(), city_info["buildings"].size()])
+
+func _dress_city_wards(cx: int, cy: int):
+	"""v4 M3 坊内密度增强（docs/立项-v4城镇全量重构.md §3.3）：
+	①house/hut 檐下桶箱（14 栋）②坊巷灯笼 glow（4 坊×2，收口 wg._process 昼夜调能）
+	③坊内花簇 ④市摊货台 crate。27 建筑 key/anchor 零改动（city_npc_configs 硬依赖）；
+	纯 prop 零瓦片语义；props 入 city_prop 组。"""
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), Rect2i(cx - city_half, cy - city_half, city_half * 2 + 1, city_half * 2 + 1))
+	var n := 0
+	# 1 檐下道具：house/hut 左桶右箱（脚底=底缘行；守卫=不压 39/40/43/5/水/已占）
+	for key in city_info["buildings"]:
+		var b: Dictionary = city_info["buildings"][key]
+		var kind: String = b["kind"]
+		if kind != "house" and kind != "hut":
+			continue
+		var a: Vector2i = b["anchor"]
+		var fp: Vector2i = b["fp"]
+		var feet_y: int = a.y + fp.y - 1
+		for pc in [Vector2i(a.x - 1, feet_y), Vector2i(a.x + fp.x, feet_y)]:
+			var t: int = get_tile_id(pc.x, pc.y)
+			if t in [39, 40, 43, 5] or kit.occupied.has(pc):
+				continue
+			var png := "res://sprites/buildings/barrel.png" if pc.x < a.x else "res://sprites/buildings/crate.png"
+			if kit.stamp_prop(png, pc, false, "city_prop"):
+				kit.occupied[pc] = true
+				n += 1
+	# 2 市摊货台：4 摊门侧 crate（货台化意象）
+	for skey in ["stall_w1", "stall_w2", "stall_e1", "stall_e2"]:
+		if not city_info["buildings"].has(skey):
+			continue
+		var s: Dictionary = city_info["buildings"][skey]
+		var dp: Vector2 = s["door_px"]
+		var sc := Vector2i(int(dp.x / 16.0) + 1, int(dp.y / 16.0))
+		var t2: int = get_tile_id(sc.x, sc.y)
+		if t2 in [39, 40, 43, 5] or kit.occupied.has(sc):
+			continue
+		if kit.stamp_prop("res://sprites/buildings/crate.png", sc, false, "city_prop"):
+			kit.occupied[sc] = true
+			n += 1
+	# 3 坊巷灯笼（中纵巷两端，glow）+ 4 坊内花簇
+	var flower_n := 0
+	for w in city_info["wards"]:
+		var wr: Rect2i = w["rect"]
+		var ar := Rect2i(wr.position + Vector2i(cx, cy), wr.size)
+		var mid_x: int = ar.position.x + ar.size.x / 2
+		for lc in [Vector2i(mid_x, ar.position.y + 2), Vector2i(mid_x, ar.end.y - 3)]:
+			var t3: int = get_tile_id(lc.x, lc.y)
+			if t3 in [39, 40, 43, 5] or kit.occupied.has(lc):
+				continue
+			if kit.stamp_prop("res://sprites/buildings/lantern.png", lc, true, "city_prop"):
+				kit.occupied[lc] = true
+				n += 1
+		flower_n += kit.scatter_flowers(ar, 0.03, 8)
+	town_glow_lights.append_array(kit.glow_lights)
+	print("[WorldGen] CityWards 密度增强：props=%d 花簇=%d（坊内目标≥20%%）" % [n, flower_n])
+
+## 坊内/市内铺巷（不覆盖建筑footprint/墙/水）
+func _ward_path(wx: int, wy: int):
+	var t = get_tile_id(wx, wy)
+	if t in [39, 40, 43, 5]:
+		return
+	override_cells[Vector2i(wx, wy)] = _palette_at(wx, wy)["path"]
+
+## 门前小径：从 door BFS 找最近路格（path/35/桥），沿途铺 path（阻挡建筑/墙/坊墙/水）
+func _connect_door_to_road(door: Vector2i, limit: Rect2i):
+	var road_id: int = _palette_at(door.x, door.y)["path"]
+	if get_tile_id(door.x, door.y) == road_id:
+		return
+	var prev := {door: door}
+	var q: Array = [door]
+	var head := 0
+	var found := Vector2i.ZERO
+	var ok := false
+	while head < q.size():
+		var c: Vector2i = q[head]
+		head += 1
+		if c != door:
+			var t = get_tile_id(c.x, c.y)
+			if t == road_id or t == 35 or t == 17:
+				found = c
+				ok = true
+				break
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = c + d
+			if prev.has(n) or not limit.has_point(n):
+				continue
+			if get_tile_id(n.x, n.y) in [39, 40, 43, 5]:
+				continue
+			prev[n] = c
+			q.append(n)
+	if not ok:
+		return
+	var c2 := found
+	while c2 != door:
+		var p: Vector2i = prev[c2]
+		if get_tile_id(p.x, p.y) not in [road_id, 35, 17]:
+			override_cells[p] = road_id
+		c2 = p
+
+func get_city_info() -> Dictionary:
+	return city_info
 
 # ============ 城镇系统 ============
 
-# ---- Phase G3: 城镇模板——三型布局（主建筑/民居组合/农田数量/中心广场）----
-const TOWN_TEMPLATES := [
-	{"id": "village",     "main": "house",  "extras": ["hut", "hut", "house"],   "farms_min": 2, "farms_max": 2, "plaza": false},
-	{"id": "market_town", "main": "manor",  "extras": ["house", "house", "hut"], "farms_min": 2, "farms_max": 3, "plaza": true},
-	{"id": "temple_town", "main": "temple", "extras": ["house", "hut"],          "farms_min": 1, "farms_max": 2, "plaza": true},
-]
-
-# ---- Phase G3: 城镇净空区——城镇周边(half+余量)内不生成树木/岩石，杜绝树冠压街压田 ----
+# ---- 城镇净空区——城镇周边(half+余量)内不生成树木/岩石，杜绝树冠压街压田 ----
 var _town_clear_rects: Array[Rect2i] = []
-const TOWN_CLEAR_MARGIN := 3   # 净空外扩格数（树冠悬伸+呼吸空间）
+# 城镇样板区 rect（town_demo_kit 选址成功后写入；size=0 表示未启用）——
+# is_in_settlement 据此判定：营地/野怪避让样板区（立项书 §4.4 风险对策）
+var demo_zone_rect := Rect2i(0, 0, 0, 0)
+const TOWN_CLEAR_MARGIN := 5   # 净空外扩格数（W8：11→13 方覆盖回归探针的镇圈采样圆 r=13，
+							   # 消除"净空方 11 vs 采样圆 13"缝隙里的山缘岩/树；树冠悬伸+呼吸空间）
 
 func _in_town_clearance(x: int, y: int) -> bool:
 	for r in _town_clear_rects:
@@ -363,64 +1228,379 @@ func _register_town_clearance(cx: int, cy: int, half: int):
 	var m: int = half + TOWN_CLEAR_MARGIN
 	_town_clear_rects.append(Rect2i(cx - m, cy - m, 2 * m + 1, 2 * m + 1))
 
+var town_info: Dictionary = {}
+# v4 M1：镇灯笼 glow 灯列表（_build_farm_town_v4 收集，_process 昼夜调能——P5.4 同款）
+var town_glow_lights: Array = []
+
+# W7：legacy 村镇路径（TOWN_TEMPLATES/象限撒点）已删，本函数为唯一村镇生成路径。
 func _generate_towns():
-	"""在合适位置生成3-5个城镇区域"""
 	var rng = RandomNumberGenerator.new()
 	rng.seed = WORLD_SEED + 4000
-
-	var town_count = rng.randi_range(6, 9)
-	var town_positions: Array = []
+	var town_count := rng.randi_range(6, 9)
 	town_centers.clear()
-
+	town_info.clear()
+	var placed := 0
 	for i in range(town_count):
-		var placed = false
-		for _attempt in range(30):
-			var tx = rng.randi_range(-115, 115)
-			var ty = rng.randi_range(-105, 105)
-			var h = get_height(tx, ty)
-			var w = get_humidity(tx, ty)
+		var roll := rng.randf()
+		var tpl_key := "farm"
+		if roll < 0.30:
+			tpl_key = "market"
+		elif roll < 0.58:
+			tpl_key = "ferry"
+		# ferry 选址受水带约束，50 次未果退回 farm（保证城镇数量优先）
+		var tries: Array = [["ferry", 50]] if tpl_key == "ferry" else [[tpl_key, 50]]
+		if tpl_key == "ferry":
+			tries.append(["farm", 50])
+		var done := false
+		for t in tries:
+			var k: String = t[0]
+			for _attempt in range(int(t[1])):
+				var tx := rng.randi_range(-155, 155)
+				var ty := rng.randi_range(-145, 145)
+				var h := get_height(tx, ty)
+				var w := get_humidity(tx, ty)
+				if h < -0.15 or h > 0.2 or w < -0.3 or w > 0.6:
+					continue
+				var bk := _biome_kind(tx, ty)
+				# 竹林排除（deviation：规划允许镇落竹林，但竹林带稀缺且为古刹禅宗
+				# 指定气候位——8 镇铺开会挤占选址，竹林让位领地）
+				if bk == "snow" or bk == "desert" or bk == "lake" or bk == "bamboo":
+					continue
+				var too_close := false
+				for tp in town_centers:
+					if Vector2(tx, ty).distance_to(tp) < 24:
+						too_close = true
+						break
+				if too_close:
+					continue
+				if Vector2(tx, ty).distance_to(Vector2(CITY_POS)) < 46:
+					continue
+				if Vector2(tx, ty).length() > WORLD_RADIUS - 10:
+					continue
+				if Vector2(tx, ty).distance_to(_spawn_tile()) < 15:
+					continue
+				if not _is_reachable_cell(tx, ty):
+					continue
+				# 水规则：建成区 cheby≤13 无水（严于回归断言 13 欧氏）；渡口村需外带有水。
+				# 带窗 14~19 与 _find_bank_spot 扫描半径（half+2~half+11=10~18，亭贴水→水距心≤19）对齐
+				# ——原 14~22 里水在 19~22 的候选永远找不到亭位（W8 观感轮实测 ferry 村 0 出现）
+				if _area_has_water(tx, ty, 13):
+					continue
+				if k == "ferry" and not _water_in_band(tx, ty, 14, 19):
+					continue
+				# 渡亭岸位前置验证（治因：外带有水≠有合格岸位——2x2 干置+外邻贴水+门行干燥三重约束，
+				# 选址期不验证则"有村无亭"（回归 ferry_pavilion FAIL），找不到即弃此候选）
+				if k == "ferry" and _find_bank_spot(tx, ty, 9) == Vector2i(9999, 9999):   # v4 M2：half 同步 8→9（预检=放置模拟）
+					continue
+				# 崖带排除：cheby≤10 内有山体/雪崖 → 建筑无成片干地（曾产出 1 建筑空镇）
+				if _area_has_cliff(tx, ty, 10):
+					continue
+				town_centers.append(Vector2(tx, ty))
+				_generate_single_town_v2(tx, ty, k, i)   # M1：传镇序号（布局 rng 镇级隔离）
+				placed += 1
+				done = true
+				break
+			if done:
+				break
+	print("[WorldGen] Generated %d towns (v2 templates)" % placed)
 
-			# 城镇只在平地（草地）生成
-			if h < -0.15 or h > 0.2:
-				continue
-			if w < -0.3 or w > 0.6:
-				continue
+func _water_in_band(cx: int, cy: int, r0: int, r1: int) -> bool:
+	"""cheby 环带 [r0,r1] 内是否存在水面（渡口村选址：临河而不压河）"""
+	for d in range(r0, r1 + 1):
+		for t in range(-d, d + 1):
+			for p in [Vector2i(cx + t, cy - d), Vector2i(cx + t, cy + d),
+					Vector2i(cx - d, cy + t), Vector2i(cx + d, cy + t)]:
+				if get_tile_id(p.x, p.y) == 5:
+					return true
+	return false
 
-			# 检查与其他城镇的距离
-			var too_close = false
-			for tp in town_positions:
-				if Vector2(tx, ty).distance_to(tp) < 20:
-					too_close = true
-					break
-			if too_close:
-				continue
+func _generate_single_town_v2(cx: int, cy: int, tpl_key: String, town_index: int):
+	# M1/M2（v4 立项书 §3.2）：布局 rng 镇级隔离（seed 由镇序派生）——布局改动对其他镇/选址
+	# 零外溢；选址仍消费 _generate_towns 主 rng（跨镇序列）。三模板全地块式布局（M2 起
+	# legacy 象限撒点退役：farm half=10 / market half=11 / ferry half=9）。
+	var rng := RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 4000 + (town_index + 1) * 7919
+	var half := 10 if tpl_key == "farm" else (11 if tpl_key == "market" else 9)
+	var info := {"template": tpl_key, "center": Vector2i(cx, cy), "half": half, "buildings": {}}
+	town_info[Vector2i(cx, cy)] = info
+	match tpl_key:
+		"farm":
+			_build_farm_town_v4(cx, cy, half, rng, info)
+		"market":
+			_build_market_town_v4(cx, cy, half, rng, info)
+		"ferry":
+			_build_ferry_town_v4(cx, cy, half, rng, info)
+	_log_town_jobs(tpl_key, cx, cy, half, info)
+	# 登记净空区
+	_register_town_clearance(cx, cy, half)
 
-			# 检查是否在边界内
-			if sqrt(tx * tx + ty * ty) > WORLD_RADIUS - 10:
-				continue
+func _log_town_jobs(tpl_key: String, cx: int, cy: int, half: int, info: Dictionary):
+	var jobs: Array = []
+	for key in info["buildings"]:
+		if str(info["buildings"][key]["job"]) != "":
+			jobs.append(str(info["buildings"][key]["job"]))
+	print("[WorldGen] TownV2[%s] @(%d,%d) half=%d buildings=%d jobs=%s" % [tpl_key, cx, cy, half, info["buildings"].size(), str(jobs)])
 
-			# 避让玩家出生点（防止城镇建筑/栅栏把出生点围死）
-			if Vector2(tx, ty).distance_to(_spawn_tile()) < 15:
-				continue
+# ---- v4 M1：farm 模板地块式布局（docs/立项-v4城镇全量重构.md §3.2） ----
+# 表驱动确定性锚点：选址规则保证镇体 cheby≤10 无水/无崖（_area_has_water(13)/_area_has_cliff(10)）
+# → cheby≤9 的固定锚点必然可放（无随机试锚）。三级路网 + 围栏地块 + 门径（override 层，P3 契约）；
+# 语义槽位与 legacy 一致：祠堂(村正)/farm1·farm2(农人)/smithy|grocer(铁匠|货郎)/民居4~6（登记
+# deviation：槽位固定 6 席 house/hut 各半，legacy 为 4~6 随机 40/60 混合）；农带保留 L 形 tile16
+# （_dress_farm_bands 全局装点链不动）。
+const TOWN_FARM_SLOTS := [
+	# [key, kind, job, anchor(局部), plot(局部 Rect2i：建筑北1/东西1 余量，南含门径+前院)]
+	["shrine", "temple", "村正", Vector2i(-9, -9), Rect2i(-9, -10, 7, 7)],
+	["farm1", "hut", "农人", Vector2i(2, -8), Rect2i(2, -9, 5, 6)],
+	["farm2", "hut", "农人", Vector2i(7, -8), Rect2i(7, -9, 4, 6)],
+]
+const TOWN_FARM_SHOP_SLOT := ["smithy", "shop_a", Vector2i(2, -2), Rect2i(2, -2, 5, 5)]
+const TOWN_FARM_HOUSE_SLOTS := [
+	# house/hut 各半（替代 legacy 40/60 随机）；南带 door 距支巷 y=+3 恰 4 格（样板区 door≤4 标准）
+	["house1", "house", Vector2i(-8, -2), Rect2i(-8, -2, 6, 5)],
+	["house2", "hut", Vector2i(8, 0), Rect2i(8, -1, 3, 4)],
+	["house3", "house", Vector2i(-9, 4), Rect2i(-9, 4, 6, 5)],
+	["house4", "hut", Vector2i(-3, 5), Rect2i(-3, 4, 3, 5)],
+	["house5", "hut", Vector2i(2, 5), Rect2i(2, 4, 4, 5)],
+	["house6", "hut", Vector2i(7, 5), Rect2i(7, 4, 4, 5)],
+]
 
-			# 可达性校验：城镇中心必须玩家可达（防止城镇落在河对岸/山坳孤岛）
-			if not _is_reachable_cell(tx, ty):
-				continue
+func _build_farm_town_v4(cx: int, cy: int, half: int, rng: RandomNumberGenerator, info: Dictionary):
+	"""v4 farm 地块式布局总入口。kit host=World（prop 并入 World 递归 Y-sort，与建筑道具同层）。"""
+	var body := Rect2i(cx - half, cy - half, half * 2 + 1, half * 2 + 1)
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), body)
+	# 1 三级路网（override 层）：主巷 2 宽 x∈{0,1} 纵贯 + 支巷 1 宽 y=±3 横贯
+	for ly in range(-half, half + 1):
+		kit.pave(Vector2i(cx, cy + ly))
+		kit.pave(Vector2i(cx + 1, cy + ly))
+	for lx in range(-half + 1, half):
+		kit.pave(Vector2i(cx + lx, cy - 3))
+		kit.pave(Vector2i(cx + lx, cy + 3))
+	# 2 语义槽位建筑（39 语义）+ 门径/平台（override）+ 围栏（prop）
+	for s in TOWN_FARM_SLOTS:
+		_v4_place_plot(kit, cx, cy, s[0], s[1], s[2], s[3], s[4], info)
+	if rng.randf() < 0.5:
+		_v4_place_plot(kit, cx, cy, "smithy", "shop_a", "铁匠",
+				TOWN_FARM_SHOP_SLOT[2], TOWN_FARM_SHOP_SLOT[3], info)
+	else:
+		_v4_place_plot(kit, cx, cy, "grocer", "shop_b", "货郎",
+				TOWN_FARM_SHOP_SLOT[2], TOWN_FARM_SHOP_SLOT[3], info)
+	# 3 民居补足 4~6（槽位顺序取；空槽留白地）
+	var want := rng.randi_range(4, 6)
+	for i in range(want):
+		var h: Array = TOWN_FARM_HOUSE_SLOTS[i]
+		_v4_place_plot(kit, cx, cy, h[0], h[1], "", h[2], h[3], info)
+	# 4 农带（L 形两邻边各 2 宽 tile16，避路/建筑 override——_dress_farm_bands 全局装点）
+	for dx in range(-half + 1, -half + 3):
+		for dy in range(-half + 1, half):
+			_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
+	for dy in range(half - 2, half):
+		for dx in range(-half + 1, half):
+			_stamp_farm_cell(Vector2i(cx + dx, cy + dy))
+	# 5 装点密度（道具组/花簇；道具组草籽=镇坐标派生，确定性；花簇走 detail_noise 天然确定）
+	kit.scatter_props(body, 0.30, 4242 + cx * 31 + cy)
+	kit.scatter_flowers(body, 0.04, 20)
+	town_glow_lights.append_array(kit.glow_lights)   # 灯笼 glow 收口 wg._process 昼夜调能
+	kit.report_density(body, "farm@%d,%d" % [cx, cy])
 
-			# 不能压河：城镇范围（含栅栏农田环）内不得有水面
-			if _area_has_water(tx, ty, 7):
-				continue
+func _v4_place_plot(kit, cx: int, cy: int, key: String, kind: String, job: String,
+		anchor_local: Vector2i, plot_local: Rect2i, info: Dictionary) -> void:
+	"""v4 地块槽位：39 建筑落位 + job 登记 + 门径/平台（override 层）+ 围栏（prop 南缘留口）。
+	锚点确定性可放（选址规则保证 cheby≤10 无水无崖、槽位表已避路/避建筑）；door 朝南。"""
+	var a := Vector2i(cx, cy) + anchor_local
+	if not kit.place_building_39(kind, a):
+		push_warning("[WorldGen] v4 town slot[%s %s] placement failed @%s（锚点表与路网/槽位冲突？）" % [key, kind, str(a)])
+		return
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+	var door := a + Vector2i(int(fp.x / 2.0), fp.y)
+	var plot := Rect2i(Vector2i(cx, cy) + plot_local.position, plot_local.size)
+	kit.yard_ground({"bounds": plot, "door": door})
+	kit.yard_fence({"bounds": plot, "door": door})
+	info["buildings"][key] = {"kind": kind, "anchor": a, "fp": fp,
+		"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": job}
 
-			town_positions.append(Vector2(tx, ty))
-			town_centers.append(Vector2(tx, ty))
-			_generate_single_town(tx, ty, rng)
-			placed = true
+# ---- v4 M2：market 模板地块式布局（half=11，唐制行肆意象） ----
+# 十字街（2 宽）+ 中央 7×7 石板广场（水井）+ 坊市摊位（stall prop 沿街）+ 南市巷；
+# 语义槽位：祠堂(村正)/骡马店 inn(无 job)/铁匠/货郎/民居 5~7（槽位 5 席，
+# deviation：want=mini(rng 5..7, 5)，legacy 为 5~7 随机）。
+const TOWN_MARKET_SLOTS := [
+	["shrine", "temple", "村正", Vector2i(-9, -7), Rect2i(-9, -8, 7, 7)],
+	["inn", "tavern", "", Vector2i(2, -7), Rect2i(2, -8, 7, 7)],
+	["smithy", "shop_a", "铁匠", Vector2i(-9, 2), Rect2i(-9, 2, 5, 5)],
+	["grocer", "shop_b", "货郎", Vector2i(2, 2), Rect2i(2, 2, 5, 5)],
+]
+const TOWN_MARKET_HOUSE_SLOTS := [
+	["house1", "house", Vector2i(-9, 8), Rect2i(-9, 8, 6, 4)],
+	["house2", "hut", Vector2i(-3, 8), Rect2i(-3, 8, 3, 4)],
+	["house3", "house", Vector2i(2, 8), Rect2i(2, 8, 6, 4)],
+	["house4", "hut", Vector2i(8, 8), Rect2i(8, 8, 3, 4)],
+	["house5", "hut", Vector2i(8, 2), Rect2i(8, 2, 3, 4)],
+]
+
+func _build_market_town_v4(cx: int, cy: int, half: int, rng: RandomNumberGenerator, info: Dictionary):
+	var body := Rect2i(cx - half, cy - half, half * 2 + 1, half * 2 + 1)
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), body)
+	# 1 十字街 2 宽（main_street 语义）+ 南市巷 1 宽 y=7
+	for ly in range(-half, half + 1):
+		kit.pave(Vector2i(cx, cy + ly))
+		kit.pave(Vector2i(cx + 1, cy + ly))
+	for lx in range(-half, half + 1):
+		kit.pave(Vector2i(cx + lx, cy))
+		kit.pave(Vector2i(cx + lx, cy + 1))
+	for lx in range(-half + 1, half):
+		kit.pave(Vector2i(cx + lx, cy + 7))
+	# 2 语义槽位（祠堂/骡马店/铁匠/货郎）+ 民居 5~7——**建筑先于广场**（_can_place_footprint
+	# 遇 override 即拒；广场见 3，pave_rect 自带 39 守卫）
+	for s in TOWN_MARKET_SLOTS:
+		_v4_place_plot(kit, cx, cy, s[0], s[1], s[2], s[3], s[4], info)
+	var want: int = mini(rng.randi_range(5, 7), TOWN_MARKET_HOUSE_SLOTS.size())
+	for i in range(want):
+		var h: Array = TOWN_MARKET_HOUSE_SLOTS[i]
+		_v4_place_plot(kit, cx, cy, h[0], h[1], "", h[2], h[3], info)
+	# 3 中央石板广场 7×7（39 守卫跳过建筑占格）
+	kit.pave_rect(Rect2i(cx - 3, cy - 3, 7, 7), 35)
+	# 4 坊市摊位（沿横街北缘 4 摊，红青相间 prop；占道不占格——街边行肆意象）
+	var stalls := ["res://sprites/buildings/stall_red.png", "res://sprites/buildings/stall_teal.png"]
+	for i in range(4):
+		var sc: Vector2i = Vector2i(cx, cy) + [Vector2i(-5, -1), Vector2i(-3, -1),
+				Vector2i(3, -1), Vector2i(6, -1)][i]
+		if not kit.occupied.has(sc) and get_tile_id(sc.x, sc.y) != 5:
+			if kit.stamp_prop(stalls[i % 2], sc, false, "city_prop"):
+				kit.occupied[sc] = true
+	# 5 水井 prop（广场西北角，避十字路口）
+	var well_c := Vector2i(cx - 1, cy - 1)
+	if kit.stamp_prop("res://sprites/buildings/well.png", well_c, false, "city_prop"):
+		kit.occupied[well_c] = true
+	# 6 装点密度 + glow 收口
+	kit.scatter_props(body, 0.32, 4242 + cx * 31 + cy)
+	kit.scatter_flowers(body, 0.03, 16)
+	town_glow_lights.append_array(kit.glow_lights)
+	kit.report_density(body, "market@%d,%d" % [cx, cy])
+
+# ---- v4 M2：ferry 模板地块式布局（half=9，渡口村） ----
+# 十字土路 1 宽保留（镇心=渡亭官道接驳起点，ferry_axis 语义）+ 支巷 y=±3；
+# 渡亭走 _place_ferry（岸位三重验证/ferry_axis/石拱桥规则全保留，选址预检 half 同步 8→9）；
+# 宅区地块化：祠堂(村正)/farm1·farm2(农人)/grocer(货郎)/民居 3（deviation：legacy 4~5，
+# half=9 十字/支巷分割后合规槽位 3 席——"grown 间距≥3"防火巷规则收紧了可布密度）。
+const TOWN_FERRY_SLOTS := [
+	["shrine", "temple", "村正", Vector2i(-8, -8), Rect2i(-8, -9, 7, 7)],
+	["farm1", "hut", "农人", Vector2i(2, -7), Rect2i(2, -8, 4, 5)],
+	["farm2", "hut", "农人", Vector2i(7, -7), Rect2i(7, -8, 3, 5)],
+	["grocer", "shop_b", "货郎", Vector2i(-9, 4), Rect2i(-9, 4, 5, 5)],
+]
+const TOWN_FERRY_HOUSE_SLOTS := [
+	["house1", "hut", Vector2i(-3, 5), Rect2i(-3, 4, 3, 5)],
+	["house2", "house", Vector2i(2, 4), Rect2i(2, 4, 6, 5)],
+	["house3", "hut", Vector2i(7, -2), Rect2i(7, -2, 3, 3)],
+]
+
+func _build_ferry_town_v4(cx: int, cy: int, half: int, rng: RandomNumberGenerator, info: Dictionary):
+	var body := Rect2i(cx - half, cy - half, half * 2 + 1, half * 2 + 1)
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), body)
+	# 1 十字土路 1 宽（legacy 语义：镇心=渡亭接驳起点必干燥）+ 支巷 y=±3
+	for dx in range(-half, half + 1):
+		kit.pave(Vector2i(cx + dx, cy))
+	for dy in range(-half, half + 1):
+		kit.pave(Vector2i(cx, cy + dy))
+	for lx in range(-half + 1, half):
+		kit.pave(Vector2i(cx + lx, cy - 3))
+		kit.pave(Vector2i(cx + lx, cy + 3))
+	# 2 语义槽位（祠堂/农舍×2/货郎）+ 民居 4~5
+	for s in TOWN_FERRY_SLOTS:
+		_v4_place_plot(kit, cx, cy, s[0], s[1], s[2], s[3], s[4], info)
+	var want: int = mini(rng.randi_range(4, 5), TOWN_FERRY_HOUSE_SLOTS.size())
+	for i in range(want):
+		var h: Array = TOWN_FERRY_HOUSE_SLOTS[i]
+		_v4_place_plot(kit, cx, cy, h[0], h[1], "", h[2], h[3], info)
+	# 3 渡亭 + 官道接驳（legacy _place_ferry 原样：岸位三重验证/ferry_axis 登记）
+	_place_ferry(cx, cy, half, info)
+	# 4 装点密度 + glow 收口
+	kit.scatter_props(body, 0.30, 4242 + cx * 31 + cy)
+	kit.scatter_flowers(body, 0.04, 18)
+	town_glow_lights.append_array(kit.glow_lights)
+	kit.report_density(body, "ferry@%d,%d" % [cx, cy])
+
+func _stamp_farm_cell(cell: Vector2i):
+	"""农带单格：不覆已有铺设（路/广场/建筑占格）与水面"""
+	if override_cells.has(cell) or get_tile_id(cell.x, cell.y) == 5:
+		return
+	override_cells[cell] = _palette_at(cell.x, cell.y)["farm"]
+
+# [墓志 2026-09-02 v4 M2] _place_town_building/_town_anchor_ok/_carve_door_path（象限撒点三件套）
+# 随 market/ferry 地块式布局转正而退役：v4 布局表驱动确定性锚点 + yard_ground 门径（override 层），
+# "后放建筑打断先放建筑门径"（W4 9 FAIL 根因）与"门格裸沙"（南象限 carve 穿 footprint）缺陷同根除。
+
+func _place_ferry(cx: int, cy: int, half: int, info: Dictionary):
+	"""渡口：环带找贴水干格放渡亭 + 官道接驳（W5 石拱桥读 ferry_axis）"""
+	var bank := _find_bank_spot(cx, cy, half)
+	if bank.x == 9999:
+		print("[WorldGen] TownV2[ferry] no bank spot @", info["center"])
+		return
+	var fp: Vector2i = BUILDING_PROPS["ferry"]["fp"]
+	if not _place_building_prop("ferry", bank):
+		return
+	var door := Vector2i(bank.x + int(fp.x / 2.0), bank.y + fp.y)
+	info["buildings"]["ferry1"] = {"kind": "ferry", "anchor": bank, "fp": fp,
+		"door_px": Vector2(door.x * 16.0 + 8.0, door.y * 16.0 + 8.0), "job": "渡夫"}
+	# 官道：主街 → 渡亭门（X 段 + Y 段，逐格避水即停；河曲阻挡由 _ensure_connectivity 兜底架桥）
+	var road_end := Vector2i(cx, cy)   # 起点=镇心（十字路已铺，必干燥）
+	var x := cx
+	while x != door.x:
+		x += signi(door.x - x)
+		var c := Vector2i(x, cy)
+		if get_tile_id(c.x, c.y) == 5:
 			break
+		override_cells[c] = _palette_at(c.x, c.y)["path"]
+		road_end = c
+	var y := cy
+	while y != door.y:
+		y += signi(door.y - y)
+		var c2 := Vector2i(door.x, y)
+		if get_tile_id(c2.x, c2.y) == 5:
+			break
+		override_cells[c2] = _palette_at(c2.x, c2.y)["path"]
+		road_end = c2
+	# 官道终点朝水方向登记（W5 渡口配桥规则）
+	var end_dir := Vector2i.ZERO
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if get_tile_id(road_end.x + d.x, road_end.y + d.y) == 5:
+			end_dir = d
+			break
+	info["ferry_axis"] = {"road_end": road_end, "dir": end_dir}
+	# 渡夫岗位锚=官道终点干格（door_px 语义沿用了南门惯例，但亭外临水侧不可站人——
+	# world gen 显式登记 job_anchor_px，npc_spawner 优先读它，仍是"登记制"非自算）
+	info["buildings"]["ferry1"]["job_anchor_px"] = Vector2(road_end.x * 16.0 + 8.0, road_end.y * 16.0 + 8.0)
 
-		if not placed:
-			print("[WorldGen] Could not place town " + str(i))
+func _find_bank_spot(cx: int, cy: int, half: int) -> Vector2i:
+	"""从 cheby half+2 起逐环外扫：2x2 干置放渡亭 + 外邻 1 格贴水 + 亭门行（footprint 正南）干燥
+	（渡亭惯例门朝镇侧/南，门格落水会断 BFS 可达与岗位落位）"""
+	var fp := Vector2i(2, 2)
+	for r in range(half + 2, half + 12):
+		for t in range(-r, r + 1):
+			for p in [Vector2i(cx + t, cy - r), Vector2i(cx + t, cy + r),
+					Vector2i(cx - r, cy + t), Vector2i(cx + r, cy + t)]:
+				if not _can_place_footprint(p, fp) or not _footprint_near_water(p, fp):
+					continue
+				var door_row_dry := true
+				for dx in range(fp.x):
+					if get_tile_id(p.x + dx, p.y + fp.y) == 5:
+						door_row_dry = false
+						break
+				if door_row_dry:
+					return p
+	return Vector2i(9999, 9999)
 
-	print("[WorldGen] Generated " + str(town_positions.size()) + " towns")
+func _footprint_near_water(a: Vector2i, fp: Vector2i) -> bool:
+	"""footprint 外圈 1 格是否存在水面（贴岸判定）"""
+	for dx in range(-1, fp.x + 1):
+		for dy in range(-1, fp.y + 1):
+			if dx >= 0 and dx < fp.x and dy >= 0 and dy < fp.y:
+				continue
+			if get_tile_id(a.x + dx, a.y + dy) == 5:
+				return true
+	return false
 
 func _area_has_water(cx: int, cy: int, r: int) -> bool:
 	"""检查以(cx,cy)为中心半径r的方形区域内是否有水面瓦片（河流）"""
@@ -428,6 +1608,264 @@ func _area_has_water(cx: int, cy: int, r: int) -> bool:
 		for dy in range(-r, r + 1):
 			if get_tile_id(cx + dx, cy + dy) == 5:
 				return true
+	return false
+
+func _area_has_cliff(cx: int, cy: int, r: int) -> bool:
+	"""cheby r 内是否有山体/雪崖（W4 镇选址：崖地镇建筑无成片干地）"""
+	for dx in range(-r, r + 1):
+		for dy in range(-r, r + 1):
+			if get_tile_id(cx + dx, cy + dy) in [3, 7]:
+				return true
+	return false
+
+# ============ W3 门派领地（docs/武侠世界重构规划 §2.2） ============
+# 选址硬规则：气候位匹配 + 距城/镇/领地切比雪夫缘距 + 核心区少水；
+# 建设组：核心清场 + 主殿(accent=门派主色) + 弟子舍×2 + 演武场 + 界碑环(tile 14 每6格) + 后山禁地。
+var sect_info: Dictionary = {}   # {name: {center, radius, hall, fp, style, clan}}
+
+func _generate_sect_territories():
+	var rng = RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 5000
+	var placed: Array = []   # [{name, center(Vector2i), radius}]
+	for sname in WorldData.SECT_TERRITORIES:
+		var def: Dictionary = WorldData.SECT_TERRITORIES[sname]
+		var r: int = def["radius"]
+		var site := Vector2i.ZERO
+		var found := false
+		var dbg := {"climate": 0, "ring": 0, "city": 0, "town": 0, "gap": 0, "wet": 0, "bound": 0}
+		# 4800 attempts（v4 规则 v4：2400→4800）：湖畔派（药王谷）合格带是"距湖心环 × 避镇弧"
+		# 交集，命中率低（W8 观感轮实测）；M1 镇级 rng 隔离重排后 town 否决 947/2400 曾全灭
+		for _attempt in range(4800):
+			var x: int
+			var y: int
+			if def["climate"] == "lakeside_bamboo" and lake_centers.size() > 0 and _attempt % 3 != 2:
+				# 湖锚定搜索（v4：全向环带锚定，dist r+12~30 见下）。
+				# 候选湖先做四角采样窗预检：湖贴边（如西湖偏西南）时 r 方向采样点必然越出 R-6，
+				# 这类湖的锚定 attempts 全部无效（dbg ring 曾 398~402/1200）——预检剔除。
+				var lakes_ok: Array = []
+				for l0 in lake_centers:
+					var to_c := (Vector2.ZERO - Vector2(l0["pos"])).normalized()
+					var pc: Vector2 = Vector2(l0["pos"]) + to_c * (float(l0["r"]) + 16.0)
+					var corners_ok := true
+					for q in [Vector2(-r, -r), Vector2(r, -r), Vector2(r, r), Vector2(-r, r)]:
+						if (pc + q).length() > WORLD_RADIUS - 6:
+							corners_ok = false
+							break
+					if corners_ok:
+						lakes_ok.append(l0)
+				if lakes_ok.is_empty():
+					dbg["ring"] += 1
+					continue
+				var l: Dictionary = lakes_ok[_attempt % lakes_ok.size()]
+				# v4 规则 v4：全向锚定（原"朝世界中心 ±45° 锥"——远心侧湖畔从未被探索，
+				# M1 镇重排后近心侧被城/镇封死 dbg 4800 全灭；远心侧距城更远天然合格，
+				# 越界由下方 bound/R-6 检查过滤）
+				var ang: float = rng.randf_range(0.0, TAU)
+				# dist 带 r+12~30（v4 规则 v4：对齐气候环 near_lake<r+30——原 r+24 与气候环的
+				# 24~30 环带缺口使外环候选从未被生成；M1 镇重排后内环被镇封死、外环补位）：
+				# 覆盖"距湖心窄环→外环"全程（核心干窗距湖 ≥13），
+				# 随机镇贴湖封内环时外环仍有候选（W8 观感轮 dbg town 1611/2400 教训）
+				var dist := rng.randf_range(float(l["r"]) + 12.0, float(l["r"]) + 30.0)
+				x = l["pos"].x + int(cos(ang) * dist)
+				y = l["pos"].y + int(sin(ang) * dist)
+				if absi(x) > int(WORLD_RADIUS) - 30 or absi(y) > int(WORLD_RADIUS) - 30:
+					dbg["bound"] += 1
+					continue
+			elif def["climate"] == "desert_oasis":
+				# 沙漠纬度带定向（desert 判定 t≥0.79 → y≥113；界内可用至 y≈160）
+				x = rng.randi_range(-150, 150)
+				y = rng.randi_range(110, int(WORLD_RADIUS) - 40)
+			else:
+				x = rng.randi_range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30)
+				y = rng.randi_range(-int(WORLD_RADIUS) + 30, int(WORLD_RADIUS) - 30)
+			if not _sect_climate_match(def["climate"], x, y):
+				dbg["climate"] += 1
+				continue
+			# 界碑环断言采样点（4 角+4 边中点）必须落在世界边界内（边界带从 R-5 起覆盖；
+			# 曾有领地角越界被边界水覆盖界碑）——非采样碑位越界则铺设时跳过
+			var ring_out := false
+			for p in [Vector2i(-r, -r), Vector2i(0, -r), Vector2i(r, -r), Vector2i(r, 0),
+					Vector2i(r, r), Vector2i(0, r), Vector2i(-r, r), Vector2i(-r, 0)]:
+				if Vector2(x + p.x, y + p.y).length() > WORLD_RADIUS - 6:
+					ring_out = true
+					break
+			if ring_out:
+				dbg["ring"] += 1
+				continue
+			# 距城（切比雪夫，城缘到领地缘 ≥4）
+			if maxi(absi(x - CITY_POS.x), absi(y - CITY_POS.y)) < city_half + 4 + r:
+				dbg["city"] += 1
+				continue
+			var too_close := false
+			# 距镇（镇 half 9+净空 → 缘距 ≥1）
+			for tc in town_centers:
+				if maxi(absi(x - int(tc.x)), absi(y - int(tc.y))) < r + 13:
+					too_close = true
+					break
+			# 领地间距（缘距 ≥8）
+			if not too_close:
+				for p in placed:
+					if maxi(absi(x - p["center"].x), absi(y - p["center"].y)) < r + int(p["radius"]) + 8:
+						too_close = true
+						break
+			if too_close:
+				dbg["town"] += 1
+				continue
+			# 核心 21x21 内水格 ≤8（W8 观感轮：4→8——依水建派语义本就容少量景观水，
+			# 441 格核心 8 格≈2%；不触任何回归断言，湖畔派合格带因此显著加宽）
+			var wet := 0
+			for dx in range(-10, 11):
+				for dy in range(-10, 11):
+					if get_tile_id(x + dx, y + dy) == 5:
+						wet += 1
+			if wet > 8:
+				dbg["wet"] += 1
+				continue
+			site = Vector2i(x, y)
+			found = true
+			break
+		if not found:
+			print("[WorldGen] Sect[", sname, "] no site found! attempts_dbg=", dbg)
+			continue
+		placed.append({"name": sname, "center": site, "radius": r})
+		_build_sect_territory(sname, def, site, r)
+	print("[WorldGen] Sect territories: ", placed.size())
+
+func _sect_climate_match(key: String, x: int, y: int) -> bool:
+	"""气候位匹配（规划 §2.2 驻地气候位 → 气候场判定）"""
+	match key:
+		"temperate_mountain":
+			return _climate_kind(x, y) == "mountain" and _climate_temp(x, y) > 0.28
+		"desert_oasis":
+			# 绿洲语义=沙漠核心+领地自建水井/药圃（河畔带实测过于稀有：沙漠河段少）
+			return _climate_kind(x, y) == "desert"
+		"bamboo_edge":
+			return _climate_kind(x, y) == "bamboo"
+		"lakeside_bamboo":
+			var near_lake := false
+			for l in lake_centers:
+				# W8 规则 v3：环上限 r+24 → r+30——湖畔窄环对镇布局极敏感（随机镇贴湖即封死
+				# 全部锚定弧，dbg town 曾 1611/2400），外环仍保"湖畔"语义（核心干窗距湖 ≥13）
+				if Vector2(x - l["pos"].x, y - l["pos"].y).length() < float(l["r"]) + 30.0:
+					near_lake = true
+					break
+			return near_lake and _climate_kind(x, y) in ["bamboo", "forest", "plains"]
+		"snow_black_rock":
+			return _climate_kind(x, y) == "snow"
+	return false
+
+## 河畔带判定：cheby 6~20 格内有水（沙漠绿洲=依河而不压河）
+func _near_river_band(x: int, y: int) -> bool:
+	for dx in range(-20, 21):
+		for dy in range(-20, 21):
+			var d := maxi(absi(dx), absi(dy))
+			if d >= 6 and d <= 20 and get_tile_id(x + dx, y + dy) == 5:
+				return true
+	return false
+
+func _build_sect_territory(sname: String, def: Dictionary, c: Vector2i, r: int):
+	var pal: Dictionary = _palette_at(c.x, c.y)
+	# 1) 核心清场 25x25（覆盖崖/石/树tag；避水格跳过）
+	for dx in range(-12, 13):
+		for dy in range(-12, 13):
+			var cc := c + Vector2i(dx, dy)
+			if get_tile_id(cc.x, cc.y) == 5:
+				continue
+			override_cells[cc] = pal["ground"]
+	# 2) 主殿（accent=门派主色）
+	var hk: String = WorldData.SECT_HALL_KIND[sname]
+	var ha := c + Vector2i(-3, -6)
+	_force_place_building_prop(hk, ha)
+	var hfp: Vector2i = BUILDING_PROPS[hk]["fp"]
+	# 2.5) v4 M4 殿堂庭院化（立项书 §3.4）：前坪石板（中轴贯通门→演武场）+ 配殿 hut×2
+	# （轴对称，镜像 ±6..8）+ 石灯笼×4（glow 收口昼夜调能）+ 山门（南轴端 gate_tower 纯视觉）。
+	# 主殿锚点/npc_anchors/演武场/界碑环/后山崖带零改动。
+	var door_y: int = ha.y + hfp.y   # 主殿门行（相对）
+	for px in range(-2, 3):
+		for py in range(door_y, 3):
+			var pc := c + Vector2i(px, py)
+			if get_tile_id(pc.x, pc.y) != 5:
+				override_cells[pc] = 35
+	_force_place_building_prop("hut", c + Vector2i(-8, -6))   # 左配殿（镜像轴 x=0）
+	_force_place_building_prop("hut", c + Vector2i(6, -6))    # 右配殿
+	var kit := TownLayoutKit.new()
+	kit.bind(self, get_parent(), Rect2i(c.x - 12, c.y - 12, 25, 25))
+	for lx in [-2, 2]:
+		for ly in [door_y, 1]:
+			kit.stamp_prop("res://sprites/buildings/lantern.png", c + Vector2i(lx, ly), true, "city_prop")
+	town_glow_lights.append_array(kit.glow_lights)
+	var gtex2 = TextureGen.load_png_texture("res://sprites/buildings/gate_tower.png")
+	if gtex2:
+		var sp2 := Sprite2D.new()
+		sp2.texture = gtex2
+		sp2.position = Vector2(c.x * 16.0 + 8.0, (c.y + 8) * 16.0 + 8.0)
+		sp2.offset = Vector2(0, -26)
+		sp2.z_index = 3
+		get_parent().add_child(sp2)
+	# 3) 弟子舍 ×2
+	_force_place_building_prop("hut", c + Vector2i(-10, -1))
+	_force_place_building_prop("hut", c + Vector2i(7, -1))
+	# 4) 演武场（石板 7x4 @ 南侧）
+	for dx in range(-3, 4):
+		for dy in range(3, 7):
+			var tc := c + Vector2i(dx, dy)
+			if get_tile_id(tc.x, tc.y) != 5:
+				override_cells[tc] = 35
+	# 药王谷药圃（农田 6x3 @ 西侧）
+	if sname == "药王谷":
+		for dx in range(-11, -5):
+			for dy in range(2, 5):
+				var fc := c + Vector2i(dx, dy)
+				if get_tile_id(fc.x, fc.y) != 5:
+					override_cells[fc] = 16
+	# 5) 界碑环：方形 cheby=r，四角必放 + 每边中段每 6 格一座（tile 44 界碑，无碰撞标记——
+	# 碰撞环会挡路被连通性修补切开；南门语义由无碰撞标记天然满足）。水格跳过（W8：湖畔派
+	# 界碑环可能穿湖，碑立水中如航标，观感差）
+	for corner in [Vector2i(-r, -r), Vector2i(r, -r), Vector2i(r, r), Vector2i(-r, r)]:
+		var corner_abs: Vector2i = c + corner
+		if get_tile_id(corner_abs.x, corner_abs.y) != 5:
+			override_cells[corner_abs] = 44
+	for t in range(3, 2 * r - 3, 6):
+		for bp in [Vector2i(-r + t, -r), Vector2i(r, -r + t), Vector2i(r - t, r), Vector2i(-r, r - t)]:
+			var bp_abs: Vector2i = c + bp
+			if Vector2(bp_abs.x, bp_abs.y).length() > WORLD_RADIUS - 6:
+				continue   # 越界碑跳过（边界水会覆盖）
+			if get_tile_id(bp_abs.x, bp_abs.y) == 5:
+				continue   # 水面跳过（同上）
+			override_cells[bp_abs] = 44
+	# 回读验证（诊断：区分铺设端失败 vs 事后覆盖；水格碑位按铺设时跳过语义豁免）
+	var ring_bad := 0
+	for corner in [Vector2i(-r, -r), Vector2i(r, -r), Vector2i(r, r), Vector2i(-r, r)]:
+		var rc: Vector2i = c + corner
+		if get_tile_id(rc.x, rc.y) == 5:
+			continue
+		if get_tile_id(rc.x, rc.y) != 44:
+			ring_bad += 1
+	# 6) 后山禁地：北侧崖带（cheby 带 y ∈ [-r+2, -r+7]，雪原派用雪崖 7）
+	var cliff := 7 if _biome_kind(c.x, c.y) == "snow" else 3
+	for dx in range(-r + 3, r - 2):
+		for dy in range(-r + 2, -r + 8):
+			override_cells[c + Vector2i(dx, dy)] = cliff
+	# 7) 净空（抑树）+ 登记（npc_anchors=领地 NPC 落位唯一来源：主殿门 px / 演武场中心 px）
+	var hall_door := Vector2i(ha.x + int(hfp.x / 2.0), ha.y + hfp.y)
+	_register_town_clearance(c.x, c.y, r)
+	sect_info[sname] = {"center": c, "radius": r, "hall": ha, "fp": hfp,
+		"style": def["style"], "clan": sname, "ring_bad_at_build": ring_bad,
+		"npc_anchors": {"hall": Vector2(hall_door.x * 16.0 + 8.0, hall_door.y * 16.0 + 8.0),
+			"arena": Vector2(c.x * 16.0 + 8.0, (c.y + 4) * 16.0 + 8.0)}}
+	print("[WorldGen] Sect[", sname, "] @", c, " r=", r, " ring_bad_at_build=", ring_bad)
+
+
+func is_in_settlement(p: Vector2) -> bool:
+	"""2026-08-31：判定某像素点是否落在青石城/城镇范围内（MobSpawner营地避让用）
+	v4 M0：改净空登记制——城/镇/门派样板区统一读 _town_clear_rects（注册制，各类聚落
+	自身登记 half+5 净空方），废除镇心欧氏 13 硬编码（镇 half 扩大后自动跟随）。"""
+	var t := Vector2i(int(p.x / 16.0), int(p.y / 16.0))
+	if _in_town_clearance(t.x, t.y):
+		return true
+	# 城镇样板区（P0：营地/野怪避让，mob.gd/_resolve_camp_center 经此继承）
+	if demo_zone_rect.size.x > 0 and demo_zone_rect.has_point(t):
+		return true
 	return false
 
 func _spawn_tile() -> Vector2:
@@ -693,84 +2131,8 @@ func _dump_spawn_diagnostics(origin: Vector2i):
 		lines += "\n[WorldGen]   " + line
 	print("[WorldGen] ASCII map around spawn (#=blocked .=walk):" + lines)
 
-func _generate_single_town(cx: int, cy: int, rng: RandomNumberGenerator):
-	"""Phase G3模板化：十字土路+中心广场(可选)+主建筑/环绕民居(按模板)+开阔农田斑块。
-	Phase F5基础上重构为TOWN_TEMPLATES驱动，并登记净空区抑制周边树木。"""
-	var half := rng.randi_range(7, 9)	# 需容纳最大footprint(temple 7x5)+象限余量
-
-	# 十字主路
-	for dx in range(-half, half + 1):
-		override_cells[Vector2i(cx + dx, cy)] = 1
-	for dy in range(-half, half + 1):
-		if not override_cells.has(Vector2i(cx, cy + dy)):
-			override_cells[Vector2i(cx, cy + dy)] = 1
-
-	var tpl: Dictionary = TOWN_TEMPLATES[rng.randi() % TOWN_TEMPLATES.size()]
-
-	# 中心广场（市镇/庙宇型）：5x5石板芯（素材包灰石板，demo1城镇质感）
-	if bool(tpl.get("plaza", false)):
-		for dx in range(-2, 3):
-			for dy in range(-2, 3):
-				override_cells[Vector2i(cx + dx, cy + dy)] = 35
-
-	# 主建筑（按模板）+ 环绕民居，四象限轮转分布
-	var quadrants := [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]
-	var qi := rng.randi() % 4
-	_try_place_town_building(cx, cy, half, quadrants[qi], str(tpl["main"]), rng)
-	var extras: Array = tpl["extras"]
-	for i in range(extras.size()):
-		_try_place_town_building(cx, cy, half, quadrants[(qi + 1 + i) % 4], str(extras[i]), rng)
-
-	# 开阔农田斑块（无栅栏，2x3）
-	# 开阔农田斑块（无栅栏，2x3，数量按模板）——注释保留原F5语义
-	for f in range(rng.randi_range(int(tpl["farms_min"]), int(tpl["farms_max"]))):
-		var fx := rng.randi_range(-half + 1, half - 2)
-		var fy := rng.randi_range(-half + 1, half - 2)
-		var ok := true
-		for dx in range(3):
-			for dy in range(2):
-				var cell := Vector2i(cx + fx + dx, cy + fy + dy)
-				if override_cells.has(cell) or abs(fx + dx) <= 1 or abs(fy + dy) <= 1:
-					ok = false
-		if ok:
-			for dx in range(3):
-				for dy in range(2):
-					override_cells[Vector2i(cx + fx + dx, cy + fy + dy)] = 16
-
-	# Phase G3：登记城镇净空区（half+余量），周边格子不再生成树木/岩石
-	_register_town_clearance(cx, cy, half)
-	print("[WorldGen] Town[%s] @(%d,%d) half=%d plaza=%s" % [str(tpl["id"]), cx, cy, half, str(tpl.get("plaza", false))])
-
-func _try_place_town_building(cx: int, cy: int, half: int, quad: Vector2i, kind: String, rng: RandomNumberGenerator) -> bool:
-	"""在象限内随机找合法锚点放置建筑；footprint整体保持在中心十字路>=2格之外"""
-	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
-	var lo_x: int = (cx + 2) if quad.x > 0 else (cx - half)
-	var hi_x: int = (cx + half - fp.x) if quad.x > 0 else (cx - 2 - fp.x + 1)
-	var lo_y: int = (cy + 2) if quad.y > 0 else (cy - half)
-	var hi_y: int = (cy + half - fp.y) if quad.y > 0 else (cy - 2 - fp.y + 1)
-	if hi_x < lo_x or hi_y < lo_y:
-		return false
-	for _attempt in range(24):
-		var a := Vector2i(rng.randi_range(lo_x, hi_x), rng.randi_range(lo_y, hi_y))
-		if _place_building_prop(kind, a):
-			_carve_door_path(a, fp, cy)
-			return true
-	return false
-
-func _carve_door_path(a: Vector2i, fp: Vector2i, road_y: int):
-	"""从门格(footprint下方中央)向主路铺小径，保证出门即达道路"""
-	var dx := a.x + int(fp.x / 2.0)
-	var y := a.y + fp.y
-	var guard := 0
-	while y != road_y and guard < 64:
-		guard += 1
-		var cell := Vector2i(dx, y)
-		var cur = override_cells.get(cell, -1)
-		if cur == 1:
-			break
-		if cur == -1 or cur == 0:
-			override_cells[cell] = 1
-		y += 1 if road_y > y else -1
+# [墓志 2026-09-02 v4 M2] _carve_door_path 退役（v4 门径走 kit.yard_ground override 层——
+# 旧 carve 的两处缺陷：南象限建筑门径穿 footprint 无效铺装；门格被河岸 6 占据时整条不铺）
 
 func _can_place_footprint(a: Vector2i, fp: Vector2i) -> bool:
 	for dx in range(fp.x):
@@ -792,11 +2154,25 @@ func _place_building_prop(kind: String, a: Vector2i) -> bool:
 	for dx in range(fp.x):
 		for dy in range(fp.y):
 			override_cells[Vector2i(a.x + dx, a.y + dy)] = TILE_BUILDING_RESERVE
+	_attach_building_sprite(kind, a)
+	return true
+
+func _force_place_building_prop(kind: String, a: Vector2i):
+	"""城内规划摆放：跳过选址校验（城内地坪已统一压草、坐标为人工规划），直接占格+挂道具"""
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
+	for dx in range(fp.x):
+		for dy in range(fp.y):
+			override_cells[Vector2i(a.x + dx, a.y + dy)] = TILE_BUILDING_RESERVE
+	_attach_building_sprite(kind, a)
+
+func _attach_building_sprite(kind: String, a: Vector2i):
+	"""建筑视觉/碰撞道具：Sprite(z=2实体层Y-sort) + StaticBody + 墙脚阴影，挂World"""
+	var fp: Vector2i = BUILDING_PROPS[kind]["fp"]
 	var def: Dictionary = BUILDING_PROPS[kind]
 	var tex := TextureGen.load_png_texture(def["png"])
 	if tex == null:
 		push_warning("[WorldGen] 大建筑纹理缺失: " + str(def["png"]))
-		return true
+		return
 	var bw := fp.x * TILE_SIZE_PX
 	var bh := fp.y * TILE_SIZE_PX
 	var tsz := tex.get_size()
@@ -834,22 +2210,173 @@ func _place_building_prop(kind: String, a: Vector2i) -> bool:
 	body.add_child(cs)
 	root.add_child(body)
 	get_parent().add_child(root)
+
+# ============ 画面改造P4.2/P4.3 城镇道具（灯笼/桶箱/稻草人/栅栏——纯视觉无碰撞） ============
+
+func _place_decor_prop(png: String, cell: Vector2i, group := "city_prop") -> bool:
+	"""脚底锚定装饰道具：原点=贴图底缘，z=2并入Y-sort；不占格不进碰撞，零语义影响。
+	建筑footprint(39)/水面(5)上不放。"""
+	var tid := get_tile_id(cell.x, cell.y)
+	if tid == 39 or tid == 5:
+		return false
+	var tex := TextureGen.load_png_texture(png)
+	if tex == null:
+		return false
+	var spr := Sprite2D.new()
+	spr.texture = tex
+	spr.z_index = 2
+	var pos := Vector2(cell.x * 16.0 + 8.0, (cell.y + 1) * 16.0 - 2.0)
+	spr.position = pos
+	spr.offset = Vector2(0, -tex.get_height() * 0.5)
+	spr.add_to_group(group)
+	spr.set_meta("base_y", pos.y)
+	var sh := TextureGen.make_shadow_sprite(clampf(tex.get_width() * 0.85, 14.0, 44.0), 0.24)
+	sh.position = Vector2(0, -2)
+	spr.add_child(sh)
+	get_parent().add_child(spr)
 	return true
 
+func _place_city_dressing(cx: int, cy: int):
+	"""青石城街景道具：四市摊灯笼夹道+桶箱、水井双灯、中央十字街口四灯"""
+	var stalls := [Vector2i(-13, 26), Vector2i(-9, 27), Vector2i(8, 26), Vector2i(11, 27)]
+	for s in stalls:
+		var a := Vector2i(cx + s.x, cy + s.y)
+		_place_decor_prop("res://sprites/buildings/lantern.png", a + Vector2i(-2, 0))
+		_place_decor_prop("res://sprites/buildings/lantern.png", a + Vector2i(2, 0))
+		_place_decor_prop("res://sprites/buildings/barrel.png", a + Vector2i(-1, 1))
+		_place_decor_prop("res://sprites/buildings/crate.png", a + Vector2i(1, 1))
+	_place_decor_prop("res://sprites/buildings/lantern.png", Vector2i(cx - 6, cy + 28))
+	_place_decor_prop("res://sprites/buildings/lantern.png", Vector2i(cx - 2, cy + 28))
+	for c in [Vector2i(-1, -2), Vector2i(1, -2), Vector2i(-1, 2), Vector2i(1, 2)]:
+		_place_decor_prop("res://sprites/buildings/lantern.png", Vector2i(cx + c.x, cy + c.y))
+
+func _dress_farm_bands():
+	"""画面改造P4b 全局农田装点：扫描全部 farm(16/41) 连通片（≥6格）——
+	内部撒作物精灵(~40%)、外缘每2格栅栏段、大片(≥30格)加稻草人。纯视觉零语义。
+	治"裸棕板"观感（旧农场带无作物无围栏，读成随机木板堆）。在全部地形 stamped 后调用一次。"""
+	var visited := {}
+	var R := int(WORLD_RADIUS)
+	var crop_pngs := [
+		"res://sprites/farm/crop_1.png",
+		"res://sprites/farm/crop_2.png",
+		"res://sprites/farm/crop_3.png",
+	]
+	for y in range(-R, R + 1):
+		for x in range(-R, R + 1):
+			var c0 := Vector2i(x, y)
+			var t0 := get_tile_id(x, y)
+			if visited.has(c0) or (t0 != 16 and t0 != 41):
+				continue
+			# BFS 4邻连通片
+			var comp: Array = [c0]
+			visited[c0] = true
+			var head := 0
+			while head < comp.size():
+				var cur: Vector2i = comp[head]
+				head += 1
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var n2: Vector2i = cur + d
+					if visited.has(n2):
+						continue
+					var nt := get_tile_id(n2.x, n2.y)
+					if nt != 16 and nt != 41:
+						continue
+					visited[n2] = true
+					comp.append(n2)
+			if comp.size() < 6:
+				continue
+			# 内部/外缘分类
+			var interior: Array = []
+			var edge: Array = []
+			for cc in comp:
+				var is_edge := false
+				for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+					var nt2 := get_tile_id(cc.x + d.x, cc.y + d.y)
+					if nt2 != 16 and nt2 != 41:
+						is_edge = true
+						break
+				if is_edge:
+					edge.append(cc)
+				else:
+					interior.append(cc)
+			# 内部撒作物 ~40%
+			for cc in interior:
+				var cr := fposmod(detail_noise.get_noise_2d(cc.x * 3.7 + 5.1, cc.y * 4.3 + 9.9) + 1.0, 1.0)
+				if cr > 0.60:
+					_place_decor_prop(crop_pngs[int(cr * 100.0) % crop_pngs.size()], cc, "farm_crop")
+			# 外缘每 2 格栅栏段
+			for i in range(edge.size()):
+				if i % 2 == 0:
+					_place_decor_prop("res://sprites/buildings/fence_seg.png", edge[i], "farm_prop")
+			# 大片加稻草人
+			if comp.size() >= 30 and not interior.is_empty():
+				_place_decor_prop("res://sprites/buildings/scarecrow.png", interior[interior.size() / 2], "farm_prop")
+
 # ---- Phase F6: 连通性保障（饥荒式：所有可走孤岛自动开路接回主大陆） ----
+# W1 算法升级：逐 pocket "最近点对暴力搜索"（183 pocket × reach 8.6万 → 卡死）改为
+# 一次性全图"施工成本场"（multi-source BFS，种子=reach，可穿透碰撞计数），
+# 每 pocket 取场值最小格沿梯度开路——O(全图) 替代 O(pocket×reach)。
 func _ensure_connectivity():
 	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
 	var total_carved := 0
-	for pass_i in range(6):
+	for pass_i in range(4):
+		var t0 := Time.get_ticks_msec()
 		var reach := _bfs_reachable_from_spawn(dirs)
 		var pockets := _find_pockets(reach, dirs)
 		if pockets.is_empty():
-			if pass_i > 0:
-				print("[WorldGen] Connectivity OK after ", pass_i, " repair pass(es), carved=", total_carved)
+			print("[WorldGen] Connectivity OK after %d pass(es), carved=%d" % [pass_i, total_carved])
 			break
+		var dist := {}
+		var q: Array = []
+		for c in reach.keys():
+			dist[c] = 0
+			q.append(c)
+		var head := 0
+		while head < q.size():
+			var c: Vector2i = q[head]
+			head += 1
+			var dc: int = dist[c]
+			for d in dirs:
+				var n: Vector2i = c + d
+				if dist.has(n) or absi(n.x) > WORLD_RADIUS or absi(n.y) > WORLD_RADIUS:
+					continue
+				dist[n] = dc + 1
+				q.append(n)
+		print("[WorldGen] conn pass=%d reach=%d pockets=%d field=%dms" % [pass_i, reach.size(), pockets.size(), Time.get_ticks_msec() - t0])
+		var t1 := Time.get_ticks_msec()
 		for pocket in pockets:
-			total_carved += _carve_connection(pocket, reach)
+			total_carved += _carve_via_field(pocket, dist, dirs)
+		print("[WorldGen]   carved %d pockets in %dms (total=%d)" % [pockets.size(), Time.get_ticks_msec() - t1, total_carved])
 	print("[WorldGen] Connectivity passes done, carved cells=", total_carved)
+
+func _carve_via_field(pocket: Array, dist: Dictionary, dirs: Array) -> int:
+	"""pocket 内取成本场最小格，沿梯度下降开路到 reach：水→桥17、碰撞→群系channel"""
+	var best_a := Vector2i.ZERO
+	var best_d := 1 << 30
+	for c in pocket:
+		var dv: int = dist.get(c, 1 << 30)
+		if dv < best_d:
+			best_d = dv
+			best_a = c
+	if best_d >= (1 << 30):
+		return 0
+	var carved := 0
+	var c := best_a
+	for _guard in range(2000):
+		carved += _carve_cell(c)
+		var dc: int = dist.get(c, 0)
+		if dc <= 0:
+			break
+		var next := c
+		for d in dirs:
+			var n: Vector2i = c + d
+			if dist.has(n) and int(dist[n]) < dc:
+				next = n
+				break
+		if next == c:
+			break
+		c = next
+	return carved
 
 func _bfs_reachable_from_spawn(dirs: Array) -> Dictionary:
 	var reach: Dictionary = {}
@@ -875,7 +2402,9 @@ func _bfs_reachable_from_spawn(dirs: Array) -> Dictionary:
 	return reach
 
 func _find_pockets(reach: Dictionary, dirs: Array) -> Array:
-	"""找未连通的可走pocket（>=6格才算，避免为2-3格凹缝开路浪费）"""
+	"""找未连通的可走pocket（>=6格才算）。
+	W1修复：完整洪泛——旧版BFS在4000格截断，巨pocket被重复报告几十次（每次都是同一区域的新样本），
+	每个样本又触发一次6秒级carve，connectivity直接卡死。"""
 	var pockets: Array = []
 	var visited := {}
 	for wy in range(-WORLD_RADIUS + 8, WORLD_RADIUS - 8, 1):
@@ -888,7 +2417,7 @@ func _find_pockets(reach: Dictionary, dirs: Array) -> Array:
 			var cells: Dictionary = {p: true}
 			var q: Array = [p]
 			var h2 := 0
-			while h2 < q.size() and cells.size() < 4000:
+			while h2 < q.size():
 				var cc: Vector2i = q[h2]
 				h2 += 1
 				for d in dirs:
@@ -900,52 +2429,12 @@ func _find_pockets(reach: Dictionary, dirs: Array) -> Array:
 					if get_tile_id(nn.x, nn.y) in collision_tiles:
 						continue
 					cells[nn] = true
-					q.append(nn)
 					visited[nn] = true
+					q.append(nn)
 			visited[p] = true
-			if cells.size() >= 6 and cells.size() < 4000:
-				pockets.append(cells.keys())
-			elif cells.size() >= 4000:
+			if cells.size() >= 6:
 				pockets.append(cells.keys())
 	return pockets
-
-func _carve_connection(pocket: Array, reach: Dictionary) -> int:
-	"""最近点对L形开路：水架桥、山石沙化、栅栏拆除"""
-	var best_a := Vector2i.ZERO
-	var best_b := Vector2i.ZERO
-	var best_d := 1e12
-	var step := 2 if pocket.size() > 400 else 1
-	var i := 0
-	for a in pocket:
-		i += 1
-		if step > 1 and i % step != 0:
-			continue
-		var b_step := 3
-		var j := 0
-		for b in reach.keys():
-			j += 1
-			if b_step > 1 and j % b_step != 0:
-				continue
-			var dd: float = abs(a.x - b.x) + abs(a.y - b.y)
-			if dd < best_d:
-				best_d = dd
-				best_a = a
-				best_b = b
-	var carved := 0
-	var c := best_a
-	var guard := 0
-	while guard < 600:
-		guard += 1
-		carved += _carve_cell(c)
-		if c == best_b:
-			break
-		if abs(best_b.x - c.x) >= abs(best_b.y - c.y) and c.x != best_b.x:
-			c.x += signi(best_b.x - c.x)
-		elif c.y != best_b.y:
-			c.y += signi(best_b.y - c.y)
-		else:
-			c.x += signi(best_b.x - c.x)
-	return carved
 
 func _carve_cell(c: Vector2i) -> int:
 	var tid = get_tile_id(c.x, c.y)
@@ -953,9 +2442,332 @@ func _carve_cell(c: Vector2i) -> int:
 		override_cells[c] = 17
 		return 1
 	if tid in collision_tiles:
-		override_cells[c] = 6
+		# 开路材质按群系调色板（雪原=雪径，避免沙路穿雪）
+		override_cells[c] = _palette_at(c.x, c.y)["channel"]
 		return 1
 	return 0
+
+# ============ W6 可行域政策（docs/武侠世界重构规划 §6，FLAG walkability_policy） ============
+# 分区：SETTLEMENT（城/镇/领地）/ ROAD（路/桥/广场）/ FARM（农田）/ WILD（其余）。
+# 生成期：SETTLEMENT/ROAD/FARM 零碰撞装饰——散石只在 WILD 贴山 3 格带状聚簇；
+# 走廊：2×2 块洪泛找窄喉口袋（≥20 格的 WILD 组），限量开 2 宽通道；
+# 运行期唯一可行查询 is_walkable()（怪物 AI/NPC/探针统一走它，禁止各自再猜）。
+
+var _rock_cells: Dictionary = {}   # W6 WILD 贴山聚簇散石表（desert/snow 装饰层查询）
+
+func _tile_zone(tx: int, ty: int) -> String:
+	"""格分区。ROAD=路/桥/石板/雪径；FARM=农田/湿田/雪田；SETTLEMENT=城/镇/领地；其余 WILD"""
+	var t := get_tile_id(tx, ty)
+	if t == 1 or t == 17 or t == 35 or t == 42:
+		return "ROAD"
+	if t == 16 or t == 33 or t == 41:
+		return "FARM"
+	if absi(tx - CITY_POS.x) <= city_half + 2 and absi(ty - CITY_POS.y) <= city_half + 2:
+		return "SETTLEMENT"
+	for tc in town_centers:
+		if Vector2(tx, ty).distance_to(tc) < 13.0:
+			return "SETTLEMENT"
+	for s in sect_info.values():
+		if maxi(absi(tx - s["center"].x), absi(ty - s["center"].y)) <= int(s["radius"]):
+			return "SETTLEMENT"
+	return "WILD"
+
+func is_walkable(tx: int, ty: int) -> bool:
+	"""运行期唯一可行查询（规划 §6）：无碰撞瓦片（建筑39/城墙40/坊墙43含于 collision_tiles）。
+	怪物 AI/NPC/探针断言统一调用，禁止各自再猜"""
+	if absi(tx) > WORLD_RADIUS or absi(ty) > WORLD_RADIUS:
+		return false
+	return get_tile_id(tx, ty) not in collision_tiles
+
+func _build_wild_rock_clusters():
+	"""散石聚簇：desert/snow 群系散石不再全图 singles——只贴山系 3 格带状出露（噪声连续天然成带），
+	且仅落 WILD（SETTLEMENT/ROAD/FARM 零碰撞装饰）。mountain 群系崖壁成势不动（山体语义）"""
+	_rock_cells.clear()
+	var R := int(WORLD_RADIUS)
+	# 1) 山系格集（mountain 群系）
+	var mountain_cells := {}
+	for y in range(-R + 6, R - 6):
+		for x in range(-R + 6, R - 6):
+			if _biome_kind(x, y) == "mountain":
+				mountain_cells[Vector2i(x, y)] = true
+	# 2) 山缘格（8 邻含非山）为源，向 WILD 侧 3 格带撒带状散石
+	var carved_total := 0
+	for mc in mountain_cells:
+		var is_edge := false
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1),
+				Vector2i(1, 1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(-1, -1)]:
+			if not mountain_cells.has(mc + d):
+				is_edge = true
+				break
+		if not is_edge:
+			continue
+		for dy in range(-3, 4):
+			for dx in range(-3, 4):
+				if maxi(absi(dx), absi(dy)) == 0:
+					continue
+				var c: Vector2i = mc + Vector2i(dx, dy)
+				if mountain_cells.has(c) or _rock_cells.has(c):
+					continue
+				if carved_total >= 2200:   # 总量上限（密度回归）
+					return
+				# 噪声带状出露（~22%）：先噪声后 biome 省调用
+				var d := fposmod(detail_noise.get_noise_2d(c.x * 1.7, c.y * 2.3) + 1.0, 1.0)
+				if d <= 0.78:
+					continue
+				var k := _biome_kind(c.x, c.y)
+				if k != "desert" and k != "snow":
+					continue
+				# 只落 WILD（轻量分区：净空/城圈/镇圈/领地圈/官道）
+				if _in_town_clearance(c.x, c.y) or _near_official_road(c.x, c.y, 1):
+					continue
+				if absi(c.x - CITY_POS.x) <= city_half + 3 and absi(c.y - CITY_POS.y) <= city_half + 3:
+					continue
+				var near_town := false
+				for tc in town_centers:
+					if Vector2(c.x, c.y).distance_to(tc) < 14.0:
+						near_town = true
+						break
+				if near_town:
+					continue
+				var near_sect := false
+				for s in sect_info.values():
+					if maxi(absi(c.x - s["center"].x), absi(c.y - s["center"].y)) <= int(s["radius"]) + 2:
+						near_sect = true
+						break
+				if near_sect:
+					continue
+				_rock_cells[c] = true
+				carved_total += 1
+	print("[WorldGen] wild rock clusters: %d cells (贴山3格带状)" % carved_total)
+
+func _ensure_corridor_width():
+	"""走廊宽度感知 BFS（规划 §6.3）：2×2 块洪泛（块锚 4 格全通行才可扩展）。
+	"1格可达但 2×2 不可达"的 WILD 窄喉口袋 ≥20 格时，在缝处开 2 宽通道（_carve_cell：
+	水→桥17/阻挡→群系 channel），carve 总量限 40 防凿烂地形。聚落内（SETTLEMENT/ROAD/FARM
+	占多数的组）不修——走廊要求只针对野外"""
+	var corridor_w: int = WorldData.WALKABILITY["corridor_width"]
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var offs22 := [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)]
+	var reach1 := _bfs_reachable_from_spawn(dirs)
+	var ok22 := func(c: Vector2i) -> bool:
+		for off in offs22:
+			var n: Vector2i = c + off
+			if absi(n.x) > WORLD_RADIUS or absi(n.y) > WORLD_RADIUS:
+				return false
+			if get_tile_id(n.x, n.y) in collision_tiles:
+				return false
+		return true
+	var start := Vector2i.ZERO
+	var found := false
+	for c in reach1.keys():
+		if ok22.call(c):
+			start = c
+			found = true
+			break
+	if not found:
+		print("[WorldGen] corridor: no 2x2 block near spawn, skip")
+		return
+	var reach2 := {start: true}
+	var q: Array = [start]
+	var head := 0
+	while head < q.size():
+		var cur: Vector2i = q[head]
+		head += 1
+		for d in dirs:
+			var n: Vector2i = cur + d
+			if not reach2.has(n) and ok22.call(n):
+				reach2[n] = true
+				q.append(n)
+	var covered := {}
+	for c in reach2:
+		for off in offs22:
+			covered[c + off] = true
+	# 窄喉口袋连通分组（4 连，限界内）
+	var pockets := {}
+	for c in reach1.keys():
+		if not covered.has(c):
+			pockets[c] = true
+	var carved := 0
+	var fixed_groups := 0
+	var seen := {}
+	for p in pockets:
+		if seen.has(p):
+			continue
+		var group: Array = [p]
+		seen[p] = true
+		var gq: Array = [p]
+		var gh := 0
+		while gh < gq.size():
+			var gc: Vector2i = gq[gh]
+			gh += 1
+			for d in dirs:
+				var n: Vector2i = gc + d
+				if not seen.has(n) and pockets.has(n):
+					seen[n] = true
+					group.append(n)
+					gq.append(n)
+		if group.size() < 20:
+			continue
+		# 聚落内组不修（采样组头 5 格分区判定）
+		var in_settle := 0
+		for i in range(mini(5, group.size())):
+			var g: Vector2i = group[i]
+			if _tile_zone(g.x, g.y) != "WILD":
+				in_settle += 1
+		if in_settle >= 3:
+			continue
+		# 缝处开 2 宽通道：找组内与 covered 相邻的缝格，把 2×2 块朝组方向推进一格（carve 阻挡）
+		var opened := false
+		for gcell in group:
+			if opened or carved >= 40:
+				break
+			for d in dirs:
+				var qq: Vector2i = gcell + d
+				if not covered.has(qq):
+					continue
+				var d2: Vector2i = Vector2i(signi(gcell.x - qq.x), signi(gcell.y - qq.y))
+				var anchor: Vector2i = qq + d2   # 朝组推进的新 2×2 块锚
+				for off in offs22:
+					var t: Vector2i = anchor + off
+					if get_tile_id(t.x, t.y) in collision_tiles:
+						carved += _carve_cell(t)
+				opened = true
+				fixed_groups += 1
+				break
+	if carved > 0:
+		print("[WorldGen] corridor width: carved=%d (%d 组窄喉已拓 %d宽)" % [carved, fixed_groups, corridor_w])
+	else:
+		print("[WorldGen] corridor width: no narrow-throat pocket >=20 (WILD)")
+
+# ============ W9 山地可行域规划（2026-09-03 用户验收反馈：山地谷地全是死路） ============
+# 根因：崖壁=质量场噪声(r>0.62)的负空间即"路网"，无任何通过性规划；_ensure_connectivity
+# 只保拓扑可达（1宽刻线），死路体验原样保留。取证（run_mtn_probe.py before）：山地可行格
+# 21175 个中死路子树 403 格，仅 33.7% 距出口≤8 格——半数谷地深入绝境。
+# 规划两条硬规则（规划 §6 可行域政策的山地区域细化）：
+#   1) 山口垭口网格：纵横粗网格线（间距24±抖动）穿崖必开 3 宽沙口——任何谷地到最近山口
+#      ≤约14格，山口=通过承诺，谷与谷经山口互达，山体区块不再封闭；
+#   2) 绝径归崖：山/雪 WILD 死路子树（叶子剥离闭包，度≤1迭代至不动点）填崖 3——绝径消失、
+#      崖壁成势更完整；剥叶子不破坏剩余图连通（度≤1非割点）。
+# 两者均只写 override_cells，避城圈/镇圈/领地/官道/POI（walk6 零碰撞承诺区不被侵犯）。
+
+const MTN_PASS_SPACING := 18
+var mtn_pass_cells: Dictionary = {}    # W9 山口格登记（探针/调试查询）
+var mtn_fill_cells: Dictionary = {}    # W9 绝径归崖格登记
+
+func _mtn_protected(x: int, y: int) -> bool:
+	"""W9 山地动土禁区：城圈/镇圈/门派领地/官道带/城镇净空（对齐 walk6 零碰撞承诺区）"""
+	if _in_town_clearance(x, y):
+		return true
+	if absi(x - CITY_POS.x) <= city_half + 2 and absi(y - CITY_POS.y) <= city_half + 2:
+		return true
+	for tc in town_centers:
+		if Vector2(x, y).distance_to(tc) < 16.0:
+			return true
+	for s in sect_info.values():
+		if maxi(absi(x - s["center"].x), absi(y - s["center"].y)) <= int(s["radius"]) + 2:
+			return true
+	if _near_official_road(x, y, 2):
+		return true
+	return false
+
+func _carve_mountain_passes():
+	mtn_pass_cells.clear()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = WORLD_SEED + 9001
+	var R := int(WORLD_RADIUS) - 8
+	var carved := 0
+	# axis=0 纵线（定x走y）/ axis=1 横线（定y走x）；逐线抖动破网格观感
+	for axis in range(2):
+		var line := -R + rng.randi_range(-5, 5)
+		while line <= R:
+			for t in range(-R, R + 1):
+				for w in range(-1, 2):
+					var x: int = line + w if axis == 0 else t
+					var y: int = t if axis == 0 else line + w
+					carved += _carve_pass_at(x, y)
+			line += MTN_PASS_SPACING + rng.randi_range(-5, 5)
+	print("[WorldGen] mountain passes: %d cells (3宽垭口网格 间距%d±5)" % [carved, MTN_PASS_SPACING])
+
+func _carve_pass_at(x: int, y: int) -> int:
+	"""单格山口开凿：崖壁质量格→沙径，贴门散石一并开成沙（防垭口被14收窄成1宽）"""
+	if absi(x) > WORLD_RADIUS - 8 or absi(y) > WORLD_RADIUS - 8:
+		return 0
+	var c := Vector2i(x, y)
+	if override_cells.has(c) or mtn_pass_cells.has(c):
+		return 0
+	if _biome_kind(x, y) != "mountain" or not _mtn_is_mass(x, y):
+		return 0
+	if _mtn_protected(x, y):
+		return 0
+	override_cells[c] = _palette_at(x, y)["channel"]
+	mtn_pass_cells[c] = true
+	var n := 1
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		var q: Vector2i = c + d
+		if override_cells.has(q) or mtn_pass_cells.has(q):
+			continue
+		if get_tile_id(q.x, q.y) == 14 and not _mtn_protected(q.x, q.y):
+			override_cells[q] = _palette_at(q.x, q.y)["channel"]
+			mtn_pass_cells[q] = true
+			n += 1
+	return n
+
+func _strip_mountain_dead_ends():
+	mtn_fill_cells.clear()
+	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+	var R := int(WORLD_RADIUS) - 8
+	# 1) 候选=山/雪 WILD 可行格（碰撞瓦片/override=官道/POI/桥/山口全部排除）
+	var cand := {}
+	for y in range(-R, R + 1):
+		for x in range(-R, R + 1):
+			var k := _biome_kind(x, y)
+			if k != "mountain" and k != "snow":
+				continue
+			var c := Vector2i(x, y)
+			if override_cells.has(c) or _mtn_protected(x, y):
+				continue
+			if get_tile_id(x, y) in collision_tiles:
+				continue
+			cand[c] = true
+	var tile_cache := {}
+	for c in cand:
+		if not tile_cache.has(c):
+			tile_cache[c] = get_tile_id(c.x, c.y)
+		for d in dirs:
+			var n: Vector2i = c + d
+			if not tile_cache.has(n):
+				tile_cache[n] = get_tile_id(n.x, n.y)
+	# 3) 叶子剥离闭包：度≤1（剥离格视作崖）迭代至不动点——死路子树整体归崖
+	var dead := {}
+	var rounds := 0
+	var changed := true
+	while changed and rounds < 96 and dead.size() < 20000:
+		changed = false
+		rounds += 1
+		var mark: Array = []
+		for c in cand:
+			if dead.has(c):
+				continue
+			var dcount := 0
+			for d in dirs:
+				var n: Vector2i = c + d
+				if dead.has(n):
+					continue
+				if int(tile_cache.get(n, 5)) in collision_tiles:
+					continue
+				dcount += 1
+			if dcount <= 1:
+				mark.append(c)
+		if mark.is_empty():
+			break
+		for c in mark:
+			dead[c] = true
+		changed = true
+	mtn_fill_cells = dead
+	for c in dead:
+		override_cells[c] = 3
+	print("[WorldGen] mountain dead-end strip: %d cells -> cliff (%d rounds, cand=%d)"
+		% [dead.size(), rounds, cand.size()])
 
 # ============ 地形生成（含边界和覆盖） ============
 
@@ -972,7 +2784,7 @@ func get_terrain(x: int, y: int) -> Terrain:
 			return Terrain.SAND
 		"lake":
 			for b in biome_seeds:
-				if b["kind"] == "lake" and _lake_surface_dist(x, y, b["pos"]) < 12.0:
+				if b["kind"] == "lake" and _lake_surface_dist(x, y, b["pos"]) < float(b["r"]) + 2.0:
 					return Terrain.WATER
 			return Terrain.GRASS
 		"mountain":
@@ -1012,48 +2824,101 @@ func get_tile_id(x: int, y: int) -> int:
 			_: return 0
 	return tid
 
+# ---- 山地类型纯化（遗留候选#6 山地半：崖/石/枯草同场环带掺杂治理）----
+# mass=崖壁质量场（r>0.62），配无状态形态学清理：高频 octave 抖出的单格孤崖回谷、
+# mass 内单格孔洞补崖——崖壁成块势，不再有离散砖块。全部为噪声场纯函数，逐格调用安全。
+func _mtn_r(x: int, y: int) -> float:
+	return fposmod(detail_noise.get_noise_2d(x, y) + 1.0, 1.0)
+
+func _mtn_is_mass(x: int, y: int) -> bool:
+	var mass := _mtn_r(x, y) > 0.62
+	var nb := 0
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _mtn_r(x + d.x, y + d.y) > 0.62:
+			nb += 1
+	if mass and nb == 0:
+		return false   # 孤崖回谷（单格崖=离散砖块观感源头）
+	if not mass and nb >= 3:
+		return true    # 孤谷补崖（mass 内单格沙孔）
+	return mass
+
+func _mtn_near_mass(x: int, y: int) -> bool:
+	for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+		if _mtn_is_mass(x + d.x, y + d.y):
+			return true
+	return false
+
+func _mtn_scree_gate(x: int, y: int) -> bool:
+	"""碎石裙门控（独立低频噪声，破掉旧版同场环带）：~55% 外缘带成簇出石"""
+	return fposmod(detail_noise.get_noise_2d(x * 3.7 + 71.0, y * 4.1 + 43.0) + 1.0, 1.0) > 0.45
+
 func _biome_decor_tile(kind: String, x: int, y: int, d: float, r: float) -> int:
+	# W1：树密度=f(湿度)——dens∈[0.35,1.0]，阈值随 dens 调制（沙漠0树/雪原稀雪松/竹林需湿>0.6由气候判定保证）
+	var hum := _climate_hum(x, y)
+	var dens := clampf(hum * 1.2, 0.35, 1.0)
 	match kind:
 		"forest":
-			# demo2风：针叶林+蘑菇地表+紫花
-			if r > 0.86: return 4
-			elif r > 0.70: return 8
-			elif r > 0.64: return 13
-			elif r > 0.60: return 36
-			return 0
+			# demo2风：针叶林+蘑菇地表+紫花（基面走过渡带混铺）
+			# 画面改造P1.3：林下碎屑层（草丛/落叶/枯枝）——花卉带随湿度缩放（固定阈值在低湿时会膨胀到20%+）
+			if r > 1.0 - dens * 0.14: return 4
+			elif r > 1.0 - dens * 0.30: return 8
+			elif r > 1.0 - dens * 0.36: return 13
+			elif r > 1.0 - dens * 0.42: return 36
+			elif r > 0.54: return 55
+			elif r > 0.47: return 60
+			elif r > 0.43: return 61
+			elif r > 0.405: return 58
+			return _ground_of(x, y)
 		"bamboo":
-			if r > 0.72: return 9
-			return 18 if r > 0.35 else 0
+			if r > 1.0 - dens * 0.28: return 9
+			elif r > 0.35: return 18
+			elif r > 0.30: return 56
+			return _ground_of(x, y)
 		"mountain":
-			# demo2风：深色崖壁成势(r高→山体)，谷地土路走廊(r<=0.40)天然可穿行
-			if r > 0.80: return 3
-			elif r > 0.70: return 14
-			elif r > 0.62: return 3
-			elif r > 0.40: return 14
-			return 6
+			# 山地类型纯化（遗留候选#6 山地半）：崖壁成势（mass 形态学）+ 散石只贴崖外缘成裙
+			# + 谷地净面稀疏碎屑——治 W1 demo2 风"崖3/石14/枯61·62 同场逐格环带掺杂"
+			if _mtn_is_mass(x, y):
+				return 3
+			if _mtn_near_mass(x, y) and r > 0.50 and _mtn_scree_gate(x, y):
+				return 14
+			# 谷地碎屑：独立低频门控（~6%），不再占谷地主体
+			var vg := fposmod(detail_noise.get_noise_2d(x * 2.9 + 131.0, y * 3.3 + 57.0) + 1.0, 1.0)
+			if vg > 0.94: return 61
+			elif vg > 0.90: return 62
+			return _ground_of(x, y)
 		"desert":
-			if r > 0.94: return 14
-			return 6
+			# W1 自然规律：沙漠零树；W6 岩石改 WILD 贴山聚簇表（不再全图 singles）
+			# 画面改造P1.3：沙漠干枯植被点缀
+			if r > 0.94:
+				return 14 if _rock_cells.has(Vector2i(x, y)) else _ground_of(x, y)
+			elif r > 0.90: return 62
+			elif r > 0.865: return 63
+			return _ground_of(x, y)
 		"snow":
-			# demo3风：白雪地面+雪松+灰崖点缀
-			if r > 0.94: return 3
-			elif r > 0.88: return 4
-			elif r > 0.83: return 14
-			return 34
+			# demo3风：白雪地面+稀疏雪松+雪线崖壁点缀（崖用7=积雪崖，避免深色秃崖突兀）
+			if r > 0.94: return 7
+			elif r > 1.0 - dens * 0.12: return 4
+			elif r > 0.83:
+				return 14 if _rock_cells.has(Vector2i(x, y)) else _ground_of(x, y)
+			return _ground_of(x, y)
 		"lake":
-			for b in biome_seeds:
-				if b["kind"] == "lake":
-					var dist: float = _lake_surface_dist(x, y, b["pos"])
-					if dist < 11.0 + d * 3.0: return 5
-					elif dist < 15.0: return 6
-			return 13 if r > 0.90 else 0
+			# W1：湖面为 override 显式水（_generate_lakes 已铺），此处只留湖缘装饰
+			if r > 0.90: return 13
+			elif r > 0.84: return 55
+			return _ground_of(x, y)
 		_:
-			# plains：橡/松疏林+紫花+雏菊
-			if r > 0.93: return 8
-			elif r > 0.90: return 4
-			elif r > 0.87: return 13
-			elif r > 0.845: return 37
-			return 0
+			# plains：橡/松疏林+紫花+雏菊（密度随湿度）
+			# 画面改造P1.3：碎屑层固定小额（草丛8%+双叶草7%+黄草丛5%+野花5%），花卉带随湿度缩放
+			if r > 1.0 - dens * 0.07: return 8
+			elif r > 1.0 - dens * 0.10: return 4
+			elif r > 1.0 - dens * 0.15: return 13
+			elif r > 1.0 - dens * 0.20: return 37
+			elif r > 0.78: return 55
+			elif r > 0.71: return 56
+			elif r > 0.66: return 57
+			elif r > 0.635: return 58
+			elif r > 0.61: return 59
+			return _ground_of(x, y)
 	return 0
 
 # ============ Chunk系统 ============
@@ -1073,6 +2938,16 @@ func _process(_delta):
 	if pc != player_chunk:
 		player_chunk = pc
 		_update_chunks()
+	# v4 镇灯笼昼夜调能（M1：镇布局器是 RefCounted 无节点，glow 调节收口到 wg——
+	# 同样板区 P5.4 修复：白天 PointLight2D 加法光斑过曝）
+	if not town_glow_lights.is_empty():
+		var wc := get_node_or_null("../WeatherController")
+		if wc:
+			var h: float = wc.current_hour
+			var e := 1.5 if (h >= 18.0 or h < 6.5) else 0.0
+			for l in town_glow_lights:
+				if is_instance_valid(l):
+					l.energy = e
 
 func _initial_load():
 	# 加载玩家初始位置周围的chunk
@@ -1110,7 +2985,8 @@ func _load_chunk(chunk: Vector2i):
 
 	# 装饰瓦片ID（有透明区域，需要地面底层）
 	# 注意：碰撞瓦片(3=山崖, 7=雪崖, 5=水)不在此列表，始终在layer 0
-	var decor_tiles = [2, 10, 11, 12, 13, 14, 15, 36, 37]
+	# 画面改造P1.3：新增碎屑装饰 55-63（草丛/野花/落叶/枯枝/干草）
+	var decor_tiles = [2, 10, 11, 12, 13, 14, 15, 36, 37, 44, 55, 56, 57, 58, 59, 60, 61, 62, 63]
 
 	var start_x = chunk.x * CHUNK_SIZE
 	var start_y = chunk.y * CHUNK_SIZE
@@ -1126,23 +3002,73 @@ func _load_chunk(chunk: Vector2i):
 					# 大树改用素材包道具（星露谷式冠幅），只铺地面层
 					# Phase G2：水邻/城镇净空被拒的格子只铺地面——不再回退画16px小树瓦片
 					if TREE_SHEETS.has(tid):
-						tm.set_cell(0, cell, _get_ground_tile(wx, wy), Vector2i(0, 0))
+						tm.set_cell(0, cell, _paint_ground(_get_ground_tile(wx, wy), wx, wy), Vector2i(0, 0))
 						if _should_spawn_tree_prop(wx, wy, tid):
 							_spawn_tree_prop(wx, wy, tid)
 					elif tid == TILE_BUILDING_RESERVE:
 						# Phase F5 大建筑footprint：只铺地面（视觉与碰撞由道具节点承担）
-						tm.set_cell(0, cell, _get_ground_tile(wx, wy), Vector2i(0, 0))
+						tm.set_cell(0, cell, _paint_ground(_get_ground_tile(wx, wy), wx, wy), Vector2i(0, 0))
 					# 装饰瓦片放在layer 1，地面放在layer 0
 					elif tid in decor_tiles:
 						# 先铺地面底层
-						var ground_id = _get_ground_tile(wx, wy)
+						var ground_id = _paint_ground(_get_ground_tile(wx, wy), wx, wy)
 						tm.set_cell(0, cell, ground_id, Vector2i(0, 0))
 						tm.set_cell(1, cell, tid, Vector2i(0, 0))
 					else:
-						tm.set_cell(0, cell, tid, Vector2i(0, 0))
+						tm.set_cell(0, cell, _paint_ground(tid, wx, wy), Vector2i(0, 0))
+					# 画面改造P3.2：水格岸环覆盖层1（滩涂+泡沫+草沿；仅视觉，不改碰撞/可达）
+					if tid == 5:
+						var sc := _shore_coords(wx, wy)
+						if sc.x >= 0:
+							tm.set_cell(1, cell, SHORE_SRC_ID, sc)
 			world_cells[cell] = get_tile_id(wx, wy)
 
 	loaded_chunks[chunk] = true
+
+func _paint_ground(tid: int, x: int, y: int) -> int:
+	"""画面改造P1.2：上漆口统一变体——城内/净空区等 override 直铺的自然地面(0/6/18/34)
+	在绘制层混入像素变体与深色斑；P4b 扩展：山崖(3)三变体打散"灰色平板"。
+	仅改视觉，get_tile_id/world_cells 语义保持基值，零碰撞/选址影响"""
+	if tid == 0 or tid == 6 or tid == 18 or tid == 34:
+		return _ground_variant(tid, x, y)
+	if tid == 3:
+		var mr := fposmod(detail_noise.get_noise_2d(x * 4.3 + 61.0, y * 5.9 + 29.0) + 1.0, 1.0)
+		if mr > 0.72: return 65
+		elif mr > 0.44: return 66
+	return tid
+
+# ============ 画面改造P3.2 水岸过渡 ============
+# 水格岸环覆盖（层1）：Water_tiles 首岛环块（滩涂+泡沫+草沿），key=陆地相对水格的方向。
+# 正交块草沿横贯，对角块草沿抱角；源64在 tileset_generator 注册（4帧波光动画）
+const SHORE_SRC_ID := 64
+const SHORE_BY_DIR := {
+	"N": Vector2i(2, 4), "E": Vector2i(0, 2), "S": Vector2i(2, 0), "W": Vector2i(4, 2),
+	"NE": Vector2i(1, 4), "NW": Vector2i(3, 4), "SE": Vector2i(1, 0), "SW": Vector2i(3, 0),
+}
+
+func _is_land_for_shore(tid: int) -> bool:
+	# 桥(17)不算岸：河心桥下不出草沿，杜绝"河心浮草岛"
+	return tid != 5 and tid != 17
+
+func _shore_coords(wx: int, wy: int) -> Vector2i:
+	"""水格(wx,wy)的岸环瓦片坐标；周边无陆地返回(-1,-1)。正交优先，其次对角抱角。"""
+	if _is_land_for_shore(get_tile_id(wx, wy - 1)):
+		return SHORE_BY_DIR["N"]
+	if _is_land_for_shore(get_tile_id(wx, wy + 1)):
+		return SHORE_BY_DIR["S"]
+	if _is_land_for_shore(get_tile_id(wx + 1, wy)):
+		return SHORE_BY_DIR["E"]
+	if _is_land_for_shore(get_tile_id(wx - 1, wy)):
+		return SHORE_BY_DIR["W"]
+	if _is_land_for_shore(get_tile_id(wx + 1, wy - 1)):
+		return SHORE_BY_DIR["NE"]
+	if _is_land_for_shore(get_tile_id(wx - 1, wy - 1)):
+		return SHORE_BY_DIR["NW"]
+	if _is_land_for_shore(get_tile_id(wx + 1, wy + 1)):
+		return SHORE_BY_DIR["SE"]
+	if _is_land_for_shore(get_tile_id(wx - 1, wy + 1)):
+		return SHORE_BY_DIR["SW"]
+	return Vector2i(-1, -1)
 
 func _get_ground_tile(x: int, y: int) -> int:
 	"""获取指定位置的地面瓦片ID（不含装饰物）"""
@@ -1152,19 +3078,20 @@ func _get_ground_tile(x: int, y: int) -> int:
 		# 桥下面铺路，使桥可通行（避免水面碰撞阻挡）
 		if ov == 17:
 			return 1  # 路
-		# 大建筑footprint下面铺路，与城镇街道质感统一
-		if ov == TILE_BUILDING_RESERVE:
-			return 1  # 路
+		# 2026-08-31：大建筑footprint底瓦不再铺路——碎石路从建筑四周露出一圈很突兀，
+		# 改为落到基面取色（草/沙/雪随群系），视觉上建筑"长"在地面上
+		if ov != TILE_BUILDING_RESERVE:
+			return ov
 	var t = get_terrain(x, y)
 	match t:
 		Terrain.WATER: return 5
-		Terrain.SAND: return 6
-		Terrain.GRASS: return 0
-		Terrain.GRASS_DARK: return 18
-		Terrain.FOREST: return 0  # 森林地面是草地
-		Terrain.MOUNTAIN: return 1  # 山区谷地铺碎石土路（demo2棕土走廊）
-		Terrain.SNOW: return 34  # 雪原真雪地（demo3）
-	return 0
+		Terrain.MOUNTAIN:
+			# 山地类型纯化：谷地地面归群系调色板（干土族6+变体），与裸格同源——
+			# 旧 demo2"碎石土路1"把人工路砖混进自然山地面（装饰格下/裸格双轨制=拼色掺杂）
+			return _ground_of(x, y)
+		_:
+			# 其余群系走过渡带感知地面（雪=34、沙=6、竹=18、草=0，边界带 dither 混铺）
+			return _ground_of(x, y)
 
 func _unload_chunk(chunk: Vector2i):
 	# 使用单一TileMap时，不卸载chunk以避免空隙
@@ -1189,7 +3116,7 @@ func is_tile_blocking(world_pos: Vector2) -> bool:
 # ============ POI周围chunk强制加载 ============
 
 func _load_poi_chunks():
-	"""确保所有POI位置周围的chunk被加载"""
+	"""确保所有POI位置周围的chunk被加载（含青石城：城池远于玩家初始加载半径）"""
 	for p in pois:
 		var poi_pos: Vector2 = p["position"]
 		var poi_chunk = world_to_chunk(poi_pos)
@@ -1199,6 +3126,23 @@ func _load_poi_chunks():
 				var c = poi_chunk + Vector2i(dx, dy)
 				if not loaded_chunks.has(c):
 					_load_chunk(c)
+	# 青石城chunk强制加载（v2 城圈61x61 → ±3 chunk 全覆盖）
+	var city_chunk = world_to_chunk(Vector2(CITY_POS.x * TILE_SIZE_PX, CITY_POS.y * TILE_SIZE_PX))
+	for dx in range(-3, 4):
+		for dy in range(-3, 4):
+			var c2 = city_chunk + Vector2i(dx, dy)
+			if not loaded_chunks.has(c2):
+				_load_chunk(c2)
+	# W3 门派领地chunk强制加载（界碑环 cheby=r → ±(r/16)+2 chunk）
+	for s in sect_info.values():
+		var sc: Vector2i = s["center"]
+		var sect_chunk := world_to_chunk(Vector2(sc.x * TILE_SIZE_PX, sc.y * TILE_SIZE_PX))
+		var sr: int = int(s["radius"]) / 16 + 2
+		for dx in range(-sr, sr + 1):
+			for dy in range(-sr, sr + 1):
+				var c3 = sect_chunk + Vector2i(dx, dy)
+				if not loaded_chunks.has(c3):
+					_load_chunk(c3)
 	print("[WorldGen] POI chunks loaded")
 
 func _apply_poi_terrain():
@@ -1233,7 +3177,7 @@ func _apply_castle_terrain(cx: int, cy: int):
 			if dist <= 5:
 				override_cells[cell] = 35   # 石板广场
 			elif dist <= 6 and (dx == 0 or dy == 0 or rng.randf() < 0.3):
-				override_cells[cell] = 1    # 石径
+				override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 石径（群系化）
 	var info := _make_castle_info(rng)
 	var anchor := Vector2i(cx - 4, cy - 2)
 	_place_castle_prop(anchor, info)
@@ -1350,11 +3294,11 @@ func _apply_sect_terrain(cx: int, cy: int):
 				if dx == 0 and dy == 0:
 					override_cells[cell] = 11  # 寺
 				else:
-					override_cells[cell] = 1   # 路
+					override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 路
 			elif dist <= 2:
 				# 山环在十字方向留门（铺路），保证玩家可进入门派
 				if dx == 0 or dy == 0:
-					override_cells[cell] = 1   # 门口铺路
+					override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 门口铺路
 				else:
 					override_cells[cell] = 3   # 山
 			elif dist <= 3:
@@ -1363,7 +3307,7 @@ func _apply_sect_terrain(cx: int, cy: int):
 				if r > 0.5:
 					override_cells[cell] = 4   # 松树
 				else:
-					override_cells[cell] = 0   # 草
+					override_cells[cell] = _palette_at(cell.x, cell.y)["ground"]
 
 func _apply_town_poi_terrain(cx: int, cy: int):
 	"""Phase F5: 城镇POI——中心大宅道具+路+农田，无栅栏圈"""
@@ -1376,9 +3320,9 @@ func _apply_town_poi_terrain(cx: int, cy: int):
 			if dist == 0 or (dist == 1 and abs(dx) == 1 and abs(dy) == 1 and rng.randf() < 0.5):
 				continue	# 留给大建筑footprint
 			if dist <= 1:
-				override_cells[cell] = 1   # 路
+				override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 路
 			elif dist == 2:
-				override_cells[cell] = 16  # 农田
+				override_cells[cell] = _palette_at(cell.x, cell.y)["farm"]   # 农田（雪原=雪覆田）
 	_place_building_prop("manor" if rng.randf() < 0.7 else "house", Vector2i(cx - 3, cy - 2))
 	_place_building_prop("hut", Vector2i(cx + 2, cy - 2))
 	# Phase G3：城镇POI同样登记净空区
@@ -1390,9 +3334,9 @@ func _apply_cave_terrain(cx: int, cy: int):
 		for dy in range(-3, 4):
 			var cell = Vector2i(cx + dx, cy + dy)
 			var dist = max(abs(dx), abs(dy))
-			# 南侧（dx==0, dy>0）留一条草地通道，保证玩家可接近洞口
+			# 南侧（dx==0, dy>0）留一条可通行通道，保证玩家可接近洞口（雪原=雪面通道）
 			if dx == 0 and dy > 0:
-				override_cells[cell] = 0   # 通道
+				override_cells[cell] = _palette_at(cell.x, cell.y)["ground"]   # 通道
 				continue
 			if dist == 0:
 				override_cells[cell] = 12  # 洞
@@ -1414,11 +3358,13 @@ func _apply_training_terrain(cx: int, cy: int):
 			if dist == 0:
 				override_cells[cell] = 11  # 寺
 			elif dist <= 1:
-				override_cells[cell] = 1   # 路
+				override_cells[cell] = _palette_at(cell.x, cell.y)["path"]   # 路
 			elif dist <= 2:
-				override_cells[cell] = 13  # 花
+				# 花环：雪原/沙漠不放花（违和），退化为当地地面
+				var bk := _biome_kind(cell.x, cell.y)
+				override_cells[cell] = 13 if (bk != "snow" and bk != "desert") else _palette_at(cell.x, cell.y)["ground"]
 			else:
-				override_cells[cell] = 0   # 草
+				override_cells[cell] = _palette_at(cell.x, cell.y)["ground"]
 
 # ============ POI系统 ============
 
@@ -1527,8 +3473,8 @@ func _scatter_pois():
 
 func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 	for _attempt in range(20):
-		var wx = rng.randi_range(-130, 130)
-		var wy = rng.randi_range(-115, 115)
+		var wx = rng.randi_range(-(WORLD_RADIUS - 30), WORLD_RADIUS - 30)
+		var wy = rng.randi_range(-(WORLD_RADIUS - 45), WORLD_RADIUS - 45)
 		var h = get_height(wx, wy)
 		var w = get_humidity(wx, wy)
 		if h < tpl.min_height or h > tpl.max_height:
@@ -1538,6 +3484,29 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 		if _too_close_to_other_poi(pos, tpl.min_distance):
 			continue
+		# 避让青石城（v2 城圈61x61+余量）
+		if Vector2(wx, wy).distance_to(Vector2(CITY_POS)) < 46:
+			continue
+		# W3 避让门派领地（cheby 缘距 ≥6）
+		var sect_block := false
+		for s in sect_info.values():
+			if maxi(absi(wx - s["center"].x), absi(wy - s["center"].y)) < int(s["radius"]) + 6:
+				sect_block = true
+				break
+		if sect_block:
+			continue
+		# W8 避让镇建成区（镇净空 half+3 + POI 铺地半径可达 15 → cheby 28）——
+		# 此前未避，POI 铺地把岩 14/崖 3 写进镇圈（settlement_road_no_collide FAIL+"镇边石堆"观感）
+		var town_block := false
+		for tc in town_centers:
+			if maxi(absi(wx - int(tc.x)), absi(wy - int(tc.y))) < 28:
+				town_block = true
+				break
+		if town_block:
+			continue
+		# W5 避让官道走廊（POI 铺地半径可达 15 → margin 16，防 POI 压断官道）
+		if _near_official_road(wx, wy, 16):
+			continue
 		# 检查是否在世界边界内
 		if sqrt(wx * wx + wy * wy) > WORLD_RADIUS - 10:
 			continue
@@ -1546,6 +3515,13 @@ func _try_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator) -> bool:
 			continue
 		_create_poi_marker(tpl, pos)
 		return true
+	return false
+
+## W3：门派领地避让（cheby 缘距 ≥ margin；POI 铺地半径可达 15，margin 须 ≥16）
+func _near_sect_territory(wx: int, wy: int, margin: int = 16) -> bool:
+	for s in sect_info.values():
+		if maxi(absi(wx - int(s["center"].x)), absi(wy - int(s["center"].y))) < int(s["radius"]) + margin:
+			return true
 	return false
 
 func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
@@ -1564,6 +3540,18 @@ func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
 			if w < tpl.min_humidity or w > tpl.max_humidity:
 				continue
 			if not _is_reachable_cell(wx, wy):
+				continue
+			if _near_sect_territory(wx, wy):
+				continue
+			if _near_official_road(wx, wy, 16):
+				continue
+			# W8 避让镇建成区（同 _try_spawn_poi，兜底路径同样不进镇圈）
+			var town_block2 := false
+			for tc in town_centers:
+				if maxi(absi(wx - int(tc.x)), absi(wy - int(tc.y))) < 28:
+					town_block2 = true
+					break
+			if town_block2:
 				continue
 			var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 			if _too_close_to_other_poi(pos, tpl.min_distance):
@@ -1584,6 +3572,18 @@ func _force_spawn_poi(tpl: POITemplate, rng: RandomNumberGenerator):
 		if w < tpl.min_humidity or w > tpl.max_humidity:
 			continue
 		if get_tile_id(wx, wy) in collision_tiles:
+			continue
+		if _near_sect_territory(wx, wy):
+			continue
+		if _near_official_road(wx, wy, 16):
+			continue
+		# W8 避让镇建成区（最终兜底同样不进镇圈）
+		var town_block3 := false
+		for tc in town_centers:
+			if maxi(absi(wx - int(tc.x)), absi(wy - int(tc.y))) < 28:
+				town_block3 = true
+				break
+		if town_block3:
 			continue
 		var pos = Vector2(wx * TILE_SIZE_PX, wy * TILE_SIZE_PX)
 		if _too_close_to_other_poi(pos, tpl.min_distance):

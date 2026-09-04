@@ -37,6 +37,16 @@ var attack_cooldown: float = 0.0
 var aggro_lock_timer: float = 0.0    # 被打后强制追击时长
 var knockback: Vector2 = Vector2.ZERO
 var _player: CharacterBody2D = null
+var _world_gen = null   # 2026-08-31：避城判定用（懒取，缺失时功能自动降级）
+
+func _get_wg():
+	if _world_gen == null or not is_instance_valid(_world_gen):
+		_world_gen = get_node_or_null("/root/Main/World/WorldGenerator")
+	return _world_gen
+
+func _in_settlement(p: Vector2) -> bool:
+	var wg = _get_wg()
+	return wg != null and wg.has_method("is_in_settlement") and wg.is_in_settlement(p)
 
 @onready var anim: AnimatedSprite2D = AnimatedSprite2D.new()
 
@@ -70,6 +80,10 @@ func _build_visual():
 	anim.animation = "idle"
 	anim.play("idle")
 	anim.offset = Vector2(0, -15)   # 32x32帧脚线对齐节点原点（与NPC一致）
+	# 画面改造P2.1：脚底软阴影（与NPC同款，脚线=原点）
+	var shadow := TextureGen.make_shadow_sprite(22.0, 0.28)
+	shadow.position = Vector2(0, 1)
+	add_child(shadow)
 	add_child(anim)
 
 func _build_frames(prefix: String) -> SpriteFrames:
@@ -136,6 +150,12 @@ func _tick_wander(delta):
 	if wander_timer <= 0:
 		wander_timer = randf_range(2.0, 4.5)
 		wander_target = home_pos + Vector2(randf_range(-48, 48), randf_range(-48, 48))
+		# 2026-08-31：游走目标不得落进城/镇（野怪不进聚落）
+		if _in_settlement(wander_target):
+			wander_target = home_pos
+	# 2026-08-31：异常身位纠偏（如被外力挪进城），立刻向家走
+	if _in_settlement(global_position):
+		wander_target = home_pos
 	var to_target := wander_target - global_position
 	if to_target.length() < 6.0:
 		velocity = Vector2.ZERO
@@ -153,6 +173,12 @@ func _tick_chase(delta):
 	var p := _get_player()
 	if p == null or p.get("_is_dead") == true:
 		state = MobState.WANDER
+		return
+	# 2026-08-31：玩家躲在城/镇内则脱战回家——野怪不进聚落（穿门追杀不合逻辑）
+	if _in_settlement(p.global_position) or _in_settlement(global_position):
+		state = MobState.WANDER
+		wander_target = home_pos
+		aggro_lock_timer = 0.0
 		return
 	var d := _dist_to_player()
 	# 脱战：离家太远且玩家也远

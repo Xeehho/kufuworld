@@ -36,8 +36,10 @@ var hurt_timer: float = 0.0         # >0期间IDLE/MOVE不覆盖hurt动画
 var _ds_hooked: bool = false        # DeathSystem信号是否已连接
 
 # ---- Phase C 星露谷工具系统 ----
-enum Tool {NONE, HOE, CAN, SEEDS, COLLECT}
-const TOOL_NAMES := {"hoe": "锄头", "can": "水壶", "seeds": "菜种", "collect": "采集"}
+enum Tool {NONE, HOE, CAN, SEEDS, COLLECT, AXE}
+
+signal tool_changed(tool_name: String)   # 手持变化广播（HUD/人物面板显示用）
+const TOOL_NAMES := {"hoe": "锄头", "can": "水壶", "seeds": "菜种", "collect": "采集", "axe": "斧头"}
 const TOOL_ORDER := [Tool.HOE, Tool.CAN, Tool.SEEDS, Tool.COLLECT]
 var equipped_tool: int = Tool.NONE
 var tool_cooldown: float = 0.0
@@ -53,9 +55,76 @@ var build_selected_index: int = -1
 const COLLISION_HALF_W = 6.0
 const COLLISION_HALF_H = 4.0
 var _world_gen: Node2D = null
+var meditate_particles: CPUParticles2D = null   # 打坐吐纳粒子（青色内力上升）
+var meditate_ui: Node2D = null                  # 打坐进度盘（头顶）：内力恢复条+修炼进度条
+var med_qi_fill: ColorRect = null
+var med_prog_fill: ColorRect = null
+const MED_W := 46.0
+
+func _setup_meditate_particles():
+	meditate_particles = CPUParticles2D.new()
+	meditate_particles.emitting = false
+	meditate_particles.amount = 12
+	meditate_particles.lifetime = 1.5
+	meditate_particles.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE
+	meditate_particles.emission_sphere_radius = 12.0
+	meditate_particles.direction = Vector2(0, -1)
+	meditate_particles.spread = 24.0
+	meditate_particles.gravity = Vector2(0, -18)
+	meditate_particles.initial_velocity_min = 6.0
+	meditate_particles.initial_velocity_max = 15.0
+	meditate_particles.scale_amount_min = 1.0
+	meditate_particles.scale_amount_max = 2.4
+	meditate_particles.color = Color(0.45, 0.9, 1.0, 0.8)
+	meditate_particles.position = Vector2(0, -10)
+	add_child(meditate_particles)
+
+# 打坐进度盘（头顶世界空间）：上行=内力恢复，下行=内功修炼进度；仅打坐时显示
+func _setup_meditate_ui():
+	meditate_ui = Node2D.new()
+	meditate_ui.z_index = 30
+	meditate_ui.visible = false
+	add_child(meditate_ui)
+	var lbl := Label.new()
+	lbl.text = "· 打坐吐纳 ·"
+	lbl.add_theme_font_size_override("font_size", 5)
+	lbl.add_theme_color_override("font_color", Color(0.75, 0.93, 1.0))
+	lbl.add_theme_color_override("font_outline_color", Color(0.05, 0.08, 0.10))
+	lbl.add_theme_constant_override("outline_size", 2)
+	lbl.position = Vector2(-22, -62)
+	meditate_ui.add_child(lbl)
+	# 内力恢复条
+	var bg_qi := ColorRect.new()
+	bg_qi.color = Color(0.05, 0.07, 0.11, 0.85)
+	bg_qi.position = Vector2(-MED_W / 2, -52)
+	bg_qi.size = Vector2(MED_W, 5)
+	meditate_ui.add_child(bg_qi)
+	med_qi_fill = ColorRect.new()
+	med_qi_fill.color = Color(0.42, 0.85, 1.0, 0.95)
+	med_qi_fill.position = Vector2(-MED_W / 2 + 1, -51)
+	med_qi_fill.size = Vector2(0, 3)
+	meditate_ui.add_child(med_qi_fill)
+	# 内功修炼进度条
+	var bg_p := ColorRect.new()
+	bg_p.color = Color(0.05, 0.07, 0.11, 0.85)
+	bg_p.position = Vector2(-MED_W / 2, -45)
+	bg_p.size = Vector2(MED_W, 5)
+	meditate_ui.add_child(bg_p)
+	med_prog_fill = ColorRect.new()
+	med_prog_fill.color = Color(0.95, 0.78, 0.35, 0.95)
+	med_prog_fill.position = Vector2(-MED_W / 2 + 1, -44)
+	med_prog_fill.size = Vector2(0, 3)
+	meditate_ui.add_child(med_prog_fill)
 
 func _ready():
 	attack_indicator.visible = false
+	_setup_meditate_particles()   # 打坐吐纳内力粒子
+	_setup_meditate_ui()          # 打坐进度盘（内力/修炼双条）
+	# 画面改造P2.1：脚底软阴影（rebuild 后 anim.offset=(0,-16) 脚线=节点原点，影贴脚跟；
+	# 初版误按画布脚线放 y+14 造成"人影分离悬空"——已修）
+	var shadow := TextureGen.make_shadow_sprite(24.0, 0.30)
+	shadow.position = Vector2(0, 0)
+	add_child(shadow)
 	# 碰撞分层表（地形/建筑StaticBody=层1）：玩家=层2，NPC=层4，敌人=层8
 	# 玩家mask=1|4|8：被NPC/敌人挡住（空气墙）；NPC/敌人mask只含层1→
 	# 它们做重叠分离时不会把玩家算进去，玩家位置绝不被实体改变
@@ -116,9 +185,7 @@ func rebuild_sprite_frames():
 		["idle", 4, 6.0, true],
 		["walk", 6, 10.0, true],
 		["run", 6, 10.0, true],
-		["attack", 8, 14.0, false],   # Slice 轻击(8帧)
-		["heavy", 8, 14.0, false],    # Pierce 重击(8帧)
-		["block", 4, 5.0, true],      # Carry_Idle 持械防御姿态
+		["block", 4, 5.0, true],      # Carry_Idle 双掌推
 		["hurt", 4, 8.0, false],      # 受击
 		["death", 8, 10.0, false],    # 死亡倒地
 	]
@@ -143,6 +210,69 @@ func rebuild_sprite_frames():
 			for tex in frames:
 				sf.add_frame(anim_name, tex)
 			loaded_any = true
+	# BugFix: 徒手攻击原用Slice(斧)/Pierce(匕)素材帧，空手挥击凭空出现斧子/匕首
+	# 改用Collect空手帧：轻击=前段下探掌(0-3)，重击=后段起身升掌(4-7)
+	for dir_name in dir_names:
+		for anim_def in [["attack", [0, 1, 2, 3], 10.0], ["heavy", [4, 5, 6, 7], 10.0]]:
+			var anim_name: String = str(anim_def[0]) + "_" + dir_name
+			var frames: Array = []
+			for i in anim_def[1]:
+				var tex = TextureGen.load_png_texture("res://sprites/player/collect_%s_%d.png" % [dir_name, i])
+				if tex:
+					frames.append(tex)
+			if frames.is_empty():
+				push_warning("[Player] 缺失徒手攻击帧: " + anim_name)
+				continue
+			if not sf.has_animation(anim_name):
+				sf.add_animation(anim_name)
+			sf.set_animation_speed(anim_name, anim_def[2])
+			sf.set_animation_loop(anim_name, false)
+			for tex in frames:
+				sf.add_frame(anim_name, tex)
+			loaded_any = true
+	# 工具专用动作动画（行为-表现一致）：axe=Slice挥斧 / watering=浇水 / collect=弯腰农作
+	for dir_name in dir_names:
+		for tool_anim in [["axe", "attack", 8, 10.0], ["watering", "watering", 8, 10.0], ["collect", "collect", 8, 10.0]]:
+			var anim_name: String = str(tool_anim[0]) + "_" + dir_name
+			var frames: Array = []
+			for i in range(int(tool_anim[2])):
+				var tex = TextureGen.load_png_texture("res://sprites/player/%s_%s_%d.png" % [str(tool_anim[1]), dir_name, i])
+				if tex:
+					frames.append(tex)
+			if frames.is_empty():
+				push_warning("[Player] 缺失工具动画帧: " + anim_name)
+				continue
+			if not sf.has_animation(anim_name):
+				sf.add_animation(anim_name)
+			sf.set_animation_speed(anim_name, tool_anim[3])
+			sf.set_animation_loop(anim_name, false)
+			for tex in frames:
+				sf.add_frame(anim_name, tex)
+			loaded_any = true
+	# 打坐盘坐动画：专用坐姿帧（meditate_down_0/1，程序化生成，素材包无坐姿）；
+	# 缺失时回退Collect弯腰两帧。坐姿无方向差异，四方向统一用down帧
+	for dir_name in dir_names:
+		var anim_name: String = "meditate_" + str(dir_name)
+		var frames: Array = []
+		for i in [0, 1]:
+			var tex = TextureGen.load_png_texture("res://sprites/player/meditate_down_%d.png" % i)
+			if tex:
+				frames.append(tex)
+		if frames.is_empty():
+			for i in [4, 5]:
+				var tex2 = TextureGen.load_png_texture("res://sprites/player/collect_%s_%d.png" % [dir_name, i])
+				if tex2:
+					frames.append(tex2)
+		if frames.is_empty():
+			push_warning("[Player] 缺失打坐动画帧: " + anim_name)
+			continue
+		if not sf.has_animation(anim_name):
+			sf.add_animation(anim_name)
+		sf.set_animation_speed(anim_name, 1.5)
+		sf.set_animation_loop(anim_name, true)
+		for tex in frames:
+			sf.add_frame(anim_name, tex)
+		loaded_any = true
 	if loaded_any:
 		anim.sprite_frames = sf
 		# Body_A 64x64帧人物脚线在y≈48，帧中心y=32 → 上移16px使脚底=节点原点
@@ -207,6 +337,17 @@ func _unhandled_input(event):
 	if state == State.BUILD and event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		_toggle_build()
 		get_viewport().set_input_as_handled()
+	# 滚轮循环切换手持工具：徒手→锄→壶→种→采集→斧→徒手（用户要求）
+	if event is InputEventMouseButton and event.pressed:
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP or event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			if _is_ui_blocking() or state == State.BUILD or state == State.DEAD:
+				return
+			var order := [Tool.NONE, Tool.HOE, Tool.CAN, Tool.SEEDS, Tool.COLLECT, Tool.AXE]
+			var idx := order.find(equipped_tool)
+			if idx < 0:
+				idx = 0
+			var step := 1 if event.button_index == MOUSE_BUTTON_WHEEL_UP else -1
+			_select_tool(order[(idx + step + order.size()) % order.size()])
 
 func _is_ui_blocking() -> bool:
 	"""有模态UI打开时，锁定角色移动与战斗输入"""
@@ -232,6 +373,20 @@ func _is_ui_blocking() -> bool:
 		if is_instance_valid(m) and "visible" in m and m.visible:
 			return true
 	return false
+
+func _movement_locked() -> bool:
+	"""移动专用锁定：石伯WASD教学页(dialog teach_move)特许自由试走"""
+	if not _is_ui_blocking():
+		return false
+	if DialogManager.is_move_teach_open():
+		return false
+	return true
+
+# 供奇遇系统判定"击打怪物中"暂缓触发：出招/硬直窗口 或 面前扇形内尚有接战目标
+func is_in_combat() -> bool:
+	if state == State.ATTACK or state == State.STAGGER:
+		return true
+	return _find_mob_in_front() != null
 
 func _is_mouse_over_ui() -> bool:
 	"""鼠标悬停在任何Control上时，不触发攻击等游戏内动作"""
@@ -299,7 +454,7 @@ func _click_building_info(bld: Node2D):
 	_sfx("ui", -12.0)
 
 func _process_idle(_delta):
-	if _is_ui_blocking():
+	if _movement_locked():
 		velocity = Vector2.ZERO
 		_play_anim("idle")
 		return
@@ -310,10 +465,12 @@ func _process_idle(_delta):
 		return
 	if hurt_timer <= 0.0:
 		_play_anim("idle")
-	_check_combat_input()
+	# 教学对话页打开时仅解锁移动，战斗/工具输入保持锁定
+	if not DialogManager.is_dialog_open():
+		_check_combat_input()
 
 func _process_move(_delta):
-	if _is_ui_blocking():
+	if _movement_locked():
 		velocity = Vector2.ZERO
 		state = State.IDLE
 		_play_anim("idle")
@@ -333,7 +490,9 @@ func _process_move(_delta):
 	if hurt_timer <= 0.0:
 		_play_anim("walk")
 	move_and_slide()
-	_check_combat_input()
+	# 教学对话页打开时仅解锁移动，战斗/工具输入保持锁定
+	if not DialogManager.is_dialog_open():
+		_check_combat_input()
 
 func _check_combat_input():
 	if _is_mouse_over_ui():
@@ -351,6 +510,9 @@ func _check_combat_input():
 	if Input.is_action_just_pressed("tool_slot_4"):
 		_select_tool(Tool.COLLECT)
 		return
+	if Input.is_action_just_pressed("tool_slot_5"):
+		_select_tool(Tool.AXE)
+		return
 	if Input.is_action_just_pressed("player_attack_light"):
 		var clicked_npc := _npc_at_mouse()
 		if clicked_npc != null:
@@ -361,7 +523,11 @@ func _check_combat_input():
 			_click_building_info(clicked_bld)	# Phase G: 点中古堡→势力信息面板
 			return
 		if equipped_tool != Tool.NONE:
-			_use_tool()   # 装备工具时左键=使用工具（星露谷式）
+			# 手持工具遇敌转攻击（修"装上斧头打不了野怪"）：面前有敌人时挥击优先
+			if _find_mob_in_front() != null:
+				_start_attack(true)
+			else:
+				_use_tool()   # 装备工具时左键=使用工具（星露谷式）
 		else:
 			_start_attack(true)
 	elif Input.is_action_just_pressed("player_attack_heavy"):
@@ -398,12 +564,14 @@ func _tool_name(t: int) -> String:
 		Tool.CAN: return TOOL_NAMES["can"]
 		Tool.SEEDS: return TOOL_NAMES["seeds"]
 		Tool.COLLECT: return TOOL_NAMES["collect"]
+		Tool.AXE: return TOOL_NAMES["axe"]
 	return "徒手"
 
 func _select_tool(t: int):
 	equipped_tool = Tool.NONE if equipped_tool == t else t
 	_sfx("ui", -12.0)
 	_float_text(global_position + Vector2(0, -34), "装备：" + _tool_name(equipped_tool), Color(0.75, 0.95, 1.0))
+	tool_changed.emit(_tool_name(equipped_tool))
 
 func _use_tool():
 	if tool_cooldown > 0.0:
@@ -423,6 +591,14 @@ func _use_tool():
 			res = farm.try_plant(target_pos)
 		Tool.COLLECT:
 			res = farm.try_collect(target_pos)
+		Tool.AXE:
+			# 砍树必须装备斧头（逻辑一致性：没有斧子不能砍树）
+			var ts = get_node_or_null("/root/Main/World/TreeChopSystem")
+			if ts:
+				var chop: Dictionary = ts.try_chop_front(self)
+				res = {"ok": bool(chop.get("ok", false)), "msg": str(chop.get("msg", ""))}
+			else:
+				res = {"ok": false, "msg": ""}
 	if res["msg"] != "":
 		_float_text(target_pos + Vector2(-10, -20), res["msg"], Color(1, 0.95, 0.5) if res["ok"] else Color(1, 0.55, 0.45))
 	# Phase D：农活动作音效（成功才响）
@@ -432,12 +608,22 @@ func _use_tool():
 			Tool.CAN: _sfx("water")
 			Tool.SEEDS: _sfx("plant")
 			Tool.COLLECT: _sfx("harvest")
+			Tool.AXE: _sfx("hit")
 	_play_tool_swing()
 
+# 工具使用动作：按手持工具播对应动画（行为-表现一致性）
 func _play_tool_swing():
 	_sfx("swing", -10.0)
 	anim.speed_scale = 2.6
-	_play_anim("attack")
+	match equipped_tool:
+		Tool.CAN:
+			_play_anim("watering")          # 水壶→浇水动作
+		Tool.AXE:
+			_play_anim("axe")               # 斧头→挥斧劈砍（Slice素材，语义正确）
+		Tool.HOE, Tool.SEEDS, Tool.COLLECT:
+			_play_anim("collect")           # 锄头/播种/采集→弯腰农作
+		_:
+			_play_anim("attack")            # 徒手→掌法（Collect帧）
 	await get_tree().create_timer(0.26).timeout
 	anim.speed_scale = 1.0
 	if state == State.IDLE or state == State.MOVE:
@@ -459,8 +645,14 @@ func _float_text(pos: Vector2, txt: String, color: Color):
 	tw.tween_property(lbl, "modulate:a", 0.0, 0.8).set_delay(0.15)
 	tw.chain().tween_callback(lbl.queue_free)
 
+var _qi_warn_cd := 0.0
+
 func _start_attack(is_light: bool):
 	if GameManager.qi < 2:
+		# BugFix: 原先静默return，内力耗尽后左键"没反应"（用户误以为攻击坏了）
+		if _qi_warn_cd <= 0.0:
+			_qi_warn_cd = 0.8
+			_float_text(global_position + Vector2(0, -34), "内力不足，按E打坐恢复", Color(1.0, 0.75, 0.45))
 		return
 	state = State.ATTACK
 	var skill = _get_skill(is_light)
@@ -470,7 +662,11 @@ func _start_attack(is_light: bool):
 	current_skill = skill
 	frame_counter = 0
 	skill_phase = "startup"
-	_play_anim("heavy" if not is_light else "attack")
+	# 持斧时重击播挥斧动作（行为-表现一致）；否则掌法
+	if equipped_tool == Tool.AXE and not is_light:
+		_play_anim("axe")
+	else:
+		_play_anim("heavy" if not is_light else "attack")
 	_sfx("swing", -9.0)
 	velocity = Vector2.ZERO
 
@@ -554,6 +750,10 @@ func _damage_color() -> Color:
 func _deal_damage():
 	GameManager.consume_qi(current_skill.cost)
 	var base_damage = current_skill.damage
+	# 装备武器加成接入战斗（行为逻辑：装备武器→打得更疼）
+	var inv = get_node_or_null("/root/Main/InventoryManager")
+	if inv:
+		base_damage += inv.get_total_attack()
 	var final_damage = base_damage
 	if combat_stance:
 		var dmg_mult = combat_stance.on_hit_dealt()
@@ -562,17 +762,18 @@ func _deal_damage():
 		if counter_mult > 1.0:
 			print("[Combat] 格挡反击! 伤害x" + str(counter_mult))
 	print("[Combat] " + current_skill.skill_name + " dealt " + str(final_damage) + " damage")
-	# 打击反馈：命中特效+震屏+飘字
-	var hit_pos = global_position + _facing_vector() * 40.0
-	# Phase C：优先找面前的敌人，接通真实伤害闭环
+	# 打击反馈仅对战命中时有：特效+震屏+伤害数字
 	var target_mob = _find_mob_in_front()
 	if target_mob:
-		hit_pos = target_mob.global_position + Vector2(0, -10)
+		var hit_pos = target_mob.global_position + Vector2(0, -10)
 		target_mob.take_damage(final_damage)
 		_sfx("hit")
-	_spawn_hit_effect(hit_pos)
-	_spawn_damage_number(hit_pos, final_damage)
-	_camera_shake(4.0, 0.18)
+		_spawn_hit_effect(hit_pos)
+		_spawn_damage_number(hit_pos, final_damage)
+		_camera_shake(4.0, 0.18)
+	else:
+		# 挥掌（徒手默认）：无打击特效/伤害数字/震屏；砍树已移至斧头工具（逻辑一致性）
+		pass
 
 # 面前扇形内最近的敌人（攻击距离56px，朝向夹角余弦>0.25）
 func _find_mob_in_front() -> CharacterBody2D:
@@ -732,25 +933,49 @@ func _process_dodge(delta):
 
 func _toggle_meditate():
 	if state == State.MEDITATE:
-		state = State.IDLE
-		GameManager.stop_meditation()
-		attack_indicator.visible = false
-	else:
-		state = State.MEDITATE
-		GameManager.start_meditation()
-		velocity = Vector2.ZERO
-		attack_indicator.visible = true
-		attack_indicator.color = Color(0.3, 0.3, 0.8, 0.5)
+		_exit_meditate()
+		return
+	if GameManager.active_inner_skill == null:
+		_float_text(global_position + Vector2(0, -34), "尚未修炼内功心法，无法打坐", Color(1.0, 0.72, 0.45))
+		return
+	state = State.MEDITATE
+	GameManager.start_meditation()
+	velocity = Vector2.ZERO
+	attack_indicator.visible = true
+	attack_indicator.color = Color(0.3, 0.3, 0.8, 0.5)
+	_play_anim("meditate")   # 盘坐动作（专用坐姿帧慢循环+呼吸起伏）
+	if meditate_particles:
+		meditate_particles.emitting = true
+	if meditate_ui:
+		meditate_ui.visible = true
+	_float_text(global_position + Vector2(0, -34), "开始打坐（E起身）", Color(0.65, 0.9, 1.0))
+
+func _exit_meditate():
+	state = State.IDLE
+	GameManager.stop_meditation()
+	attack_indicator.visible = false
+	if meditate_particles:
+		meditate_particles.emitting = false
+	if meditate_ui:
+		meditate_ui.visible = false
+	_play_anim("idle")
 
 func _process_meditate(_delta):
 	if Input.is_action_just_pressed("player_meditate"):
-		state = State.IDLE
-		GameManager.stop_meditation()
-		attack_indicator.visible = false
+		_exit_meditate()
 		return
 	if GameManager.is_meditating == false:
-		state = State.IDLE
-		attack_indicator.visible = false
+		# 打坐被外部终止（修炼圆满/死亡等）：起身并反馈
+		_exit_meditate()
+		if GameManager.active_inner_skill != null and GameManager.inner_skill_progress >= GameManager.active_inner_skill.max_progress:
+			_float_text(global_position + Vector2(0, -34), "修炼圆满！", Color(0.55, 1.0, 0.75))
+		return
+	# 刷新打坐进度盘：上行内力恢复、下行内功修炼进度
+	if meditate_ui and med_qi_fill and med_prog_fill and GameManager.active_inner_skill != null:
+		var qi_ratio := clampf(GameManager.qi / maxf(1.0, GameManager.max_qi), 0.0, 1.0)
+		var prog_ratio := clampf(GameManager.inner_skill_progress / maxf(1.0, GameManager.active_inner_skill.max_progress), 0.0, 1.0)
+		med_qi_fill.size.x = (MED_W - 2.0) * qi_ratio
+		med_prog_fill.size.x = (MED_W - 2.0) * prog_ratio
 
 func _try_interact():
 	if interact_cooldown > 0:
@@ -790,6 +1015,7 @@ func _process(_delta):
 	interact_cooldown -= _delta if interact_cooldown > 0 else 0
 	tool_cooldown -= _delta if tool_cooldown > 0 else 0
 	hurt_timer -= _delta if hurt_timer > 0 else 0
+	_qi_warn_cd -= _delta if _qi_warn_cd > 0 else 0
 	_update_target_indicator()
 	# Phase D 死亡兜底轮询：毒/饿等非战斗减血到0也进死亡闭环（战斗路径见take_hit_with_stance）
 	if not _is_dead and GameManager.health <= 0.0:
@@ -1239,6 +1465,10 @@ func take_hit_with_stance(damage: float, from_pos: Vector2 = Vector2(INF, INF)):
 	# Phase D：死亡后免疫；from_pos为攻击者位置（mob传入），用于微击退
 	if _is_dead or state == State.DEAD:
 		return
+	# 装备防具减伤接入战斗（行为逻辑：穿甲→更抗打），保底1点伤害
+	var inv = get_node_or_null("/root/Main/InventoryManager")
+	if inv:
+		damage = maxf(damage - inv.get_total_defense(), 1.0)
 	var actual_damage = damage
 	var staggered := false
 	if combat_stance:
@@ -1250,6 +1480,11 @@ func take_hit_with_stance(damage: float, from_pos: Vector2 = Vector2(INF, INF)):
 			enter_stagger()
 	# 受击反馈：红闪+hurt动画（大硬直另有STAGGER表现，不叠加hurt动画）
 	hurt_timer = 0.32
+	# 遇袭自动收起工具，立即可还手（左键即攻击，无需手动切回）
+	if equipped_tool != Tool.NONE:
+		equipped_tool = Tool.NONE
+		_float_text(global_position + Vector2(0, -44), "收起工具迎敌！", Color(1, 0.85, 0.5))
+		tool_changed.emit(_tool_name(Tool.NONE))
 	var tw := create_tween()
 	modulate = Color(1.0, 0.35, 0.35)
 	tw.tween_property(self, "modulate", Color.WHITE, 0.22)

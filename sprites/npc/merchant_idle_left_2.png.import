@@ -3,11 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cj7y0nrq570c8"
-valid=false
+path="res://.godot/imported/merchant_idle_left_2.png-f429c06d12b3d664d7d0049dfad4e766.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://sprites/npc/merchant_idle_left_2.png"
+dest_files=["res://.godot/imported/merchant_idle_left_2.png-f429c06d12b3d664d7d0049dfad4e766.ctex"]
 
 [params]
 

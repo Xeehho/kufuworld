@@ -3,12 +3,19 @@ extends Node
 signal world_state_changed
 signal relation_changed(a, b, new_value)
 signal world_event(title, body, importance)
+signal story_stage_changed(stage)
 
 var morality: float = 0.0
 var reputation: float = 0.0
 var gold: int = 100  # 初始盘缠，保证商店系统开局可用
 var qi: float = 100.0
 var max_qi: float = 100.0
+
+# 主线剧情进度（完成主N后=N；0=序章未开始）。定义见 docs/主线剧情设计.md §四
+var story_stage: int = 0
+
+# W4：特性开关镜像（读 WorldFeatures.FLAG，任务冻结等系统统一经此查询）
+var feature_flags: Dictionary = WorldFeatures.FLAG
 
 var active_inner_skill: InnerSkill = null
 var inner_skill_progress: float = 0.0
@@ -60,6 +67,17 @@ const RELATION_TYPES = ["师徒", "仇敌", "挚友", "爱慕", "中立", "同�
 func _ready():
 	_load_clans()
 	_setup_initial_diplomacy()
+	_equip_default_inner()
+
+func _equip_default_inner():
+	"""开局默认装备基础心法（青木长生功）。
+	修"打坐无反应/无恢复进度"根因：此前active_inner_skill从未赋值→start_meditation永远静默拒绝"""
+	var path := "res://resources/inner/青木长生功.tres"
+	if ResourceLoader.exists(path):
+		active_inner_skill = load(path)
+		print("[Meditation] 默认心法已装备: " + str(active_inner_skill.skill_name))
+	else:
+		push_warning("[Meditation] 内功资源缺失: " + path)
 
 func get_relation(id_a: String, id_b: String) -> float:
 	var key = _relation_key(id_a, id_b)
@@ -139,12 +157,18 @@ func _process(delta):
 		meditation_timer = 0.0
 		_tick_cultivation()
 
+var _survival_emit_accum := 0.0   # BugFix: 生存衰减每帧广播world_state_changed→全部监听UI每帧重刷（移动时"反复出现"感），节流至0.25s
+
 func _tick_survival(delta):
 	hunger = max(hunger - 0.5 * delta, 0)
 	poison = max(poison - 0.1 * delta, 0)
 	if poison > 50:
 		health = max(health - 0.5 * delta, 0)
-	world_state_changed.emit()
+	# 节流广播：0.25s一次（数值变化粒度低，无需每帧惊动全部UI）
+	_survival_emit_accum += delta
+	if _survival_emit_accum >= 0.25:
+		_survival_emit_accum = 0.0
+		world_state_changed.emit()
 
 func take_hit(damage: float):
 	health = max(health - damage, 0)
@@ -204,6 +228,8 @@ func _tick_cultivation():
 		if not debuff_active:
 			debuff_active = true
 			print("[Meditation] 五行相克! 修炼效率降低，内力受损")
+	# 打坐吐纳：每拍持续恢复内力（此前仅修炼圆满一次性回复，"打坐看不到恢复进度"）
+	qi = minf(qi + 2.0, max_qi)
 	
 	inner_skill_progress += progress
 	if inner_skill_progress >= active_inner_skill.max_progress:
@@ -388,3 +414,41 @@ func get_recent_events(count: int = 5) -> Array:
 	for i in range(start, world_events.size()):
 		result.append(world_events[i])
 	return result
+
+# ---------- 主线剧情支持 ----------
+
+func advance_story_stage(n: int):
+	if n > story_stage:
+		story_stage = n
+		story_stage_changed.emit(n)
+		world_state_changed.emit()
+		print("[Story] story_stage -> %d" % n)
+
+# 主线/分支对话效果统一入口（声明式效果字典，供 main_story 与对话选项复用）
+# 支持: morality/reputation/gold/hunger/wood/stone
+#       relation(+relation_to 指定NPC名) / give_item(+give_count)
+#       event_title(+event_body/event_importance 默认4)
+func apply_story_effects(effects: Dictionary):
+	if effects.is_empty():
+		return
+	if effects.has("morality"):
+		modify_morality(effects["morality"])
+	if effects.has("reputation"):
+		modify_reputation(effects["reputation"])
+	if effects.has("gold"):
+		modify_gold(int(effects["gold"]))
+	if effects.has("hunger"):
+		eat_food(float(effects["hunger"]))
+	if effects.has("wood"):
+		wood = max(wood + int(effects["wood"]), 0)
+		world_state_changed.emit()
+	if effects.has("stone"):
+		stone = max(stone + int(effects["stone"]), 0)
+		world_state_changed.emit()
+	if effects.has("relation") and effects.has("relation_to"):
+		modify_relation("主角", str(effects["relation_to"]), float(effects["relation"]))
+	if effects.has("give_item"):
+		ItemFactory.give(str(effects["give_item"]), int(effects.get("give_count", 1)))
+	if effects.has("event_title"):
+		emit_event(str(effects["event_title"]), str(effects.get("event_body", "")),
+			int(effects.get("event_importance", 4)))

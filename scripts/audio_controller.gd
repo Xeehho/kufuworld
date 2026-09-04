@@ -19,6 +19,10 @@ var bgm_player: AudioStreamPlayer = null
 var last_played: String = ""
 var history: Array = []   # 最近播放记录（探针断言用）
 
+# 声音设置（暂停菜单设置区开关）：背景音乐默认关闭（用户要求）
+var sfx_enabled := true
+var bgm_enabled := false
+
 func _ready():
 	add_to_group("audio_controller")
 	for i in range(POOL_SIZE):
@@ -40,10 +44,26 @@ func _ready():
 		if b:
 			bgm_player.stream = b
 			bgm_player.finished.connect(bgm_player.play)   # finished重播实现无缝循环
-			bgm_player.play()
+			if bgm_enabled:
+				bgm_player.play()
 	print("[Audio] ready sfx=%d/%d bgm=%s" % [_sfx.size(), SFX_NAMES.size(), str(bgm_player.stream != null)])
 
+func set_sfx_enabled(v: bool):
+	sfx_enabled = v
+
+func set_bgm_enabled(v: bool):
+	bgm_enabled = v
+	if bgm_player == null:
+		return
+	if v:
+		if not bgm_player.playing and bgm_player.stream != null:
+			bgm_player.play()
+	elif bgm_player.playing:
+		bgm_player.stop()
+
 func play_sfx(sfx_name: String, volume_db: float = SFX_VOLUME, pitch: float = 1.0) -> bool:
+	if not sfx_enabled:
+		return false
 	if not _sfx.has(sfx_name):
 		return false
 	var p: AudioStreamPlayer = _pool[_pool_i]

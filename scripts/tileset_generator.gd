@@ -22,7 +22,7 @@ static func build_tileset() -> TileSet:
 		1: "res://sprites/tiles/path.png",
 		2: "res://sprites/tiles/house_town.png",
 		3: "res://sprites/tiles/mountain.png",
-		5: "res://sprites/tiles/water.png",
+		5: "res://sprites/tiles/water_anim.png",      # 画面改造P3.3：双帧波纹动画条（32x16）
 		6: "res://sprites/tiles/sand.png",
 		7: "res://sprites/tiles/mountain_snow.png",
 		10: "res://sprites/tiles/house_cottage.png",
@@ -36,13 +36,42 @@ static func build_tileset() -> TileSet:
 		17: "res://sprites/tiles/bridge.png",
 		18: "res://sprites/tiles/grass_dark.png",
 		34: "res://sprites/tiles/snow.png",           # Phase G重构: 雪原真雪地（demo3）
+		41: "res://sprites/tiles/snow_farmland.png",  # 2026-08-31: 雪覆农田（雪原群系农田，无碰撞）
+		42: "res://sprites/tiles/snow_path.png",      # 2026-08-31: 雪径（雪原群系道路，无碰撞）
 		35: "res://sprites/tiles/stone.png",          # Phase G重构: 石板广场（demo1城镇）
 		36: "res://sprites/tiles/mushroom.png",       # Phase G重构: 蘑菇装饰（demo2森林地表）
 		37: "res://sprites/tiles/daisy.png",          # Phase G重构: 雏菊装饰
+		40: "res://sprites/tiles/city_wall.png",      # 青石城城墙砖（四面围墙，有碰撞）
+		43: "res://sprites/tiles/ward_wall.png",      # W2 唐制坊墙（白灰淡砖，里坊围合，有碰撞）
+		44: "res://sprites/tiles/boundary_stone.png", # W3 界碑（门派领地边界标记，无碰撞装饰）
+		# ---- 画面改造P1.2 地面变体（无碰撞，layer 0，由 _ground_variant 噪声抖动选入）----
+		45: "res://sprites/tiles/grass_a.png",        # 草地像素变体A
+		46: "res://sprites/tiles/grass_b.png",        # 草地像素变体B
+		47: "res://sprites/tiles/grass_patch.png",    # 深绿色斑（草原斑驳）
+		48: "res://sprites/tiles/dark_a.png",         # 竹林深草变体A
+		49: "res://sprites/tiles/dark_b.png",         # 竹林深草变体B
+		50: "res://sprites/tiles/snow_a.png",         # 雪地像素变体A
+		51: "res://sprites/tiles/snow_b.png",         # 雪地像素变体B
+		52: "res://sprites/tiles/sand_a.png",         # 沙地像素变体A
+		53: "res://sprites/tiles/sand_b.png",         # 沙地像素变体B
+		54: "res://sprites/tiles/dirt_patch.png",     # 深棕干土斑（沙漠斑驳）
+		# ---- 画面改造P1.3 碎屑装饰（无碰撞，layer 1，decor_tiles 白名单）----
+		55: "res://sprites/tiles/tuft_a.png",         # 绿草丛
+		56: "res://sprites/tiles/tuft_b.png",         # 双叶草
+		57: "res://sprites/tiles/tuft_c.png",         # 黄绿草丛
+		58: "res://sprites/tiles/flower_white.png",   # 白色小野花
+		59: "res://sprites/tiles/flower_yellow.png",  # 黄色小野花
+		60: "res://sprites/tiles/leaf_litter.png",    # 橙色落叶簇
+		61: "res://sprites/tiles/twig.png",           # 枯枝
+		62: "res://sprites/tiles/dry_tuft.png",       # 干枯草丛
+		63: "res://sprites/tiles/dry_small.png",      # 干枯小苗
+		# ---- 画面改造P4b 山崖变体（碰撞同3，_paint_ground 噪声抖动选入）----
+		65: "res://sprites/tiles/mountain_b.png",     # 崖壁变体B（镜像）
+		66: "res://sprites/tiles/mountain_c.png",     # 崖壁变体C（翻转+压暗）
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15]
+	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
@@ -72,4 +101,27 @@ static func build_tileset() -> TileSet:
 					])
 					tile_data.set_collision_polygons_count(0, 1)
 					tile_data.set_collision_polygon_points(0, 0, poly)
+				# 画面改造P3.3：水面双帧轮播（32x16条，帧2在x+1；0.9s/帧微光流动）
+				if id == 5:
+					source.set_tile_animation_frames_count(Vector2i(0, 0), 2)
+					source.set_tile_animation_frame_duration(Vector2i(0, 0), 0, 0.9)
+					source.set_tile_animation_frame_duration(Vector2i(0, 0), 1, 0.9)
+
+	# 画面改造P3.2 水岸过渡（源64）：Water_tiles 首岛岸环 8 块（滩涂+泡沫+草沿），静态帧。
+	# 注：环块的4组岛跨列动画曾尝试 set_tile_animation_separation(6,1)，Godot 报
+	# "tiles are already present in the space the tile would cover"——占位校验不过，故用静态帧；
+	# 水面动态由源5的双帧波纹动画承担。草沿像素做草地暖化同步色系
+	var shore_img: Image = TextureGen._pack_image("Environment/Tilesets/Water_tiles.png")
+	if shore_img != null:
+		var shore_img_tinted = TextureGen._tint_veg_pixels(shore_img, 1.55, 1.16, 9.0)
+		var shore = TileSetAtlasSource.new()
+		shore.texture = ImageTexture.create_from_image(shore_img_tinted)
+		shore.texture_region_size = Vector2i(16, 16)
+		var shore_cells = [
+			Vector2i(2, 4), Vector2i(2, 0), Vector2i(0, 2), Vector2i(4, 2),   # 正交：草沿朝N/E/S/W
+			Vector2i(1, 4), Vector2i(3, 4), Vector2i(1, 0), Vector2i(3, 0),   # 对角：草沿朝NE/NW/SE/SW
+		]
+		for coords in shore_cells:
+			shore.create_tile(coords)
+		ts.add_source(shore, 64)
 	return ts

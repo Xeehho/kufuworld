@@ -3,11 +3,15 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://cf23c4l0xw4i1"
-valid=false
+path="res://.godot/imported/scholar_walk_left_4.png-0f672609bee2c1453e87260e3aa77989.ctex"
+metadata={
+"vram_texture": false
+}
 
 [deps]
 
 source_file="res://sprites/npc/scholar_walk_left_4.png"
+dest_files=["res://.godot/imported/scholar_walk_left_4.png-0f672609bee2c1453e87260e3aa77989.ctex"]
 
 [params]
 
