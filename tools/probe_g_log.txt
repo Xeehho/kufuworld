@@ -1,0 +1,30 @@
+=== G-LOGIC ===
+[PASS] G2 cell[4] (32, 80)
+[PASS] G2 atlas-inbounds[4] (128.0, 160.0) grid=(4, 2)
+[PASS] G2 cell[8] (64, 64)
+[PASS] G2 atlas-inbounds[8] (256.0, 128.0) grid=(4, 2)
+[PASS] G2 cell[9] (48, 80)
+[PASS] G2 atlas-inbounds[9] (144.0, 160.0) grid=(3, 2)
+[PASS] G2 prop-count 1954
+[PASS] G4 tree-anchor bad=0
+[PASS] G2 atlas-region-valid bad=0
+[PASS] G2 no-tree-near-water violations=0
+[PASS] G3 clearance-zones 6
+[PASS] G3 no-tree-rock-in-clearance viol=0/763
+[PASS] G4 player-z 2
+[PASS] G4 worldgen-ysort 
+[PASS] G4 world-ysort 
+[PASS] G4 npcspawner-ysort 
+[PASS] G4 mobspawner-ysort 
+[PASS] G4 npc-z 12
+[PASS] G1 frames-down count=6
+[PASS] G1 frames-left count=6
+[PASS] G1 frames-right count=6
+[PASS] G1 frames-up count=6
+=== G-VISUAL ===
+[shot0] player SOUTH of tree base=(-217.9802, -204.0)
+[shot1] player NORTH of tree
+[coast] (-42.0, -109.0)
+[shot2] coastline captured
+[shot3] town center captured
+GPROBE DONE pass=22 fail=0

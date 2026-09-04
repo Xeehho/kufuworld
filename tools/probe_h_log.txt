@@ -1,0 +1,41 @@
+=== H-LOGIC ===
+[PASS] H1 node:SurvivalHUD 
+[PASS] H1 node:QuestTrackerHUD 
+[PASS] H1 node:QuestLogHUD 
+[PASS] H2 slot-count-fixed ["health", "hunger", "poison", "qi"]
+[PASS] H2 display-arcs-init ["health", "hunger", "poison", "qi"]
+[PASS] H3 res-chips-panel ResChip_wood
+[PASS] H4 datetime-pill 
+[PASS] H5a lerp-not-instant early=0.158
+[PASS] H5b lerp-converged late=0.499 target~0.499
+[PASS] H5c pulse-fn-exists 
+[PASS] H6 quest-system-found 
+[PASS] H6 accept-ok 
+[PASS] H6 accept-event-fired 已接委托|铲除山贼
+[PASS] H7 one-active 1
+[PASS] H7 tracker-visible 
+[PASS] H7 tracker-cards 1
+[PASS] H7 tracker-title 【除恶】铲除山贼
+[PASS] H7 tracker-bar-max 3.0
+[PASS] H8 pin-set ["Q1"]
+[PASS] H8 pinned-card-shown 
+[PASS] H9 progress-polled bar=2.0
+[PASS] H10 log-opened 
+[PASS] H10 tab-count 进行中 1/5
+[PASS] H10 star-pinned-state ★
+[PASS] H10 star-unpinned ☆
+[PASS] H11 quest-completed 1
+[PASS] H11 tracker-cleared 0
+[PASS] H11 tracker-hidden 
+[PASS] H12 drawer-tab-edge (0.0, 424.0)
+[PASS] H12 label-full-name 
+[PASS] H12 badge-empty-no-active badge=
+[PASS] H12 badge-active-count badge=1
+[PASS] H12 badge-clears-on-abandon badge=
+[PASS] H12 default-closed 
+[PASS] H12 slide-open-x (34.0, 406.0)
+[PASS] H12 indicator-open 
+[PASS] H12 slide-closed 
+[PASS] H13 dialog-shown 
+[PASS] H13 next-button-closes 3 clicks
+=== H-DONE pass=39 fail=0 ===

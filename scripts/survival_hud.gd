@@ -2,19 +2,18 @@ extends Control
 
 const TextureGen = preload("res://scripts/texture_generator.gd")
 
-# 圆形人物信息HUD - 中间头像（仅头部），周围环形属性条，下方可展开任务日志
+# 圆形人物信息HUD - 中间头像（仅头部），周围环形属性条
+# Phase H: 固定四槽环（毒槽常驻占位防重排）+ 显示值平滑lerp + 低值脉动预警
+#   + 资源徽章chips + 时辰天气底板——对标《Don't Starve》徽章/BOTW轮盘/Dead Cells流动条
 
 var avatar_texture: Texture2D = null
-var stat_arcs: Dictionary = {}
+var stat_arcs: Dictionary = {}		# 目标比例（每帧直读GameManager）
+var display_arcs: Dictionary = {}	# 显示比例（向目标lerp，产生流动动画）
 var resource_labels: Dictionary = {}
 var name_label: Label = null
+var datetime_panel: Panel = null
 
-# 任务日志相关
-var quest_toggle_btn: Button = null
-var quest_panel: Panel = null
-var quest_active_label: Label = null
-var quest_avail_label: Label = null
-var quest_expanded: bool = false
+# Phase F7: 任务日志已迁出至独立 quest_log_hud.gd（游戏化页签+卡片），此处不再承载
 
 # 布局常量
 const CENTER_X = 90.0
@@ -25,12 +24,14 @@ const AVATAR_R = 46.0
 const ARC_GAP_DEG = 8.0
 const ARC_SEGMENTS = 32
 const RING_MASK_SEGS = 48
+# Phase H: 槽位数固定为4——中毒激活与否不再改变几何（旧版3↔4段重排跳变已废）
+const SLOT_COUNT := 4
 
-# 头部裁剪区域（基于32x48角色精灵帧）
-const HEAD_CROP_X = 5
-const HEAD_CROP_Y = 5
-const HEAD_CROP_W = 22
-const HEAD_CROP_H = 19
+# 头部裁剪区域（Phase F1着装后：64x64帧中发髻+头部位于 x24..39 y15..31）
+const HEAD_CROP_X = 24
+const HEAD_CROP_Y = 15
+const HEAD_CROP_W = 16
+const HEAD_CROP_H = 17
 
 # 属性配置: key -> [标签, 颜色, 最大值]
 # 起始角度和弧度在_draw中动态计算
@@ -66,7 +67,6 @@ func _ready():
 	_load_avatar()
 	_create_name_label()
 	_create_resource_labels()
-	_create_quest_section()
 	_create_help_section()
 	_create_datetime_label()
 	stat_arcs = {
@@ -75,6 +75,7 @@ func _ready():
 		"poison": GameManager.poison / 100.0,
 		"qi": GameManager.qi / GameManager.max_qi if GameManager.max_qi > 0 else 0.0,
 	}
+	display_arcs = stat_arcs.duplicate()
 
 func _load_avatar():
 	var full_tex = TextureGen.load_png_texture("res://sprites/player/idle_down_0.png")
@@ -82,6 +83,37 @@ func _load_avatar():
 		var img = full_tex.get_image()
 		var head_img = img.get_region(Rect2i(HEAD_CROP_X, HEAD_CROP_Y, HEAD_CROP_W, HEAD_CROP_H))
 		avatar_texture = ImageTexture.create_from_image(head_img)
+	_add_avatar_click_button()
+
+# 头像可点击 → 打开统一角色面板（用户要求：点击页面左侧顶部头像展示）
+func _add_avatar_click_button():
+	var btn := Button.new()
+	btn.flat = true
+	btn.position = Vector2(CENTER_X - AVATAR_R, CENTER_Y - AVATAR_R)
+	btn.size = Vector2(AVATAR_R * 2.0, AVATAR_R * 2.0)
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.tooltip_text = "查看侠者（V）"
+	btn.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	for st in ["normal", "hover", "pressed", "focus"]:
+		var sb := StyleBoxEmpty.new()
+		btn.add_theme_stylebox_override(st, sb)
+	btn.pressed.connect(_on_avatar_clicked)
+	add_child(btn)
+
+func _on_avatar_clicked():
+	var cp = get_node_or_null("/root/Main/World/UI/CharacterPanel")
+	if cp == null or cp.is_open():
+		return
+	# 与V键打开守卫一致：对话/商店/建造/奇遇面板优先
+	if DialogManager.is_dialog_open() or GameManager.is_build_mode:
+		return
+	var shop_hud = get_node_or_null("/root/Main/World/UI/ShopHUD")
+	if shop_hud and shop_hud.is_open:
+		return
+	var quick_menu = get_node_or_null("/root/Main/World/UI/QuickMenu")
+	if quick_menu and quick_menu.is_panel_open():
+		return
+	cp.open()
 
 func _create_name_label():
 	name_label = Label.new()
@@ -94,72 +126,52 @@ func _create_name_label():
 	add_child(name_label)
 
 func _create_resource_labels():
-	var res_y = CENTER_Y + RING_OUTER_R + 16
+	# Phase H: 木/石/金改主题徽章chips（inset底板+提亮彩字），替代裸文本漂浮
+	var res_y = 176.0
 	var resources = [
-		["wood",  "木", Color(0.6, 0.4, 0.2)],
-		["stone", "石", Color(0.5, 0.5, 0.5)],
+		["wood",  "木", Color(0.75, 0.55, 0.32)],
+		["stone", "石", Color(0.68, 0.70, 0.74)],
 		["gold",  "金", Color(1, 0.85, 0.2)],
 	]
 	for i in range(resources.size()):
-		var key = resources[i][0]
-		var icon = resources[i][1]
-		var color = resources[i][2]
+		var chip = Panel.new()
+		chip.name = "ResChip_" + resources[i][0]
+		chip.position = Vector2(2 + i * 64, res_y)
+		chip.size = Vector2(58, 22)
+		chip.add_theme_stylebox_override("panel", UITheme.inset_style())
+		add_child(chip)
 		var lbl = Label.new()
-		lbl.text = icon + ":0"
-		lbl.position = Vector2(15 + i * 55, res_y)
-		lbl.add_theme_font_size_override("font_size", 11)
-		lbl.add_theme_color_override("font_color", color)
-		add_child(lbl)
-		resource_labels[key] = lbl
+		lbl.text = resources[i][1] + ":0"
+		lbl.position = Vector2(10, 2)
+		lbl.size = Vector2(44, 18)
+		UITheme.style_label(lbl, 11, resources[i][2])
+		chip.add_child(lbl)
+		resource_labels[resources[i][0]] = lbl
+	_create_hand_chip()
 
-func _create_quest_section():
-	var btn_y = CENTER_Y + RING_OUTER_R + 38
-	quest_toggle_btn = Button.new()
-	quest_toggle_btn.text = "  任务日志  ▼"
-	quest_toggle_btn.position = Vector2(20, btn_y)
-	quest_toggle_btn.size = Vector2(QUEST_W, 22)
-	UITheme.style_button(quest_toggle_btn, 11)
-	quest_toggle_btn.add_theme_color_override("font_color", UITheme.GOLD)
-	quest_toggle_btn.pressed.connect(_toggle_quest)
-	add_child(quest_toggle_btn)
-
-	# 任务面板（默认隐藏），宽度与按钮一致
-	var panel_y = btn_y + 26
-	quest_panel = Panel.new()
-	quest_panel.position = Vector2(20, panel_y)
-	quest_panel.size = Vector2(QUEST_W, 200)
-	quest_panel.visible = false
-	quest_panel.add_theme_stylebox_override("panel", UITheme.inset_style())
-	add_child(quest_panel)
-
-	quest_active_label = Label.new()
-	quest_active_label.position = Vector2(4, 4)
-	quest_active_label.size = Vector2(QUEST_W - 8, 90)
-	quest_active_label.add_theme_font_size_override("font_size", 9)
-	quest_active_label.add_theme_color_override("font_color", Color(1, 1, 1))
-	quest_panel.add_child(quest_active_label)
-
-	quest_avail_label = Label.new()
-	quest_avail_label.position = Vector2(4, 96)
-	quest_avail_label.size = Vector2(QUEST_W - 8, 90)
-	quest_avail_label.add_theme_font_size_override("font_size", 9)
-	quest_avail_label.add_theme_color_override("font_color", Color(0.7, 0.85, 1))
-	quest_panel.add_child(quest_avail_label)
-
-	var hint = Label.new()
-	hint.text = "[N]刷新 [1-5]接 [F1]弃"
-	hint.position = Vector2(4, 184)
-	hint.add_theme_font_size_override("font_size", 8)
-	hint.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	quest_panel.add_child(hint)
-
-func _toggle_quest():
-	quest_expanded = !quest_expanded
-	quest_panel.visible = quest_expanded
-	if quest_expanded:
-		quest_toggle_btn.text = "  任务日志  ▲"
-	else:
-		quest_toggle_btn.text = "  任务日志  ▼"
+# 手持指示chip：实时显示当前工具/空手（用户反馈：手里的工具看不到）
+func _create_hand_chip():
+	var chip = Panel.new()
+	chip.name = "HandChip"
+	chip.position = Vector2(2, 202)
+	chip.size = Vector2(130, 22)
+	chip.add_theme_stylebox_override("panel", UITheme.inset_style())
+	add_child(chip)
+	var lbl = Label.new()
+	lbl.name = "HandLabel"
+	lbl.position = Vector2(10, 2)
+	lbl.size = Vector2(116, 18)
+	UITheme.style_label(lbl, 11, Color(0.55, 0.9, 0.95))
+	lbl.text = "手持：徒手"
+	chip.add_child(lbl)
+	# 连接玩家手持变化信号（Player为场景静态节点，此刻已就绪）
+	var pl = get_node_or_null("/root/Main/World/Player")
+	if pl and pl.has_signal("tool_changed"):
+		pl.tool_changed.connect(func(tool_name: String):
+			lbl.text = "手持：" + tool_name)
+	elif pl:
+		# 兜底：信号未广播前先读一次初始值
+		lbl.text = "手持：" + pl._tool_name(pl.equipped_tool)
 
 func _create_help_section():
 	# 左下角操作指南（可折叠）
@@ -185,7 +197,7 @@ func _create_help_section():
 	help_text.position = Vector2(10, 8)
 	help_text.size = Vector2(230, 194)
 	UITheme.style_label(help_text, 11, UITheme.TEXT_MAIN)
-	help_text.text = "WASD / 方向键  移动\n左键  轻击    右键  重击\nQ  格挡    空格  闪避/疾跑\nE  打坐修炼    F  与人交谈\nB  建造    K  商店\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  门派信息\n\n奇遇触发时会自动弹出面板\n点击选项或按数字键抉择"
+	help_text.text = "WASD / 方向键  移动\n左键  轻击/使用工具    右键  重击\nQ  格挡    空格  闪避    Shift  疾跑\nE  打坐修炼    F  交谈/站台合成\nB  建造    K  商店    V  人物面板    I  背包\nM  舆图    左键点路人/古堡  查看信息\n数字键1-5  锄/壶/种/采集/斧头\n(砍树须持斧 · 再按同键收回 · 遇袭自动收)\nZ / X / C  攻击/防御/中立架势\nJ  加入门派  P  查看  T  背叛门派\nN  任务日志(展开时1-9接取)\nESC  关闭面板    Tab  商店买/卖"
 	help_panel.add_child(help_text)
 
 func _toggle_help():
@@ -194,11 +206,19 @@ func _toggle_help():
 	help_btn.text = "  操作指南  ▼" if help_expanded else "  操作指南  ▲"
 
 func _create_datetime_label():
+	# Phase H: 时辰天气加inset底板成"时辰牌"，位置不变（避开CombatHUD 185..355区）
+	datetime_panel = Panel.new()
+	datetime_panel.name = "DatetimePill"
+	datetime_panel.position = Vector2(368, 10)
+	datetime_panel.size = Vector2(168, 26)
+	datetime_panel.add_theme_stylebox_override("panel", UITheme.inset_style())
+	add_child(datetime_panel)
 	datetime_label = Label.new()
-	datetime_label.position = Vector2(370, 14)
-	datetime_label.size = Vector2(160, 20)
+	datetime_label.position = Vector2(4, 2)
+	datetime_label.size = Vector2(160, 22)
+	datetime_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	UITheme.style_label(datetime_label, 13, UITheme.GOLD_DIM)
-	add_child(datetime_label)
+	datetime_panel.add_child(datetime_label)
 
 func _update_datetime():
 	var hour = int(GameManager.world_hour) % 24
@@ -207,31 +227,26 @@ func _update_datetime():
 	var daynight = "" if GameManager.is_daytime else " · 夜"
 	datetime_label.text = shichen + "时 · " + weather + daynight
 
-# 获取当前活跃的属性列表（中毒>0时包含，否则不包含）
-func _get_active_stats() -> Array:
-	var result = []
-	for key in stat_order:
-		if key == "poison" and GameManager.poison <= 0:
-			continue
-		result.append(key)
-	return result
-
 func _draw():
 	# 1. 外圈背景
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 3, Color(0.2, 0.2, 0.25, 0.4))
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 1, Color(0.05, 0.05, 0.08, 0.9))
 
-	# 2. 动态计算弧段：3个属性均分120度，4个属性均分90度
-	var active_stats = _get_active_stats()
-	var count = active_stats.size()
-	var seg_deg = 360.0 / count  # 3→120, 4→90
+	# 2. 固定四槽弧段（Phase H）：几何永不重排；毒槽未激活画暗色空位
+	var seg_deg = 360.0 / SLOT_COUNT
 
-	for i in range(count):
-		var key = active_stats[i]
+	for i in range(SLOT_COUNT):
+		var key = stat_order[i]
 		var cfg = stat_config[key]
 		var start_deg = i * seg_deg
-		var ratio = stat_arcs.get(key, 0.0)
-		_draw_arc_segment(start_deg, ARC_GAP_DEG, cfg[1], ratio, seg_deg)
+		var ratio = display_arcs.get(key, 0.0)
+		var col: Color = cfg[1]
+		if key == "poison" and GameManager.poison <= 0.001:
+			col = Color(col.r, col.g, col.b, 0.22)	# 空槽毒位轮廓
+			ratio = 0.0
+		else:
+			col = _pulsed_color(key, col, ratio)
+		_draw_arc_segment(start_deg, ARC_GAP_DEG, col, ratio, seg_deg)
 
 	# 3. 内圈背景
 	draw_circle(Vector2(CENTER_X, CENTER_Y), RING_INNER_R - 1, INNER_BG)
@@ -252,21 +267,22 @@ func _draw():
 	draw_arc(Vector2(CENTER_X, CENTER_Y), RING_INNER_R - 1, 0, TAU, 64, Color(0.4, 0.35, 0.2, 0.5), 1.5)
 	draw_arc(Vector2(CENTER_X, CENTER_Y), RING_OUTER_R + 1, 0, TAU, 64, Color(0.4, 0.35, 0.2, 0.5), 1.5)
 
-	# 6. 属性标签（在弧段外侧）
-	for i in range(count):
-		var key = active_stats[i]
+	# 6. 属性标签（固定四角度；非活跃毒名暗显无数值——保留槽位认知又不添噪）
+	for i in range(SLOT_COUNT):
+		var key = stat_order[i]
 		var cfg = stat_config[key]
-		var label_text = cfg[0]
-		var start_deg = i * seg_deg
-		var mid_deg = start_deg + (seg_deg - ARC_GAP_DEG) / 2.0
+		var mid_deg = i * seg_deg + (seg_deg - ARC_GAP_DEG) / 2.0
 		var mid_rad = deg_to_rad(mid_deg - 90)
 		var label_r = RING_OUTER_R + 16
 		var lx = CENTER_X + cos(mid_rad) * label_r
 		var ly = CENTER_Y + sin(mid_rad) * label_r
-		var ratio = stat_arcs.get(key, 0.0)
-		var val_text = str(int(ratio * 100)) if key != "qi" else str(int(ratio * GameManager.max_qi))
-		draw_string(_get_default_font(), Vector2(lx - 10, ly + 2), label_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, Color(0.9, 0.9, 0.9, 0.9))
-		draw_string(_get_default_font(), Vector2(lx - 8, ly + 13), val_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, cfg[1])
+		var slot_active = not (key == "poison" and GameManager.poison <= 0.001)
+		var name_col = Color(0.9, 0.9, 0.9, 0.92) if slot_active else Color(0.55, 0.55, 0.62, 0.35)
+		draw_string(_get_default_font(), Vector2(lx - 10, ly + 2), cfg[0], HORIZONTAL_ALIGNMENT_CENTER, -1, 9, name_col)
+		if slot_active:
+			var ratio = display_arcs.get(key, 0.0)
+			var val_text = str(int(ratio * 100)) if key != "qi" else str(int(ratio * GameManager.max_qi))
+			draw_string(_get_default_font(), Vector2(lx - 8, ly + 13), val_text, HORIZONTAL_ALIGNMENT_CENTER, -1, 9, cfg[1])
 
 func _draw_arc_segment(start_deg: float, gap_deg: float, color: Color, ratio: float, total_deg: float):
 	var arc_deg = total_deg - gap_deg
@@ -305,89 +321,35 @@ func _draw_full_ring(inner_r: float, outer_r: float, color: Color):
 func _get_default_font() -> Font:
 	return ThemeDB.fallback_font
 
-func _process(_delta):
+func _process(delta):
+	# 目标值每帧直读，显示值lerp趋近——受伤/回复时弧段流动而非瞬跳（《Dead Cells》手感）
 	stat_arcs["health"] = GameManager.health / 100.0
 	stat_arcs["hunger"] = GameManager.hunger / 100.0
 	stat_arcs["poison"] = GameManager.poison / 100.0
 	stat_arcs["qi"] = GameManager.qi / GameManager.max_qi if GameManager.max_qi > 0 else 0.0
+	var lerp_w = minf(delta * 6.0, 1.0)
+	for k in stat_order:
+		display_arcs[k] = lerpf(display_arcs.get(k, 0.0), stat_arcs[k], lerp_w)
 	resource_labels["wood"].text = "木:" + str(GameManager.wood)
 	resource_labels["stone"].text = "石:" + str(GameManager.stone)
 	resource_labels["gold"].text = "金:" + str(GameManager.gold)
 	queue_redraw()
-	_update_quest_display()
 	_update_datetime()
 
-func _update_quest_display():
-	if not quest_expanded:
-		return
-	var qs = get_node_or_null("/root/Main/QuestSystem")
-	if qs == null:
-		return
+# Phase H: 低值脉动预警——血<25%/饥<20%亮白呼吸，毒>60%紫白警示（《Don't Starve》徽章语言）
+func _pulsed_color(key: String, c: Color, ratio: float) -> Color:
+	var warn := false
+	match key:
+		"health":
+			warn = ratio < 0.25
+		"hunger":
+			warn = ratio < 0.20
+		"poison":
+			warn = ratio > 0.60
+	if not warn:
+		return c
+	var t = float(Time.get_ticks_msec()) / 1000.0
+	var pulse = 0.5 + 0.5 * sin(t * TAU * 1.6)
+	return c.lerp(Color(1, 1, 1), 0.20 + 0.38 * pulse)
 
-	var t = "— 进行中 —\n"
-	var tasks = qs.get_active_quests()
-	if tasks.size() == 0:
-		t += "  (暂无)\n"
-	else:
-		for i in range(tasks.size()):
-			var q = tasks[i]
-			var bar = _progress_bar(q.completion_ratio())
-			t += str(i + 1) + "." + q.title + "\n"
-			t += "  " + bar + " " + str(q.current_count) + "/" + str(q.target_count) + "\n"
-	quest_active_label.text = t
-
-	var t2 = "— 可接任务 —\n"
-	var avail = qs.get_available_quests()
-	if avail.size() == 0:
-		t2 += "  (暂无)\n"
-	else:
-		for i in range(min(avail.size(), 4)):
-			var q = avail[i]
-			var stars = ""
-			for _s in range(q.difficulty):
-				stars += "*"
-			t2 += str(i + 1) + "." + q.title + " " + stars + " " + str(q.reward_gold) + "金\n"
-	quest_avail_label.text = t2
-
-func _input(event):
-	if event is InputEventKey and event.pressed:
-		if GameManager.is_build_mode:
-			return
-		# 面板未展开时不拦截数字键，避免与奇遇/商店/建造冲突
-		if not quest_expanded:
-			return
-		if DialogManager.is_dialog_open():
-			return
-		var quick_menu = get_node_or_null("/root/Main/World/UI/QuickMenu")
-		if quick_menu and quick_menu.is_panel_open():
-			return
-		var shop_hud = get_node_or_null("/root/Main/World/UI/ShopHUD")
-		if shop_hud and shop_hud.is_open:
-			return
-		var qs = get_node_or_null("/root/Main/QuestSystem")
-		if qs == null:
-			return
-		if event.keycode == KEY_N:
-			qs.refresh_available_quests()
-			return
-		if event.keycode == KEY_F1:
-			var tasks = qs.get_active_quests()
-			if tasks.size() > 0:
-				qs.abandon_quest(tasks[0].quest_id)
-			return
-		if event.keycode >= KEY_1 and event.keycode <= KEY_9:
-			var idx = event.keycode - KEY_1
-			qs.accept_quest(idx)
-			return
-
-func _progress_bar(ratio: float) -> String:
-	var w = 8
-	var filled = int(ratio * w)
-	var s = "["
-	for i in range(w):
-		if i < filled:
-			s += "="
-		else:
-			s += "-"
-	s += "]"
-	return s
+# Phase F7: 旧任务日志渲染与快捷键处理已整体迁至 quest_log_hud.gd

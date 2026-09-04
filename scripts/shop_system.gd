@@ -131,28 +131,30 @@ func restock():
 	print("[Shop] 商店补货完成")
 
 func _create_shop_inventory():
+	# BugFix: item_id原用中文名，与背包/ItemFactory的英文id不一致→买卖物品不堆叠、
+	# 使用/出售按id匹配会漏。统一英文id（与inventory_manager默认物品、ItemFactory对齐）
 	var items_data = [
-		_shop_item("金创药", "常见外伤药", ITEM_CONSUMABLE, RARITY_COMMON, 15, 20, 0, 0, 25, 0, 0, 0, 0),
-		_shop_item("回气丹", "恢复内力", ITEM_CONSUMABLE, RARITY_COMMON, 20, 15, 0, 0, 0, 30, 0, 0, 0),
-		_shop_item("肉包子", "充饥食物", ITEM_CONSUMABLE, RARITY_COMMON, 5, 30, 0, 0, 5, 0, 30, 0, 0),
-		_shop_item("解毒散", "解除毒素", ITEM_CONSUMABLE, RARITY_UNCOMMON, 35, 8, 0, 0, 0, 0, 0, 40, 0),
-		_shop_item("大还丹", "恢复大量气血", ITEM_CONSUMABLE, RARITY_RARE, 120, 3, 0, 0, 80, 20, 0, 20, 0),
-		_shop_item("铁剑", "普通铁剑", ITEM_WEAPON, RARITY_COMMON, 80, 5, 8, 2, 0, 0, 0, 0, 0),
-		_shop_item("精钢剑", "精炼钢剑", ITEM_WEAPON, RARITY_UNCOMMON, 200, 3, 15, 4, 0, 0, 0, 0, 0),
-		_shop_item("玄铁重剑", "稀世重剑", ITEM_WEAPON, RARITY_RARE, 500, 1, 30, 8, 0, 0, 0, 0, 0),
-		_shop_item("布甲", "普通防护", ITEM_ARMOR, RARITY_COMMON, 60, 5, 0, 8, 0, 0, 0, 0, 0),
-		_shop_item("皮甲", "皮革防护", ITEM_ARMOR, RARITY_UNCOMMON, 150, 3, 0, 15, 0, 0, 0, 0, 0),
-		_shop_item("铁矿石", "锻造材料", ITEM_MATERIAL, RARITY_COMMON, 10, 20, 0, 0, 0, 0, 0, 0, 0),
-		_shop_item("草药", "炼丹材料", ITEM_MATERIAL, RARITY_COMMON, 8, 25, 0, 0, 0, 0, 0, 0, 0),
-		_shop_item("玉佩", "温润玉佩", ITEM_ACCESSORY, RARITY_RARE, 300, 2, 0, 3, 0, 0, 0, 0, 0),
+		_shop_item("gold_herb", "金创药", "常见外伤药", ITEM_CONSUMABLE, RARITY_COMMON, 15, 20, 0, 0, 25, 0, 0, 0, 0),
+		_shop_item("qi_pill", "回气丹", "恢复内力", ITEM_CONSUMABLE, RARITY_COMMON, 20, 15, 0, 0, 0, 30, 0, 0, 0),
+		_shop_item("meat_bun", "肉包子", "充饥食物", ITEM_CONSUMABLE, RARITY_COMMON, 5, 30, 0, 0, 5, 0, 30, 0, 0),
+		_shop_item("antidote", "解毒散", "解除毒素", ITEM_CONSUMABLE, RARITY_UNCOMMON, 35, 8, 0, 0, 0, 0, 0, 40, 0),
+		_shop_item("great_pill", "大还丹", "恢复大量气血", ITEM_CONSUMABLE, RARITY_RARE, 120, 3, 0, 0, 80, 20, 0, 20, 0),
+		_shop_item("iron_sword", "铁剑", "普通铁剑", ITEM_WEAPON, RARITY_COMMON, 80, 5, 8, 2, 0, 0, 0, 0, 0),
+		_shop_item("steel_sword", "精钢剑", "精炼钢剑", ITEM_WEAPON, RARITY_UNCOMMON, 200, 3, 15, 4, 0, 0, 0, 0, 0),
+		_shop_item("heavy_sword", "玄铁重剑", "稀世重剑", ITEM_WEAPON, RARITY_RARE, 500, 1, 30, 8, 0, 0, 0, 0, 0),
+		_shop_item("cloth_armor", "布甲", "普通防护", ITEM_ARMOR, RARITY_COMMON, 60, 5, 0, 8, 0, 0, 0, 0, 0),
+		_shop_item("leather_armor", "皮甲", "皮革防护", ITEM_ARMOR, RARITY_UNCOMMON, 150, 3, 0, 15, 0, 0, 0, 0, 0),
+		_shop_item("iron_ore", "铁矿石", "锻造材料", ITEM_MATERIAL, RARITY_COMMON, 10, 20, 0, 0, 0, 0, 0, 0, 0),
+		_shop_item("herb_material", "草药", "炼丹材料", ITEM_MATERIAL, RARITY_COMMON, 8, 25, 0, 0, 0, 0, 0, 0, 0),
+		_shop_item("jade_pendant", "玉佩", "温润玉佩", ITEM_ACCESSORY, RARITY_RARE, 300, 2, 0, 3, 0, 0, 0, 0, 0),
 	]
 	shop_items = items_data
 
-func _shop_item(name_str: String, desc: String, type: int, rarity_val: int, price: int, stock: int, atk: float, def_val: float, heal: float, qi_r: float, hunger_r: float, poison_c: float, speed_b: float) -> Dictionary:
+func _shop_item(id_str: String, name_str: String, desc: String, type: int, rarity_val: int, price: int, stock: int, atk: float, def_val: float, heal: float, qi_r: float, hunger_r: float, poison_c: float, speed_b: float) -> Dictionary:
 	var item_script = load("res://scripts/item_resource.gd")
 	var item = Resource.new()
 	item.set_script(item_script)
-	item.item_id = name_str
+	item.item_id = id_str
 	item.item_name = name_str
 	item.description = desc
 	item.item_type = type

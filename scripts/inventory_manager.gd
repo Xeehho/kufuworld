@@ -16,7 +16,7 @@ const RARITY_EPIC = 3
 const RARITY_LEGENDARY = 4
 
 var inventory: Array = []  # [{item: Resource, count: int}]
-var max_slots: int = 30
+var max_slots: int = 45
 var equipped_weapon: Resource = null
 var equipped_armor: Resource = null
 var equipped_accessory: Resource = null

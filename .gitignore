@@ -1,2 +1,25 @@
-# 本地工作日志，禁止提交
-.trae/gameWork.md
+# 本地工作区（工作日志/参考图/临时分析产物），禁止提交
+.trae/
+.zcode/gameWork.md
+.zcode/tasks/
+
+# Python缓存
+__pycache__/
+
+# 探针日志与临时截图
+tools/*.txt
+tools/sshot_*.png
+tools/sshot_*.png.import
+tools/vshot_*.png
+tools/vshot_*.png.import
+tools/probe_*shot*.png
+tools/probe_*shot*.png.import
+
+# Godot运行时user://缓存（本机环境把user://落在项目内）
+Godot/
+
+# Godot编辑器本地缓存
+.godot/
+
+# MCP client session cache
+tools/_mcp_state/

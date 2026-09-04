@@ -2,6 +2,10 @@
 
 本文档面向开发者和AI辅助工具，介绍项目架构、开发规范和注意事项。
 
+> 📌 **ZCode 会话首读（最高优先级）**：本项目规则库位于 [`.zcode/rules/`](.zcode/rules/)，每次会话开始、任何任务动手之前，**必须先读取该目录下的全部规则文件并遵守**。当前含：①《需求变更自动记录规则》（[`.zcode/rules/record.md`](.zcode/rules/record.md)）——每个需求完成后自动将改动总结追加到 `.zcode/gameWork.md`（本地工作日志，禁止提交 git）；②《长任务交接规则》（[`.zcode/rules/longtask.md`](.zcode/rules/longtask.md)）——长任务开工即建 `.zcode/tasks/<slug>.md` 交接文件并随里程碑滚动更新"已完成/未完成"，上下文窗口跑不下时据此开新对话续跑；用户说"继续XX任务"时**必须先读**对应交接文件再动手。
+> ⚠️ **开发前必读**：任何代码修改任务开始前，必须先阅读 [`docs/开发必读-陷阱备忘.md`](docs/开发必读-陷阱备忘.md)——全项目踩坑汇总（资源管线/渲染层级/UI输入/数据逻辑/工具链五大类42条，含2026-08-27前期验收轮新坑）。改哪类功能就先看对应章节，可避免绝大多数返工。
+> UI改动还需对照 [`docs/验收标准.md`](docs/验收标准.md)（页面交互与视觉验收基准）；视觉走查逐项打勾，禁止整体印象式扫图。
+
 ---
 
 ## 项目概览
@@ -24,6 +28,9 @@ Main (Node2D) [Main.gd]
     │   ├── AnimatedSprite2D
     │   └── AttackIndicator (ColorRect)
     ├── WorldGenerator (Node2D) [world_generator.gd] — 运行时动态创建
+    ├── FarmSystem (Node2D) [farm_system.gd] — 运行时动态创建（Phase C 农田/作物/浆果丛）
+    ├── StationSystem (Node2D) [station_system.gd] — 运行时动态创建（Phase C 制作站台）
+    ├── MobSpawner (Node2D) [mob_spawner.gd] — 运行时动态创建（Phase C 敌人营地）
     ├── WeatherController (Node) [weather_controller.gd] — 运行时动态创建
     ├── NPCSpawner (Node2D) [npc_spawner.gd] — 运行时动态创建
     ├── CanvasModulate
@@ -56,6 +63,7 @@ Main (Node2D) [Main.gd]
 16. `_setup_death_system()` / `_setup_death_hud()` — 死亡系统
 17. `_setup_npc_spawner()` — NPC生成（必须在纹理和世界之后）
 18. `_setup_npc_info_hud()` — NPC信息面板
+19. `_setup_farm_system()` / `_setup_station_system()` / `_setup_mob_spawner()` — Phase C 农场/站台/敌人营地（依赖WorldGenerator与InventoryManager就绪）
 
 ### 自动加载（Autoload）
 
@@ -83,10 +91,12 @@ Main (Node2D) [Main.gd]
 
 | 位置 | HUD | 说明 |
 |------|-----|------|
-| 左上 | SurvivalHUD | 环形属性盘+资源+任务日志折叠面板，左下角有操作指南，顶部有时辰天气 |
+| 左上 | SurvivalHUD | 固定四槽环形属性盘（毒槽常驻暗显防重排）+平滑lerp+低值脉动+资源chips+时辰底板，左下角操作指南（Phase H） |
+| 左侧(14,y≈210) | QuestTrackerHUD | 任务追踪器：追踪中任务+迷你进度条实时刷新（0.25s轮询），点标题折叠/点卡片开日志；钉选状态源=QuestSystem.pinned_ids（Phase H） |
+| 左缘(y=424) | QuestLogHUD | 任务日志=抽屉式：竖排"任务日志"小标26px贴左缘+进行中(已接未完成)数角标，点击从左侧滑出面板（N/ESC同效）；对话框NextButton已接线，点面板任意处可推进（Phase H2 BugFix） |
 | 顶部(185,10) | CombatHUD | 战斗时显示的架势/破绽/连击条 |
 | 右上(顶部) | QuickMenu | 奇遇/立誓入口按钮 |
-| 右上(y=52) | EventHUD | 江湖风云事件流，8秒自动淡出 |
+| 右上(y=52) | EventHUD | 江湖风云事件流，8秒自动淡出（Phase H起也承接"已接委托"反馈） |
 | 右侧(y=250) | NPCInfoHUD | NPC信息面板，交互或点击时显示 |
 | 居中弹窗 | ShopHUD / DeathHUD / 奇遇面板 / 立誓面板 / 对话框(底部居中) | 模态 |
 
@@ -107,12 +117,14 @@ Main (Node2D) [Main.gd]
 
 | 按键 | 功能 | 按键 | 功能 |
 |------|------|------|------|
-| WASD/方向键 | 移动 | 左键/右键 | 轻击/重击 |
+| WASD/方向键 | 移动 | 左键/右键 | 轻击/重击（装备工具时左键=使用工具） |
 | Q | 格挡 | 空格 | 闪避（移动中按住=疾跑） |
 | E | 打坐修炼 | F | NPC交互 |
 | B | 建造模式 | K | 商店 |
 | Z/X/C | 攻击/防御/中立架势 | J/P/T | 加入/查看/背叛门派 |
 | 数字键 | 上下文选择（商店/奇遇/任务/建造） | ESC | 关闭当前面板 |
+| 数字键1-4(建造模式外) | 切换工具：锄头/水壶/菜种/采集，再按收回徒手（Phase C） | F(近站台) | 站台合成（Phase C） |
+| 数字键6-9(建造模式内) | 摆放站台：工作台/熔炉/炼丹台/篝火（Phase C） | | |
 | 回车/空格 | 推进对话 | Tab | 商店买/卖切换 |
 
 ---
@@ -155,6 +167,8 @@ Main (Node2D) [Main.gd]
 | 16 | 农田 | 否 | 0 |
 | 17 | 桥 | 否 | 1 |
 | 18 | 深色草地 | 否 | 0 |
+| 33 | 湿润农田（浇水态，farm_system在16↔33间切换） | 否 | 0 |
+| 39 | 大建筑footprint占位（虚拟id，不进TileMap，视觉/碰撞由building_prop组节点承担） | 是 | - |
 
 ### 玩家系统 (`player.gd`)
 
@@ -237,6 +251,60 @@ Main (Node2D) [Main.gd]
 
 ---
 
+## Phase F 要点（2024新增，必读）
+
+### 玩家/NPC素材管线
+- 玩家帧由 import_pack_assets.py 导出后**逐帧着装**（_dress_frame：皮肤色域分类→头部连通分量→乌发+黛蓝长衫重绘），改管线后必须 `python tools/import_pack_assets.py player` 重导
+- NPC导出按**内容bbox归一化到29px高、脚底y=31**（修复merchant/elder过小）；必须逐帧处理——整条union-strip重采样会因帧间透明间隔错位产出损坏PNG（已踩坑，全量PNG校验脚本见REFACTOR_STATUS Phase F节）
+- SurvivalHUD头像裁剪框(24,15,16,17)对应着装后头部位置，改发型/头饰需同步
+
+### 交互规则（Phase F4）
+- **左/右键点击NPC=查看信息面板**（player._npc_at_mouse圆形查询npc组），不触发攻击；点空地才攻击
+- NPC名牌(NameTag font5)默认隐藏，悬停常驻/点击闪现2.2s；世界空间文字一律font_size≤5（zoom3放大3倍）
+
+### 建筑道具系统（Phase F5）
+- BUILDING_PROPS(hut/house/manor/temple)贴图由texture_generator.generate_big_buildings()生成到 sprites/buildings/（缺失时Main._ensure_textures自动补生成）
+- footprint占格=override_cells[39]∈collision_tiles；TileMap只铺地面，Sprite2D(z4)+StaticBody2D挂World的building_prop组
+- 调试统计建筑数量用 get_nodes_in_group("building_prop")——Godot对重名子节点自动改名"@Node2D@N"，按名字前缀统计会漏
+- 城镇无栅栏；新城镇建筑放置依赖 _try_place_town_building 的象限bounds，half最小7才能容纳temple(7x5)
+
+### 地形与连通性（Phase F6）
+- 地形由 _setup_biomes 群系首府Voronoi驱动（10种子含中央plains出生区），get_tile_id默认分支按群系写装饰密度
+- 新增围合地形后必须跑 _ensure_connectivity()（BFS可达集→≥6格pocket最近点对L形开路：水→桥17/阻挡→沙6）；
+  它在 towns/POI 之后、最终 _compute_reachable_region 之前执行，NPC/Mob选址用的是刷新后的可达集
+- 孤岛扫描边界用 Vector2(x,y).length()>WORLD_RADIUS-8 过滤，否则边界沙带会被误判为orphan（探针踩坑）
+
+### UI（Phase F7 / Phase H）
+- QuestLogHUD（页签+任务卡+真进度条+按钮+★追踪）与 CharacterSheet（V键人物档案弹窗）挂在 $World/UI；
+  模态面板加入"ui_modal"组即可被 player._is_ui_blocking 识别锁移动
+- 任务快捷键 N/F1/数字键 在 QuestLogHUD._input 内带面板展开前置条件，勿再放回全局
+- Phase H: QuestTrackerHUD 同挂 $World/UI——追踪进度靠 _process 轻轮询（progress_quest不发信号），
+  增删任务靠 GameManager.world_state_changed；卡片Panel必须MOUSE_FILTER_STOP才能被gui_get_hovered_control识别防误攻击
+
+## 青石城要点（2026-08-29新增，必读）
+
+### 城池生成（world_generator.gd）
+- 世界半径 WORLD_RADIUS=200；青石城中心固定 `CITY_POS=(75,0)`、半边长 `CITY_HALF=22`，`_generate_city()` 在河流之后、出生点迁移之前执行（城镇/POI选址自动避让34格）
+- 城墙=tile 40（collision_tiles含40，TileSet每启动重建含城砖纹理）；四门3格豁口铺路保证连通；`city_info` 登记 buildings{锚点/门前格}/gate_px/center_px——`get_city_info()` 供NPC生成器解析岗位
+- 城内建筑用 `_force_place_building_prop`（跳过选址校验，城内坐标为人工规划）；新增大建筑 yamen/tavern/apothecary/shop_a/shop_b + 市摊×2 + 水井（accent主题色梁柱+檐下幌子区分功能）
+- 城池chunk由 `_load_poi_chunks` 强制加载±2（城远于玩家初始加载半径）
+
+### 城内NPC与性别化外观
+- NPC外观11类（python管线 `import_pack_assets.py` 导出）：男=warrior/scholar/mysterious/merchant(金棕)/elder(灰白)/guard(红缨)；女=tavern_f/matron_f/peasant_f/herbalist_f/seamstress_f（Citizen_F素材）；`tint_rows` 乘法染色跳过皮肤
+- `npc_spawner.city_npc_configs`：11名城内NPC，legs=[state,ref,start,end,off] 固定作息（ref=建筑key/gate:n·s·e·w/plaza）；NPCData.custom_schedule 非空则覆盖自动日程；"idle"腿=idle_hold原地驻留（乞丐守门）
+- 新增npc_type务必同步：npc_spawner切磋战力表、npc_character占位色块
+
+### 主线待接取制
+- `add_story_quest` 只入 `pending_story_quests`；玩家在任务日志"可接取"页签/追踪器金卡接取（accept_story_quest）后才激活+钉选
+- kills/item型节点：目标达成未接取只提示不推进剧情；接取时补记前期进度；`settle_story_quest` 负责节点收尾兜底
+
+### 对话挂起/恢复（修重复播放）
+- 外部强关走 `suspend_dialog()`（保留队列页码现场）+ `resume_dialog()` 原地续播；main_story 恢复优先续播，现场丢失才重播且 branch_resolved 不重播（防选项双发）
+
+### 打坐
+- `active_inner_skill` 由 GameManager._ready 默认装备青木长生功（无装备则E键提示，不会静默失败）
+- 坐姿帧=程序化 `meditate_down_0/1.png`（`generate_meditate_frames`，Main._ensure_textures缺失即生成）；头顶进度盘=内力条+修炼条；打坐每拍回内力+2
+
 ## 已知问题与待优化
 
 ### 当前已知问题
@@ -268,6 +336,7 @@ Main (Node2D) [Main.gd]
 - `[TileSetGen]` — 瓦片集生成
 - `[TextureGen]` — 纹理生成
 - `[Combat]` — 战斗系统
+- `[Farm]` / `[Mob]` / `[MobSpawner]` / `[Station]` — Phase C农场/敌人/营地/站台
 - `[Clan]` — 门派系统
 - `[Build]` — 建造系统
 

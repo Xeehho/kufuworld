@@ -7,7 +7,7 @@
 [ext_resource type="Script" uid="uid://cwbmp63uln88x" path="res://scripts/environment_zone.gd" id="6_tefeu"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_tbgi4"]
-size = Vector2(16, 24)
+size = Vector2(12, 8)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_o6xl0"]
 size = Vector2(160, 160)
@@ -30,11 +30,12 @@ y_sort_enabled = true
 format = 2
 
 [node name="Player" type="CharacterBody2D" parent="World" unique_id=1921514354 groups=["player"]]
-z_index = 5
+z_index = 2
 position = Vector2(576, 500)
 script = ExtResource("3_jyhfs")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="World/Player" unique_id=1385840446]
+position = Vector2(0, -4)
 shape = SubResource("RectangleShape2D_tbgi4")
 
 [node name="Camera2D" type="Camera2D" parent="World/Player" unique_id=2048637114]

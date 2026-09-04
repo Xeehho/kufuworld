@@ -1,0 +1,102 @@
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+Vulkan 1.4.329 - Forward+ - Using Device #0: NVIDIA - NVIDIA GeForce RTX 4060 Laptop GPU
+
+[Probe] autoload alive
+[godot_ai game_helper] registered mcp capture (debugger active=false, logger=true)
+Godot Trae Project initialized!
+MCP Server URL: http://127.0.0.1:8000/mcp
+[WorldGen] Generated 4 rivers
+[WorldGen] Player relocated to safe spawn tile (36, 31) -> (584.0, 504.0)
+[WorldGen] Reachable region: 31933 tiles
+[WorldGen] Town[village] @(44,-49) half=8 plaza=false
+[WorldGen] Town[market_town] @(-77,59) half=7 plaza=true
+[WorldGen] Town[village] @(85,-28) half=7 plaza=false
+[WorldGen] Town[temple_town] @(48,-29) half=9 plaza=true
+[WorldGen] Town[temple_town] @(-42,34) half=8 plaza=true
+[WorldGen] Could not place town 5
+[WorldGen] Generated 5 towns
+[WorldGen] Placed POI: 少林寺 at (160.0, 256.0)
+[WorldGen] Placed POI: 武当派 at (448.0, 752.0)
+[WorldGen] Placed POI: 江南小镇 at (-32.0, 240.0)
+[WorldGen] Placed POI: 古墓密洞 at (1136.0, 1104.0)
+[WorldGen] Placed POI: 灵脉修炼场 at (480.0, 320.0)
+[WorldGen] POIs scattered: 5
+[WorldGen] Connectivity OK after 1 repair pass(es), carved=100
+[WorldGen] Connectivity passes done, carved cells=100
+[WorldGen] Reachable region: 32729 tiles
+[WorldGen] POI chunks loaded
+[WorldGen] Ready - seed=12345
+[Weather] Now: 晴天 for 60s
+[Weather] Controller ready - start hour 8.0
+[Quest] System ready - 8 rule templates
+[Encounter] Ready - 20 prototype encounters
+[Inventory] +3 金创药
+[Inventory] +3 回气丹
+[Inventory] +3 肉包子
+[Inventory] +3 解毒散
+[Inventory] +1 铁剑
+[Inventory] +1 精钢剑
+[Inventory] +1 布甲
+[Inventory] +1 皮甲
+[Inventory] +1 铁矿石
+[Inventory] +1 草药
+[Inventory] +1 玉佩
+[Audio] ready sfx=12/12 bgm=true
+[Farm] FarmSystem ready
+[Farm] 浆果丛散布 12 处
+[Inventory] +5 菜种
+[Farm] 初始发放菜种x5
+[MobSpawner] 营地[山贼营地]锚点=(6, 9) 解析到=(104.0, 152.0)
+[MobSpawner] 生成 orc_warrior @ (104.0, 152.0) (Mob_orc_warrior_1566)
+[MobSpawner] 生成 orc_rogue @ (84.0, 162.0) (Mob_orc_rogue_739)
+[MobSpawner] 生成 orc_warrior @ (124.0, 140.0) (Mob_orc_warrior_9280)
+[MobSpawner] 营地[白骨祭坛]锚点=(64, 63) 解析到=(1032.0, 1016.0)
+[MobSpawner] 生成 skeleton_warrior @ (1032.0, 1016.0) (Mob_skeleton_warrior_1902)
+[MobSpawner] 生成 skeleton_mage @ (1012.0, 1026.0) (Mob_skeleton_mage_6102)
+[MobSpawner] 生成 skeleton_rogue @ (1052.0, 1004.0) (Mob_skeleton_rogue_8449)
+[MobSpawner] 2 座营地就绪 共6只
+[NPCSpawner] 少林慧空 原位置不可达，搬迁 (-620.0, 320.0) -> (-648.0, 296.0)
+[NPCSpawner] 北境猎人 原位置不可达，搬迁 (-900.0, -500.0) -> (-936.0, -552.0)
+[NPCSpawner] 南山隐士 原位置不可达，搬迁 (-300.0, 800.0) -> (-312.0, 792.0)
+[NPCSpawner] Interaction UI created, NPCs spawned: 12
+[Main] NPCSpawner created after textures ready
+[PASS] systems_ready
+[PASS] audio_controller_exists
+[PASS] sfx_loaded_all
+[PASS] bgm_stream_set
+[PASS] bgm_playing
+[PASS] play_sfx_known
+[PASS] play_sfx_unknown_rejected
+[PASS] noon_luminance_high
+[PASS] is_daytime_noon
+[PASS] night_darker_than_noon
+[PASS] is_night_flag
+[PASS] rain_dimmer_than_clear
+[PASS] shadow_noon_full
+[PASS] shadow_night_faint
+[PASS] real_shadow_meta_present
+[PASS] hurt_timer_set
+[PASS] hurt_red_flash
+[PASS] hurt_anim_playing
+[PASS] flash_decays_to_white
+[Death] 玩家死亡! 结局: 被救
+[Player] 死亡: 播放 death_down
+[PASS] death_system_engaged
+[PASS] player_is_dead_flag
+[PASS] player_state_dead
+[PASS] death_anim_playing
+[PASS] mob_reads_is_dead_flag
+[Death] 被救! 损失20铜钱
+[Player] 复位完成回到IDLE
+[Player] 复位完成回到IDLE
+[PASS] respawn_completed
+[PASS] player_alive_again
+[PASS] health_restored_rescued
+[PASS] state_back_idle
+[PASS] idle_anim_back
+[PASS] regress_tillable_found
+[PASS] regress_till_ok
+[PASS] till_sfx_wired
+[Probe] DONE passes=32 fails=0
+WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+   at: cleanup (core/object/object.cpp:2641)

@@ -11,51 +11,140 @@ func _ready():
 	_setup_world_generator()
 	_setup_weather()
 	_setup_hud()
+	_setup_minimap()	# Phase G: 小地图（M键开关）
 	_setup_clan_simulator()
 	_setup_event_hud()
 	_setup_quest_system()
 	_setup_encounter_system()
 	_setup_oath_system()
 	_setup_quick_menu()
+	_setup_pause_hud()
 	_setup_combat_stance()
 	_setup_combat_hud()
 	_setup_inventory()
 	_setup_shop()
 	_setup_shop_hud()
+	_setup_audio()   # Phase D：音效/BGM占位（早于玩法系统装配，便于各处接线）
 	_setup_death_system()
 	_setup_death_hud()
 	# NPC生成延迟到纹理和世界都就绪后
 	_setup_npc_spawner()
 	_setup_npc_info_hud()
+	_setup_building_info_hud()	# Phase G: 建筑信息面板（点击古堡查看势力）
+	_setup_quest_log_hud()	# Phase F7: 游戏化任务日志
+	_setup_quest_tracker_hud()	# Phase H: 左轨任务追踪器（对标巫师3/原神objective tracker）
+	_setup_character_panel()	# 统一角色面板（替代旧CharacterSheet+InventoryHUD：V/I键+头像点击）
+	# Phase C 星露谷交互玩法（依赖WorldGenerator/InventoryManager就绪）
+	_setup_farm_system()
+	_setup_station_system()
+	_setup_mob_spawner()
+	_setup_tree_chop_system()   # 树木采伐（依赖WorldGenerator树精灵就绪，自身懒判安全）
+	_setup_main_story()   # 主线剧情驱动器：依赖Quest/Mob/Farm/Oath等系统就绪
+
+func _setup_tree_chop_system():
+	var tc = Node2D.new()
+	tc.name = "TreeChopSystem"
+	tc.set_script(load("res://scripts/tree_chop_system.gd"))
+	world.add_child(tc)
+
+func _setup_main_story():
+	var st = Node.new()
+	st.name = "MainStory"
+	st.set_script(load("res://scripts/main_story.gd"))
+	add_child(st)
+
+func _setup_audio():
+	var ac = Node.new()
+	ac.name = "AudioController"
+	ac.set_script(load("res://scripts/audio_controller.gd"))
+	world.add_child(ac)
+
+func _setup_farm_system():
+	var fs = Node2D.new()
+	fs.name = "FarmSystem"
+	fs.set_script(load("res://scripts/farm_system.gd"))
+	world.add_child(fs)
+
+func _setup_station_system():
+	var ss = Node2D.new()
+	ss.name = "StationSystem"
+	ss.set_script(load("res://scripts/station_system.gd"))
+	world.add_child(ss)
+
+func _setup_mob_spawner():
+	var ms = Node2D.new()
+	ms.name = "MobSpawner"
+	ms.set_script(load("res://scripts/mob_spawner.gd"))
+	world.add_child(ms)
 
 func _ensure_textures():
 	# 检查关键纹理是否存在，如果不存在则运行生成器
 	# 注意：必须用 FileAccess 而非 ResourceLoader.exists —— 运行时生成的PNG没有import数据
-	# 校验全部瓦片PNG（曾只查grass等几个代表文件，单独删除mountain/sand后不会触发重生成，瓦片隐形）
+	# Phase G重构：全部瓦片（含terrain五件套）由 texture_generator 从素材包直接裁切
 	var tile_files = [
-		"grass", "grass_dark", "path", "water", "sand", "mountain", "mountain_snow",
-		"tree_pine", "tree_oak", "tree_bamboo", "house_town", "house_cottage",
-		"house_temple", "house_cave", "flower", "rock", "fence", "farmland", "bridge",
-		"house2_l", "house2_r", "house3_l", "house3_m", "house3_r",
-		"house4_l", "house4_lm", "house4_rm", "house4_r",
-		"house5_l", "house5_lm", "house5_m", "house5_rm", "house5_r",
+		"grass", "grass_dark", "path", "water", "water_anim", "sand", "snow", "stone",
+		"farmland", "farmland_wet", "mountain", "mountain_snow",
+		"house_town", "house_cottage", "house_temple", "house_cave",
+		"flower", "daisy", "mushroom", "rock", "fence", "bridge", "city_wall",
+		"snow_farmland", "snow_path",
+		"ward_wall", "boundary_stone",
 	]
 	var need_textures = false
 	for t in tile_files:
 		if not FileAccess.file_exists("res://sprites/tiles/" + t + ".png"):
 			need_textures = true
 			break
-	if not need_textures:
-		need_textures = not FileAccess.file_exists("res://sprites/player/idle_down_0.png") or not FileAccess.file_exists("res://sprites/npc/warrior_idle_down_0.png")
 	if need_textures:
 		var gen_script = load("res://scripts/texture_generator.gd")
 		if gen_script:
 			var gen = Node.new()
 			gen.set_script(gen_script)
 			add_child(gen)
-			gen.generate_all()
+			gen.generate_tiles()  # Phase B陷阱修复：严禁generate_all——那会用程序画法覆盖素材包玩家/NPC帧
 			gen.queue_free()
-			print("[Main] Textures generated on first run")
+			print("[Main] Generator tiles regenerated")
+	# Phase F5: 大型建筑贴图（sprites/buildings/*.png 缺失时生成；逐kind校验防止增量缺失）
+	var big_missing := false
+	for kind in ["hut", "house", "manor", "temple", "castle",
+			"yamen", "tavern", "apothecary", "shop_a", "shop_b",
+			"stall_red", "stall_teal", "well", "gate_tower", "ferry",
+			"hall_qf", "hall_ts", "hall_gc", "hall_yw", "hall_ym",
+			"lantern", "barrel", "crate", "scarecrow", "fence_seg"]:   # 画面改造P4.2/P4.3 街景道具
+		if not FileAccess.file_exists("res://sprites/buildings/%s.png" % kind):
+			big_missing = true
+			break
+	if big_missing:
+		var gen_script2 = load("res://scripts/texture_generator.gd")
+		if gen_script2:
+			var gen2 = Node.new()
+			gen2.set_script(gen_script2)
+			add_child(gen2)
+			gen2.generate_big_buildings()
+			gen2.generate_city_props()
+			gen2.queue_free()
+			print("[Main] Big buildings regenerated")
+	# 城镇样板区 prefab（P2：sprites/demo/*.png 缺失时生成，立项书 §4.1 Prefab 库）
+	# 检测任一关键 PNG（函数内逐 kind 幂等跳过，新增配套纹理自动补生成）
+	if not FileAccess.file_exists("res://sprites/demo/demo_house.png") \
+			or not FileAccess.file_exists("res://sprites/demo/demo_fence.png"):
+		var gen_script4 = load("res://scripts/texture_generator.gd")
+		if gen_script4:
+			var gen4 = Node.new()
+			gen4.set_script(gen_script4)
+			add_child(gen4)
+			gen4.generate_demo_buildings()
+			gen4.queue_free()
+			print("[Main] Demo buildings regenerated")
+	# 打坐专用坐姿帧（meditate_down_0/1，程序化生成；素材包无坐姿）
+	if not FileAccess.file_exists("res://sprites/player/meditate_down_0.png"):
+		var gen_script3 = load("res://scripts/texture_generator.gd")
+		if gen_script3:
+			var gen3 = Node.new()
+			gen3.set_script(gen_script3)
+			add_child(gen3)
+			gen3.generate_meditate_frames()
+			gen3.queue_free()
+			print("[Main] Meditate frames regenerated")
 	# 玩家/NPC帧动画与TileSet均在运行时从PNG直接构建（player.gd / npc_character.gd / world_generator.gd），
 	# 不再依赖 player_frames.tres / ground_tiles.tres，避免运行时生成资源无import数据导致的加载失败
 
@@ -83,6 +172,12 @@ func _setup_quick_menu():
 	qm.set_script(load("res://scripts/quick_menu.gd"))
 	$World/UI.add_child(qm)
 
+func _setup_pause_hud():
+	var ph = Control.new()
+	ph.name = "PauseHUD"
+	ph.set_script(load("res://scripts/pause_hud.gd"))
+	$World/UI.add_child(ph)   # ESC无面板时呼出全局暂停（暂停时世界冻结）
+
 func _setup_clan_simulator():
 	var sim = Node.new()
 	sim.name = "ClanSimulator"
@@ -100,6 +195,12 @@ func _setup_hud():
 	hud.name = "SurvivalHUD"
 	hud.set_script(load("res://scripts/survival_hud.gd"))
 	$World/UI.add_child(hud)
+
+func _setup_minimap():
+	var mm = Control.new()
+	mm.name = "MinimapHUD"
+	mm.set_script(load("res://scripts/minimap_hud.gd"))
+	$World/UI.add_child(mm)
 
 func _setup_world_generator():
 	if world == null:
@@ -136,6 +237,13 @@ func _setup_inventory():
 	inv.name = "InventoryManager"
 	inv.set_script(load("res://scripts/inventory_manager.gd"))
 	add_child(inv)
+
+func _setup_character_panel():
+	# 统一角色面板：左人物信息/中装备三槽/右行囊45格（V/I键+左上头像点击打开）
+	var cp = Control.new()
+	cp.name = "CharacterPanel"
+	cp.set_script(load("res://scripts/character_panel.gd"))
+	$World/UI.add_child(cp)
 
 func _setup_shop():
 	var shop = Node.new()
@@ -179,3 +287,26 @@ func _setup_npc_info_hud():
 	nih.name = "NPCInfoHUD"
 	nih.set_script(load("res://scripts/npc_info_hud.gd"))
 	$World/UI.add_child(nih)
+
+func _setup_building_info_hud():
+	var bih = Control.new()
+	bih.name = "BuildingInfoHUD"
+	bih.set_script(load("res://scripts/building_info_hud.gd"))
+	$World/UI.add_child(bih)
+
+func _setup_quest_log_hud():
+	var ql = Control.new()
+	ql.name = "QuestLogHUD"
+	ql.set_script(load("res://scripts/quest_log_hud.gd"))
+	$World/UI.add_child(ql)
+
+func _setup_quest_tracker_hud():
+	# Phase H: 常驻任务追踪器——实时显示追踪中任务的进度条，无需打开日志面板
+	var qt = Control.new()
+	qt.name = "QuestTrackerHUD"
+	qt.set_script(load("res://scripts/quest_tracker_hud.gd"))
+	$World/UI.add_child(qt)
+
+func _setup_character_sheet():
+	# 已由 _setup_character_panel（统一角色面板）替代，保留空函数防外部引用报错
+	pass
