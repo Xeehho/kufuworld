@@ -5,6 +5,7 @@ extends Node2D
 # 注意：设计稿§5.1拟用ID 41~56 已被注册表占用，坊墙复用43（唐制坊墙），新瓦片从67起编
 
 signal generation_done
+signal exit_requested(gate_id: String)   # M1：玩家触碰城内出城触发区（city_visit 接管回开放世界）
 
 const TilesetGen = preload("res://scripts/tileset_generator.gd")
 
@@ -45,8 +46,13 @@ var done := false
 var stats := {}
 var bfs_failures: Array = []
 var tile_map: TileMap = null
+# ---- M1 四城门注册表（side -> {name, gap_cells, inside}）----
+# 明德门(南中)/玄武门(北中)/春明门(东中)/开远门(西中)，豁口均3格与城内街网对齐
+var gate_info := {}
+var portals_node: Node2D = null
 
 func _ready():
+	y_sort_enabled = true   # M1：与 World 递归 y-sort 对齐（玩家/坊墙按 y 排序）
 	if _load_data():
 		_paint_layout()
 		_fill_tilemap_async()
@@ -130,6 +136,22 @@ func _paint_layout():
 	# 明德门：南城墙朱雀轴线开3格
 	var cx := col_x(5) - zq_s + zq_s / 2
 	_set_rect(decor, cx - 1, H - margin - wall, 3, 1, T_GATE_OPEN)
+	# M1 四城门：豁口+注册（明德门S已有，玄武门N/春明门E/开远门W，均对齐街网轴线）
+	_register_gate("S", "明德门", [Vector2i(cx - 1, H - margin - wall), Vector2i(cx, H - margin - wall), Vector2i(cx + 1, H - margin - wall)], Vector2i(cx, H - margin - wall - 2))
+	_set_rect(decor, cx - 1, margin, 3, 1, T_GATE_OPEN)
+	_register_gate("N", "玄武门", [Vector2i(cx - 1, margin), Vector2i(cx, margin), Vector2i(cx + 1, margin)], Vector2i(cx, margin + wall + 1))
+	var cyc := _center_seam_y()
+	_set_rect(decor, W - margin - wall, cyc - 1, 1, 3, T_GATE_OPEN)
+	_register_gate("E", "春明门", [Vector2i(W - margin - wall, cyc - 1), Vector2i(W - margin - wall, cyc), Vector2i(W - margin - wall, cyc + 1)], Vector2i(W - margin - wall - 2, cyc))
+	_set_rect(decor, margin, cyc - 1, 1, 3, T_GATE_OPEN)
+	_register_gate("W", "开远门", [Vector2i(margin, cyc - 1), Vector2i(margin, cyc), Vector2i(margin, cyc + 1)], Vector2i(margin + wall + 1, cyc))
+
+# 中央横街缝（rows=9 → row4|row5 之间 j=5 缝的y中心），东西门与其对齐
+func _center_seam_y() -> int:
+	return row_y(5) - main_s + main_s / 2
+
+func _register_gate(side: String, gname: String, gap: Array, inside: Vector2i):
+	gate_info[side] = {"name": gname, "gap_cells": gap, "inside": inside}
 
 func _in_palace(c: int, r: int) -> bool:
 	return c >= palace_cols.x and c <= palace_cols.y and r >= palace_rows.x and r <= palace_rows.y
@@ -214,6 +236,31 @@ func _tile_at(arr: PackedByteArray, x: int, y: int) -> int:
 		return T_OUTER_WALL
 	return arr[y * W + x]
 
+# ---- M1 传送落点校验（设计稿§七：3×3 可通行校验 + 螺旋外扩兜底）----
+func is_spawn_clear(c: Vector2i) -> bool:
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var p := c + Vector2i(dx, dy)
+			if COLLIDING.has(_tile_at(ground, p.x, p.y)) or COLLIDING.has(_tile_at(decor, p.x, p.y)):
+				return false
+	return true
+
+func find_clear_spawn(near: Vector2i) -> Vector2i:
+	if is_spawn_clear(near):
+		return near
+	for r in range(1, 7):
+		for dy in range(-r, r + 1):
+			for dx in range(-r, r + 1):
+				if max(abs(dx), abs(dy)) != r:
+					continue   # 只扫外圈
+				var p := near + Vector2i(dx, dy)
+				if is_spawn_clear(p):
+					return p
+	return near   # BFS 已保证门口可达，兜底原点
+
+func cell_to_px(c: Vector2i) -> Vector2:
+	return Vector2(c.x * 16 + 8, c.y * 16 + 8)
+
 # ---- 分帧填充 TileMap：16 分区，每帧一区 ----
 func _fill_tilemap_async() -> void:
 	var t0 := Time.get_ticks_msec()
@@ -221,6 +268,8 @@ func _fill_tilemap_async() -> void:
 	tile_map.name = "TileMap"
 	tile_map.tile_set = TilesetGen.build_tileset()
 	tile_map.add_layer(1)          # 默认仅1层：0=地面，1=装饰/墙体
+	tile_map.y_sort_enabled = true             # 对齐开放世界 TileMap y-sort 玩法
+	tile_map.set_layer_y_sort_enabled(1, true) # 墙体按 y_sort_origin 与玩家互遮挡
 	add_child(tile_map)
 	var regions := 4
 	var rw := int(ceil(W / float(regions)))
@@ -232,26 +281,60 @@ func _fill_tilemap_async() -> void:
 			for yy in range(ry * rh, min(H, (ry + 1) * rh)):
 				var base = yy * W
 				for xx in range(rx * rw, min(W, (rx + 1) * rw)):
+					# 地面层全量铺贴（草地也画）——跳过草地会露出背景成黑洞（M1 走查踩坑）
 					var gid := ground[base + xx]
-					if gid != T_GRASS:
-						tile_map.set_cell(0, Vector2i(xx, yy), gid, Vector2i(0, 0))
-						non_ground += 1
+					tile_map.set_cell(0, Vector2i(xx, yy), gid, Vector2i(0, 0))
+					non_ground += 1
 					var d := decor[base + xx]
 					if d != 0:
 						tile_map.set_cell(1, Vector2i(xx, yy), d, Vector2i(0, 0))
 						decor_cnt += 1
 			await get_tree().process_frame
 	var ms := Time.get_ticks_msec() - t0
+	_build_portals()
 	_run_bfs()
 	stats = {
 		"size": "%dx%d" % [W, H], "ms": ms,
-		"non_ground_cells": non_ground, "decor_cells": decor_cnt,
+		"ground_cells": non_ground, "decor_cells": decor_cnt,
 		"bfs_fail": bfs_failures.size(),
 	}
-	print("[ChangAn-M0] %s 生成 %dms 非草地面=%d 装饰=%d BFS未达=%d" %
-			[stats["size"], ms, non_ground, decor_cnt, bfs_failures.size()])
+	print("[ChangAn-M0] %s 生成 %dms 地面=%d 装饰=%d BFS未达=%d 城门=%d" %
+			[stats["size"], ms, non_ground, decor_cnt, bfs_failures.size(), gate_info.size()])
 	done = true
 	generation_done.emit()
+
+# ---- M1 出城触发区：每门一个 Area2D 盖住豁口格，玩家触碰即请求出城 ----
+func _build_portals():
+	portals_node = Node2D.new()
+	portals_node.name = "Portals"
+	add_child(portals_node)
+	for side in gate_info:
+		var g: Dictionary = gate_info[side]
+		var cells: Array = g["gap_cells"]
+		var c0: Vector2i = cells[0]
+		var c1: Vector2i = cells[cells.size() - 1]
+		var center_px := Vector2((c0.x + c1.x) * 0.5 + 0.5, (c0.y + c1.y) * 0.5 + 0.5) * 16.0
+		var area := Area2D.new()
+		area.name = "ExitPortal_%s" % side
+		area.position = center_px
+		area.collision_layer = 0
+		area.collision_mask = 2   # 玩家层
+		area.monitoring = true
+		area.set_meta("gate_id", side)
+		var cs := CollisionShape2D.new()
+		var shape := RectangleShape2D.new()
+		if side == "S" or side == "N":
+			shape.size = Vector2(48, 16)
+		else:
+			shape.size = Vector2(16, 48)
+		cs.shape = shape
+		area.add_child(cs)
+		area.body_entered.connect(_on_portal_body_entered.bind(side))
+		portals_node.add_child(area)
+
+func _on_portal_body_entered(body: Node2D, side: String):
+	if body.is_in_group("player"):
+		exit_requested.emit(side)
 
 # ---- BFS 连通断言：明德门内出发，stage0 坊与两市中心须可达 ----
 func _run_bfs():
@@ -273,7 +356,7 @@ func _run_bfs():
 				continue
 			visited[q] = true
 			queue.append(q)
-# 检查点：stage0 坊中心 + 市中心
+# 检查点：stage0 坊中心 + 市中心 + 四城门内侧（M1 全城骨架连通）
 	for b in blocks:
 		if String(b["type"]) != "ward" or int(b["stage_unlock"]) != 0:
 			continue
@@ -286,3 +369,7 @@ func _run_bfs():
 		var cy2 := row_y(int(mk["row"])) + bh / 2
 		if not visited.has(Vector2i(cx2, cy2)):
 			bfs_failures.append(String(mk["name"]) + "(市)")
+	for side in gate_info:
+		var inside: Vector2i = gate_info[side]["inside"]
+		if not visited.has(inside):
+			bfs_failures.append(String(gate_info[side]["name"]) + "(门内)")

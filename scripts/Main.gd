@@ -40,6 +40,13 @@ func _ready():
 	_setup_mob_spawner()
 	_setup_tree_chop_system()   # 树木采伐（依赖WorldGenerator树精灵就绪，自身懒判安全）
 	_setup_main_story()   # 主线剧情驱动器：依赖Quest/Mob/Farm/Oath等系统就绪
+	_setup_city_visit()   # 长安城M1：开放世界城门footprint+进出城世界切换（须在全部系统就绪后）
+
+func _setup_city_visit():
+	var cv = Node2D.new()
+	cv.name = "CityVisit"
+	cv.set_script(load("res://scripts/city_visit.gd"))
+	add_child(cv)
 
 func _setup_tree_chop_system():
 	var tc = Node2D.new()
