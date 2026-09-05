@@ -1,0 +1,154 @@
+{
+  "camps": [
+    {
+      "center": [
+        40.0,
+        136.0
+      ],
+      "logic_tile": 18,
+      "name": "山贼营地",
+      "tile": [
+        2,
+        8
+      ],
+      "tile_reachable": true
+    },
+    {
+      "center": [
+        968.0,
+        1000.0
+      ],
+      "logic_tile": 8,
+      "name": "白骨祭坛",
+      "tile": [
+        60,
+        62
+      ],
+      "tile_reachable": true
+    }
+  ],
+  "mobs": [
+    {
+      "home": [
+        40.0,
+        136.0
+      ],
+      "in_collision": false,
+      "kind": "orc_warrior",
+      "logic_tile": 18,
+      "name": "Mob_orc_warrior_6074",
+      "painted_src": 18,
+      "pos": [
+        15.1442718505859,
+        149.718902587891
+      ],
+      "tile": [
+        0,
+        9
+      ],
+      "tile_reachable": true
+    },
+    {
+      "home": [
+        20.0,
+        146.0
+      ],
+      "in_collision": false,
+      "kind": "orc_rogue",
+      "logic_tile": 18,
+      "name": "Mob_orc_rogue_8182",
+      "painted_src": 18,
+      "pos": [
+        6.94905138015747,
+        134.454040527344
+      ],
+      "tile": [
+        0,
+        8
+      ],
+      "tile_reachable": true
+    },
+    {
+      "home": [
+        60.0,
+        124.0
+      ],
+      "in_collision": false,
+      "kind": "orc_warrior",
+      "logic_tile": 18,
+      "name": "Mob_orc_warrior_3467",
+      "painted_src": 18,
+      "pos": [
+        77.9239730834961,
+        155.322967529297
+      ],
+      "tile": [
+        4,
+        9
+      ],
+      "tile_reachable": true
+    },
+    {
+      "home": [
+        968.0,
+        1000.0
+      ],
+      "in_collision": false,
+      "kind": "skeleton_warrior",
+      "logic_tile": 36,
+      "name": "Mob_skeleton_warrior_3415",
+      "painted_src": 0,
+      "pos": [
+        1004.36517333984,
+        1031.47912597656
+      ],
+      "tile": [
+        62,
+        64
+      ],
+      "tile_reachable": true
+    },
+    {
+      "home": [
+        948.0,
+        1010.0
+      ],
+      "in_collision": false,
+      "kind": "skeleton_mage",
+      "logic_tile": 47,
+      "name": "Mob_skeleton_mage_9898",
+      "painted_src": 47,
+      "pos": [
+        923.821899414063,
+        1003.03399658203
+      ],
+      "tile": [
+        57,
+        62
+      ],
+      "tile_reachable": true
+    },
+    {
+      "home": [
+        988.0,
+        988.0
+      ],
+      "in_collision": false,
+      "kind": "skeleton_rogue",
+      "logic_tile": 55,
+      "name": "Mob_skeleton_rogue_803",
+      "painted_src": 0,
+      "pos": [
+        995.963684082031,
+        1015.59020996094
+      ],
+      "tile": [
+        62,
+        63
+      ],
+      "tile_reachable": true
+    }
+  ],
+  "offender_count": 0,
+  "reachable_size": 95733
+}
