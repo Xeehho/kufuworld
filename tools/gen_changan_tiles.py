@@ -184,6 +184,128 @@ def draw_zhuque():
     rect(t, 0, 15, 15, 15, ST_D)
     return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
 
+
+# ==================== M4 内景瓦片族 80~89（§5.3 interior_tiles） ====================
+# 木/砖/毯地板 + 内墙/屏风/灯烛 + 家具案/榻/柜/架；便利店等现代场景 M6 仅换皮肤复用
+
+WOOD_F  = (168, 122, 74)   # 木地板面
+WOOD_FD = (128, 90, 52)    # 板缝
+CARPET  = (148, 44, 40)    # 毯面朱
+CARPET_D= (112, 30, 28)
+IWALL   = (96, 74, 58)     # 内墙木框
+IWALL_D = (64, 48, 36)
+IWALL_P = (206, 192, 168)  # 墙面粉白（纸面）
+LAMP_F  = (238, 196, 110)  # 灯焰
+def draw_floor_wood():
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 0, 0, 15, 15, WOOD_F)
+    for y in (0, 5, 10, 15):                    # 横向板缝
+        rect(t, 0, y, 15, y, WOOD_FD)
+    for band, y0 in enumerate((1, 6, 11)):      # 竖向错缝
+        jx = (4, 11)[band % 2]
+        rect(t, jx, y0, jx, y0+3, WOOD_FD)
+    rect(t, 0, 1, 15, 1, (188, 142, 92))        # 板面受光
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_floor_brick():
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 0, 0, 15, 15, (146, 138, 126))
+    for y in (0, 7, 15):
+        rect(t, 0, y, 15, y, (118, 110, 100))
+    for x in (0, 7, 15):
+        rect(t, x, 0, x, 6, (118, 110, 100))
+        rect(t, x+4 if x+4 <= 15 else 4, 8, x+4 if x+4 <= 15 else 4, 14, (118, 110, 100))
+    rect(t, 1, 1, 5, 1, (166, 158, 146))
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_carpet():
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 0, 0, 15, 15, CARPET)
+    rect(t, 0, 0, 15, 1, CARPET_D)
+    rect(t, 0, 14, 15, 15, CARPET_D)
+    rect(t, 0, 0, 1, 15, CARPET_D)
+    rect(t, 14, 0, 15, 15, CARPET_D)
+    for cx, cy in ((4, 4), (11, 4), (4, 11), (11, 11)):
+        px(t, cx, cy, GOLD); px(t, cx, cy-1, GOLD_D := (180, 148, 80))
+    px(t, 7, 7, GOLD); px(t, 8, 8, GOLD)
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_interior_wall():
+    # 下半木护壁+上半粉白纸面，顶部深木压条
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 0, 0, 15, 15, IWALL_P)
+    rect(t, 0, 8, 15, 15, IWALL)
+    for x in (2, 6, 10, 14):
+        rect(t, x, 9, x, 14, IWALL_D)
+    rect(t, 0, 7, 15, 7, IWALL_D)
+    rect(t, 0, 0, 15, 0, IWALL_D)
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_screen():
+    # 屏风：木框+中间山水淡彩（底透，占格下沿）
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 1, 2, 14, 14, IWALL_D)              # 框
+    rect(t, 2, 3, 13, 13, IWALL_P)              # 面
+    rect(t, 3, 9, 12, 12, (120, 140, 150))      # 远山
+    rect(t, 4, 7, 8, 8, (150, 160, 156))
+    rect(t, 9, 6, 12, 7, (150, 160, 156))
+    rect(t, 2, 13, 13, 13, IWALL_D)
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_lamp():
+    # 灯烛：铜灯座+暖焰（底透）
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 6, 13, 9, 15, (110, 84, 52))        # 座
+    rect(t, 5, 9, 10, 12, (140, 108, 66))       # 灯身
+    rect(t, 6, 10, 9, 11, (170, 134, 82))
+    rect(t, 7, 5, 8, 8, LAMP_F)                 # 焰
+    px(t, 7, 4, (255, 232, 160)); px(t, 8, 4, (255, 232, 160))
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_desk():
+    # 案：深木案面+四足（占格下沿）
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 1, 6, 14, 9, WOOD_M)                # 案面
+    rect(t, 1, 6, 14, 6, WOOD_L)
+    rect(t, 2, 10, 3, 15, WOOD_D)               # 足
+    rect(t, 12, 10, 13, 15, WOOD_D)
+    rect(t, 1, 9, 14, 9, WOOD_D)
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_couch():
+    # 榻：矮榻+软垫（可行走）
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 1, 8, 14, 13, WOOD_M)
+    rect(t, 2, 5, 13, 9, CARPET)                # 垫
+    rect(t, 2, 5, 13, 6, (176, 66, 58))
+    rect(t, 1, 13, 14, 13, WOOD_D)
+    rect(t, 1, 8, 1, 12, WOOD_L)
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_cabinet():
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 2, 1, 13, 15, WOOD_D)               # 柜体
+    rect(t, 3, 2, 12, 7, WOOD_M)                # 上屉
+    rect(t, 3, 9, 12, 14, WOOD_M)               # 下门
+    rect(t, 7, 9, 8, 14, WOOD_D)                # 门缝
+    px(t, 6, 11, GOLD); px(t, 9, 11, GOLD)      # 铜扣
+    rect(t, 2, 1, 13, 1, WOOD_L)
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
+def draw_shelf():
+    # 架：多格木架+卷轴瓶罐
+    t = bytearray(b"\x00"*(TS*TS*4))
+    rect(t, 2, 0, 13, 15, WOOD_D)
+    for y in (5, 10):
+        rect(t, 2, y, 13, y, IWALL_D)
+    rect(t, 3, 1, 5, 4, (196, 180, 150))        # 卷轴
+    rect(t, 7, 2, 8, 4, (110, 130, 120))        # 瓶
+    rect(t, 10, 2, 12, 4, (150, 96, 60))        # 罐
+    rect(t, 3, 6, 4, 9, (170, 140, 100))
+    rect(t, 6, 7, 9, 9, (120, 120, 140))
+    rect(t, 11, 6, 12, 9, (150, 96, 60))
+    return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
+
 if __name__ == "__main__":
     save_png(os.path.join(TILES, "ward_gate_closed.png"), TS, TS, draw_gate(False))
     save_png(os.path.join(TILES, "ward_gate_open.png"), TS, TS, draw_gate(True))
@@ -193,5 +315,15 @@ if __name__ == "__main__":
     save_png(os.path.join(TILES, "changan_palace_wall.png"), TS, TS, draw_palace_wall())
     save_png(os.path.join(TILES, "changan_outer_wall.png"), TS, TS, draw_outer_wall())
     save_png(os.path.join(TILES, "changan_zhuque.png"), TS, TS, draw_zhuque())
+    save_png(os.path.join(TILES, "interior_floor_wood.png"), TS, TS, draw_floor_wood())
+    save_png(os.path.join(TILES, "interior_floor_brick.png"), TS, TS, draw_floor_brick())
+    save_png(os.path.join(TILES, "interior_carpet.png"), TS, TS, draw_carpet())
+    save_png(os.path.join(TILES, "interior_wall.png"), TS, TS, draw_interior_wall())
+    save_png(os.path.join(TILES, "interior_screen.png"), TS, TS, draw_screen())
+    save_png(os.path.join(TILES, "interior_lamp.png"), TS, TS, draw_lamp())
+    save_png(os.path.join(TILES, "interior_desk.png"), TS, TS, draw_desk())
+    save_png(os.path.join(TILES, "interior_couch.png"), TS, TS, draw_couch())
+    save_png(os.path.join(TILES, "interior_cabinet.png"), TS, TS, draw_cabinet())
+    save_png(os.path.join(TILES, "interior_shelf.png"), TS, TS, draw_shelf())
     print("[changan-tiles] BRICK=", BRICK, "DARK=", BRICK_DARK,
-          "wrote ward_gate×2 + mansion_gate a/b/c + palace/outer wall + zhuque")
+          "wrote ward_gate×2 + mansion_gate a/b/c + palace/outer wall + zhuque + interior×10")

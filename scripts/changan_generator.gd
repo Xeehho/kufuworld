@@ -6,6 +6,7 @@ extends Node2D
 
 signal generation_done
 signal exit_requested(gate_id: String)   # M1：玩家触碰城内出城触发区（city_visit 接管回开放世界）
+signal interior_requested(ref: String)   # M4：玩家触碰门面前触发区（city_visit 载入内景子地图）
 
 const TilesetGen = preload("res://scripts/tileset_generator.gd")
 
@@ -30,7 +31,7 @@ const CURFEW_END := 5.0
 # ---- M3 三渠（龙首/清明/永安）：街缝内1宽水带，跨路处铺桥 ----
 const CANALS := [{"name": "清明渠", "seam": 1}, {"name": "龙首渠", "seam": 7}, {"name": "永安渠", "seam": 10}]
 
-const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70]
+const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89]   # 宅门75~77已去碰撞（M4传送门）；83~89=内景瓦碰撞段（市内门面用）
 
 # ---- 网格参数（JSON 解析后类型化）----
 var bw := 26
@@ -68,6 +69,7 @@ var bridge_count := 0
 var anchors := {}                       # 日程锚点 ref -> 本地px（坊门/市门/plaza；城门走 gate_info）
 var npc_list: Array = []
 var night_bfs_failures: Array = []
+var interior_portals := {}               # M4 内景传送门：ref -> 门前景格（天香阁/琥珀光/太极殿）
 const NPC_SCENE = preload("res://scenes/npc.tscn")
 
 # 城内NPC（city_npc_configs 模式：legs=[state, ref, start, end, off]，锚点见 get_anchor_px）
@@ -173,8 +175,11 @@ func _paint_layout():
 	for mk in markets:
 		_paint_market(mk)
 	# M2 坊内填充：剧情坊按 lots 铺宅邸门面，非剧情 stage0 坊程序化院落（未解锁坊留白，§六-3）
+	# 市占坊（西市/东市格位同时登记为大通坊/怀贞坊）整坊铺市，坊内容不填——否则盖掉市内门面
 	for b in blocks:
 		if String(b["type"]) != "ward" or _in_palace(int(b["col"]), int(b["row"])):
+			continue
+		if _in_market(int(b["col"]), int(b["row"])):
 			continue
 		if int(b["stage_unlock"]) != 0:
 			continue
@@ -185,6 +190,10 @@ func _paint_layout():
 
 # ---- M2 宅门品级瓦片（§5.1）----
 const GATE_TILE_BY_GRADE := {"A": 75, "B": 76, "C": 77}
+# M4 内景家具瓦（与 changan_interior.gd 一致；门面店铺陈设用）
+const T_SHELF = 89
+const T_CABINET = 88
+const T_DESK = 86
 
 # M3 三渠：水带走在纵向街缝正中（缝本身是主干街，水占中1格、两侧各留2格可走），桥只铺在横街缝/环路带穿过处。
 # 龙首渠缝7北段穿宫皇区（cols4~7），从宫区南侧横街起渠；清明/永安两渠纵贯全城。
@@ -324,6 +333,12 @@ func _center_seam_y() -> int:
 func _register_gate(side: String, gname: String, gap: Array, inside: Vector2i):
 	gate_info[side] = {"name": gname, "gap_cells": gap, "inside": inside}
 
+func _in_market(c: int, r: int) -> bool:
+	for mk in markets:
+		if int(mk["col"]) == c and int(mk["row"]) == r:
+			return true
+	return false
+
 func _in_palace(c: int, r: int) -> bool:
 	return c >= palace_cols.x and c <= palace_cols.y and r >= palace_rows.x and r <= palace_rows.y
 
@@ -419,6 +434,9 @@ func _paint_market(mk: Dictionary):
 		curfew_gates.append({"cells": cells, "kind": "market", "ward": mname})
 		var inward: Vector2i = {"N": Vector2i(0, 2), "S": Vector2i(0, -2), "W": Vector2i(2, 0), "E": Vector2i(-2, 0)}[g]
 		anchors["marketgate:%s:%s" % [mname, g]] = cell_to_px(cells[0] + inward)
+	# M4 标杆：西市·胡姬酒肆「琥珀光」门面（南内侧店铺一间，玩法MD §西市）
+	if mname == "西市":
+		_paint_shop_front(x0 + 14, y0 + 17, 8, 6, "huguguang")
 
 func _set_rect(arr: PackedByteArray, x: int, y: int, w: int, h: int, id: int):
 	for yy in range(y, y + h):
@@ -491,6 +509,7 @@ func _fill_tilemap_async() -> void:
 			await get_tree().process_frame
 	var ms := Time.get_ticks_msec() - t0
 	_build_portals()
+	_register_interior_portals()
 	_run_bfs()
 	_run_night_bfs()
 	set_curfew(_is_curfew_hour(GameManager.world_hour))   # 入场即同步宵禁（M3）
@@ -541,6 +560,68 @@ func _build_portals():
 func _on_portal_body_entered(body: Node2D, side: String):
 	if body.is_in_group("player"):
 		exit_requested.emit(side)
+
+
+# ---- M4 内景传送门 ----
+# 西市店铺门面：墙圈+铜钉门（76）+店内柜台架（外观即门厅），门前景格挂触发区
+func _paint_shop_front(sx: int, sy: int, sw: int, sh: int, ref: String):
+	_set_rect(decor, sx, sy, sw, sh, T_WARD_WALL)
+	_set_rect(decor, sx + 1, sy + 1, sw - 2, sh - 2, 0)
+	var gx := sx + sw / 2
+	var gy := sy + sh - 1
+	_set_rect(decor, gx - 1, gy, 2, 1, 76)
+	for prop in [[T_SHELF, sx + 2, sy + 1], [T_SHELF, sx + 4, sy + 1], [T_CABINET, sx + 5, sy + 1],
+			[T_DESK, sx + 2, sy + 3], [T_DESK, sx + 4, sy + 3]]:
+		_set_rect(decor, int(prop[1]), int(prop[2]), 1, 1, int(prop[0]))
+	interior_portals[ref] = Vector2i(gx, sy + sh)
+
+# 剧情坊 lot 门面 → 门外 1 格触发点
+func _register_lot_portal(ref: String) -> bool:
+	for b in blocks:
+		for lot in b.get("lots", []):
+			if String(lot["ref"]) != ref:
+				continue
+			var lx := col_x(int(b["col"])) + int(lot["at"][0])
+			var ly := row_y(int(b["row"])) + int(lot["at"][1])
+			var w := int(lot["size"][0])
+			var h := int(lot["size"][1])
+			var gcx := lx + w / 2
+			var gcy := ly + h / 2
+			match String(lot.get("gate", "S")):
+				"S": interior_portals[ref] = Vector2i(gcx, ly + h)
+				"N": interior_portals[ref] = Vector2i(gcx, ly - 1)
+				"E": interior_portals[ref] = Vector2i(lx + w, gcy)
+				"W": interior_portals[ref] = Vector2i(lx - 1, gcy)
+			return true
+	push_warning("[ChangAn] lot 传送门未找到 ref=" + ref)
+	return false
+
+func _register_interior_portals():
+	_register_lot_portal("tianxiang_ge")   # 平康坊·天香阁（M4 标杆一层）
+	# 宫城承天门内 → 太极殿（M4 标杆宫院）
+	var pcx := col_x(5) - zq_s + zq_s / 2
+	interior_portals["taiji_dian"] = Vector2i(pcx, row_y(palace_rows.y) + bh - 2)
+	if tile_map == null:
+		return
+	for ref in interior_portals:
+		var front: Vector2i = interior_portals[ref]
+		var area := Area2D.new()
+		area.name = "InteriorPortal_%s" % ref
+		area.position = cell_to_px(front)
+		area.collision_layer = 0
+		area.collision_mask = 2
+		area.set_meta("interior_ref", ref)
+		var cs := CollisionShape2D.new()
+		var shape := RectangleShape2D.new()
+		shape.size = Vector2(14, 14)
+		cs.shape = shape
+		area.add_child(cs)
+		area.body_entered.connect(_on_interior_portal_body_entered.bind(ref))
+		portals_node.add_child(area)
+
+func _on_interior_portal_body_entered(body: Node2D, ref: String):
+	if body.is_in_group("player"):
+		interior_requested.emit(ref)
 
 # ---- BFS 连通断言：明德门内出发，stage0 坊与两市中心须可达 ----
 func _run_bfs():

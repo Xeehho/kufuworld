@@ -50,8 +50,13 @@ func _ready() -> void:
 				m1_fails.append("%s豁口格%s未铺开门瓦" % [g["name"], c])
 		if not changan.is_spawn_clear(changan.find_clear_spawn(g["inside"])):
 			m1_fails.append("%s门内落点不可通行" % g["name"])
-	if changan.portals_node == null or changan.portals_node.get_child_count() != 4:
-		m1_fails.append("出城Portals缺失或不全(%s)" % [changan.portals_node.get_child_count() if changan.portals_node else -1])
+	var exit_portal_cnt := 0
+	if changan.portals_node:
+		for child in changan.portals_node.get_children():
+			if String(child.name).begins_with("ExitPortal_"):
+				exit_portal_cnt += 1
+	if changan.portals_node == null or exit_portal_cnt != 4:
+		m1_fails.append("出城Portals缺失或不全(出城=%d/总数=%d)" % [exit_portal_cnt, changan.portals_node.get_child_count() if changan.portals_node else -1])
 	# ---- M2 断言：剧情坊 lots 布局（门面 tile 与 interiors 登记一致）----
 	var lot_wards := 0
 	for b in changan.blocks:
@@ -136,6 +141,53 @@ func _ready() -> void:
 		m3_fails.append("unlock_stage(1) 后 stage1 坊中心不可达")
 	if not m3_fails.is_empty():
 		fails.append_array(m3_fails)
+	# ---- M4 断言：内景瓦片族/传送门注册/三标杆构建+BFS ----
+	var m4_fails: Array = []
+	var ts: TileSet = changan.tile_map.tile_set
+	for tid in [80, 81, 82, 83, 84, 85, 86, 87, 88, 89]:
+		if not ts.has_source(tid):
+			m4_fails.append("内景瓦片%d未注册" % tid)
+	# 宅门去碰撞（tile 75 物理层应为空）
+	var gate_src := ts.get_source(75) as TileSetAtlasSource
+	var gate_td := gate_src.get_tile_data(Vector2i(0, 0), 0)
+	if gate_td != null and gate_td.get_collision_polygons_count(0) > 0:
+		m4_fails.append("宅门75仍有碰撞（应为传送门可走）")
+	# 传送门落点诊断：门前景格 3×3 是否可通行
+	var hp: Vector2i = changan.interior_portals["huguguang"]
+	print("[probe][M4-DBG] huguguang portal=", hp, " clear=", changan.is_spawn_clear(hp))
+	for dy in range(-2, 3):
+		var row_txt := ""
+		for dx in range(-2, 3):
+			var c := hp + Vector2i(dx, dy)
+			row_txt += "%d/%d " % [int(changan.ground[c.y * changan.W + c.x]), int(changan.decor[c.y * changan.W + c.x])]
+		print("[probe][M4-DBG]   ", row_txt)
+	# 传送门注册：三标杆齐
+	for ref in ["tianxiang_ge", "huguguang", "taiji_dian"]:
+		if not changan.interior_portals.has(ref):
+			m4_fails.append("内景传送门%s未注册" % ref)
+	# 三标杆内景：构建成功+底面无草洞+BFS全通+出生点3×3可通行
+	var InteriorScript = load("res://scripts/changan_interior.gd")
+	for ref in ["huguguang", "tianxiang_ge", "taiji_dian"]:
+		var node := Node2D.new()
+		node.set_script(InteriorScript)
+		if not node.build(ref):
+			m4_fails.append("内景%s构建失败" % ref)
+		else:
+			var hole := false
+			for y in range(node.H):
+				for x in range(node.W):
+					if int(node.ground[y * node.W + x]) == 0:
+						hole = true
+						break
+			if hole:
+				m4_fails.append("内景%s地面有草洞（底未满铺）" % ref)
+			if node.bfs_failures.size() != 0:
+				m4_fails.append("内景%s BFS未达=%s" % [ref, node.bfs_failures])
+			if not node.is_spawn_clear(node.spawn_cell):
+				m4_fails.append("内景%s出生点3×3受阻" % ref)
+		node.free()
+	if not m4_fails.is_empty():
+		fails.append_array(m4_fails)
 	if not m1_fails.is_empty():
 		fails.append_array(m1_fails)
 	if fails.is_empty() and int(changan.stats["ms"]) <= 3000:

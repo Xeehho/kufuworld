@@ -7,9 +7,11 @@ extends Node2D
 #       城内行走靠"传送玩家到偏移空间"，开放世界 TileMap 物理不在该空间、互不干扰
 
 const ChangAnScene := preload("res://scenes/changan.tscn")
+const INTERIOR_SCRIPT := preload("res://scripts/changan_interior.gd")
 const TILE_CITY_WALL := 40
 const TILE_PATH := 1
 const CITY_OFFSET := Vector2(0, 40000)   # 城内坐标空间（开放世界半径200格=±3200px 之外）
+const INTERIOR_OFFSET := Vector2(0, 80000)   # M4 内景坐标空间（再往北，与城内互不干扰）
 const FP_W := 64                          # footprint 外郭轮廓尺寸（格）
 const FP_H := 44
 const FP_SCAN_PAD := 8                    # 选址扫描净空外扩
@@ -20,6 +22,9 @@ var world: Node2D = null
 var world_gen = null
 var player: CharacterBody2D = null
 var changan: Node2D = null               # 城内场景实例（null=不在城内）
+var interior: Node2D = null              # M4 当前内景实例（null=不在内景）
+var interior_return_cell := Vector2i.ZERO   # 进内景前的城内格坐标（返回原位）
+var _portal_unlock_ms := 0               # 出内景后短暂忽略门面触发（防落点重进死循环）
 var in_city := false
 var footprint_origin := Vector2i.ZERO
 var gate_cells := {}                     # side -> {gap: Vector2i, outside: Vector2i}（footprint 格坐标）
@@ -147,6 +152,7 @@ func enter_city(gate_id: String) -> void:
 	_set_world_frozen(true)
 	changan = ChangAnScene.instantiate()
 	changan.exit_requested.connect(_on_city_exit_requested)
+	changan.interior_requested.connect(enter_interior)
 	world.add_child(changan)
 	changan.position = CITY_OFFSET
 	await changan.generation_done
@@ -176,6 +182,7 @@ func exit_city(gate_id: String) -> void:
 	var exit_cell: Vector2i = gate_cells[gate_id]["outside"]
 	changan.queue_free()
 	changan = null
+	interior = null
 	_set_camera_limits(false)
 	if _minimap:
 		_minimap.visible = true
@@ -209,6 +216,75 @@ func _set_camera_limits(city: bool):
 		cam.limit_top = -10000000
 		cam.limit_right = 10000000
 		cam.limit_bottom = 10000000
+
+# ---- M4 内景：门面触发区 → 独立子地图（INTERIOR_OFFSET 空间）；出口垫/ESC 返回门面原位 ----
+func enter_interior(ref: String) -> void:
+	if _busy or interior != null or changan == null:
+		return
+	if Time.get_ticks_msec() < _portal_unlock_ms:
+		return   # 刚出内景落在门前景格，忽略重触发
+	if DialogManager.is_dialog_open():
+		return
+	_busy = true
+	await _fade(1.0)
+	interior_return_cell = Vector2i(int((player.global_position.x - CITY_OFFSET.x) / 16), int((player.global_position.y - CITY_OFFSET.y) / 16))
+	var node := Node2D.new()
+	node.set_script(INTERIOR_SCRIPT)
+	if not node.build(ref):
+		node.free()
+		_busy = false
+		return
+	world.add_child(node)
+	node.position = INTERIOR_OFFSET
+	interior = node
+	player.global_position = INTERIOR_OFFSET + node.cell_to_px(node.spawn_cell)
+	player.velocity = Vector2.ZERO
+	if player.has_node("Camera2D"):
+		player.get_node("Camera2D").reset_smoothing()
+	_set_interior_camera_limits(true)
+	await _fade(0.0)
+	_busy = false
+	node.exit_entered.connect(_on_interior_exit)   # 淡入完成后才受理出口（busy 窗口防丢）
+	print("[CityVisit] 进内景 %s（%s）spawn=%s" % [ref, node.display_name, node.spawn_cell])
+
+func _on_interior_exit():
+	exit_interior()
+
+func exit_interior() -> void:
+	if _busy or interior == null:
+		return
+	_busy = true
+	await _fade(1.0)
+	var iname: String = interior.display_name
+	interior.queue_free()
+	interior = null
+	_set_interior_camera_limits(false)
+	# 直接回进内景时的站位（该格玩家实际站过，必可站立；find_clear_spawn 数组检查不含内景家具瓦会误搬迁）
+	var back: Vector2i = interior_return_cell
+	player.global_position = CITY_OFFSET + changan.cell_to_px(back)
+	player.velocity = Vector2.ZERO
+	if player.has_node("Camera2D"):
+		player.get_node("Camera2D").reset_smoothing()
+	_portal_unlock_ms = Time.get_ticks_msec() + 800   # 落点即门面触发区，短暂防重进
+	await _fade(0.0)
+	_busy = false
+	print("[CityVisit] 出内景 %s → 城内门面前 %s" % [iname, back])
+
+func _unhandled_input(event: InputEvent):
+	if interior != null and not _busy and event.is_action_pressed("ui_cancel"):
+		exit_interior()
+
+func _set_interior_camera_limits(in_interior: bool):
+	var cam = player.get_node_or_null("Camera2D")
+	if cam == null:
+		return
+	if in_interior:
+		cam.limit_left = int(INTERIOR_OFFSET.x)
+		cam.limit_top = int(INTERIOR_OFFSET.y)
+		cam.limit_right = int(INTERIOR_OFFSET.x + interior.W * 16)
+		cam.limit_bottom = int(INTERIOR_OFFSET.y + interior.H * 16)
+	else:
+		_set_camera_limits(true)   # 回城内限位
 
 # ---- 淡入淡出（陷阱#23：整色插值替代 modulate.a 子路径）----
 func _setup_fade_layer():

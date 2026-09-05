@@ -81,10 +81,21 @@ static func build_tileset() -> TileSet:
 		75: "res://sprites/tiles/changan_gate_a.png",   # 宅门·A 朱门金钉（亲王/公主/国寺）
 		76: "res://sprites/tiles/changan_gate_b.png",   # 宅门·B 朱门铜钉（国公/郡王/士族）
 		77: "res://sprites/tiles/changan_gate_c.png",   # 宅门·C 黑漆木门（官署/曲坊小宅）
+		# ---- 长安城 M4 内景瓦片族 80~89（§5.3 interior_tiles，独立小场景复用；M6 现代场景换皮肤）----
+		80: "res://sprites/tiles/interior_floor_wood.png",   # 木地板
+		81: "res://sprites/tiles/interior_floor_brick.png",  # 砖地板
+		82: "res://sprites/tiles/interior_carpet.png",       # 毯
+		83: "res://sprites/tiles/interior_wall.png",         # 内墙（碰撞）
+		84: "res://sprites/tiles/interior_screen.png",       # 屏风（碰撞）
+		85: "res://sprites/tiles/interior_lamp.png",         # 灯烛
+		86: "res://sprites/tiles/interior_desk.png",         # 案（碰撞）
+		87: "res://sprites/tiles/interior_couch.png",        # 榻
+		88: "res://sprites/tiles/interior_cabinet.png",      # 柜（碰撞）
+		89: "res://sprites/tiles/interior_shelf.png",        # 架（碰撞）
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙, 75~77=宅门（M4接传送门时改）
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 75, 76, 77]
+	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙；75~77=宅门（M4起无碰撞接传送门）；83/84/86/88/89=内景墙/屏风/案/柜/架
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
@@ -100,7 +111,7 @@ static func build_tileset() -> TileSet:
 			var tile_data = source.get_tile_data(Vector2i(0, 0), 0)
 			if tile_data:
 				# 建筑类瓦片使用Y排序
-				if id in [2, 10, 11, 12, 14]:
+				if id in [2, 10, 11, 12, 14, 84, 86, 87, 88, 89]:   # M4 内景家具同走 y-sort（屏风/案/榻/柜/架）
 					tile_data.y_sort_origin = 8
 					tile_data.z_index = 1
 				# 为水域和山脉瓦片添加物理碰撞

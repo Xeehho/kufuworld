@@ -17,6 +17,16 @@ func _log(m):
 
 func _ready() -> void:
 	await _wait(4.0)   # 等世界生成+CityVisit footprint 铺设完成
+	# E2E 冻结主线（石伯开场对话会挡 enter_interior 守卫且被剧情系统反复恢复）：
+	# 关 MainStory 轮询 + 强关当前对话。FLAG 为 Godot4 冻结常量，运行期不可改。
+	var main0 := get_node_or_null("/root/Main")
+	if main0:
+		var st := main0.get_node_or_null("MainStory")
+		if st:
+			st.set_process(false)
+	if DialogManager.is_dialog_open():
+		DialogManager.close_dialog()
+		await _settle(2)
 	var main := get_node_or_null("/root/Main")
 	if main == null:
 		_fail("主场景 /root/Main 不存在")
@@ -66,9 +76,9 @@ func _ready() -> void:
 			continue
 		var wx: int = ch.col_x(int(ward["col"]))
 		var wy: int = ch.row_y(int(ward["row"]))
-		_tp(p, cv.CITY_OFFSET + ch.cell_to_px(Vector2i(wx + 19, wy + 11)))
+		_tp(p, cv.CITY_OFFSET + ch.cell_to_px(Vector2i(wx + 22, wy + 21)))   # SE象限（M4起NE宅门即是传送门，采样避开）
 		await _settle(8)
-		_check(_in_city_space(p, cv), "%s宅门前可站立" % wb[1])
+		_check(_in_city_space(p, cv), "%s坊内可站立" % wb[1])
 		await _shot("changan_m2_%s.png" % wb[0])
 	# 3.6) M3 宵禁/夜色/时辰：城内时辰流动（Weather 未冻结）+ 暮鼓闭坊门 + 晨鼓复开
 	var weather = main.get_node_or_null("World/WeatherController")
@@ -86,9 +96,45 @@ func _ready() -> void:
 		await _settle(6)
 		_check(not ch.curfew and int(ch.decor[gcell.y * ch.W + gcell.x]) == ch.T_GATE_OPEN,
 				"晨鼓开门：坊门复开(67)")
+		await _wait(2.5)   # 等灯光 lerp 回白天，内景样张不受夜色残留影响
 	# 3.7) M3 城内NPC：按锚点日程生成
 	_check(ch.npc_list.size() == ch.CITY_NPC_CONFIGS.size(),
 			"城内NPC生成=%d（配置%d）" % [ch.npc_list.size(), ch.CITY_NPC_CONFIGS.size()])
+	# 3.8) M4 内景：西市琥珀光 门面触发 → 内景采样/样张 → 踩出口垫返回门面前原位
+	if DialogManager.is_dialog_open():
+		DialogManager.close_dialog()   # 故事计时器在冻结前已开石伯对话；MainStory 已停轮询，此处关闭后不会重开
+		await _settle(3)
+	var pcell: Vector2i = ch.interior_portals["huguguang"]
+	_tp(p, cv.CITY_OFFSET + ch.cell_to_px(pcell))
+	var t_in := Time.get_ticks_msec()
+	while cv.interior == null and Time.get_ticks_msec() - t_in < 8000:
+		await get_tree().process_frame
+	if cv.interior == null:
+		_log("[probe][DBG] 8s未进内景: player=%s busy=%s dialog=%s portals=%s" %
+				[p.global_position, cv._busy, DialogManager.is_dialog_open(), ch.interior_portals])
+	_check(cv.interior != null and cv.interior.interior_id == "huguguang", "进内景·琥珀光")
+	if cv.interior != null:
+		var it = cv.interior
+		var t_ready := Time.get_ticks_msec()
+		while cv._busy and Time.get_ticks_msec() - t_ready < 3000:
+			await get_tree().process_frame   # 等淡入完成再采样/截图（遮罩未退会拍出暗帧）
+		_tp(p, cv.INTERIOR_OFFSET + it.cell_to_px(it.spawn_cell + Vector2i(-4, -3)))
+		await _settle(8)
+		_check(p.global_position.y > cv.INTERIOR_OFFSET.y, "琥珀光前堂内可站立")
+		await _shot("changan_m4_huguguang.png")
+		_tp(p, cv.INTERIOR_OFFSET + it.cell_to_px(it.exit_cell))
+		var t_out := Time.get_ticks_msec()
+		while cv.interior != null and Time.get_ticks_msec() - t_out < 8000:
+			await get_tree().process_frame
+		_check(cv.interior == null, "踩出口垫返回")
+		var t_busy := Time.get_ticks_msec()
+		while (cv._busy or cv.interior != null) and Time.get_ticks_msec() - t_busy < 5000:
+			await get_tree().process_frame
+		var dx_back: float = absf(p.global_position.x - (cv.CITY_OFFSET.x + ch.cell_to_px(pcell).x))
+		var dy_back: float = absf(p.global_position.y - (cv.CITY_OFFSET.y + ch.cell_to_px(pcell).y))
+		var back_ok: bool = dx_back <= 24.0 and dy_back <= 24.0
+		_check(back_ok, "内景返回门面前原位（±1.5格）")
+		await _shot("changan_m4_back_city.png")
 	# 4) 走到春明门豁口（城内侧坐标）→ 出城
 	var egap_in: Vector2i = ch.gate_info["E"]["gap_cells"][1]
 	p.global_position = cv.CITY_OFFSET + ch.cell_to_px(egap_in)
