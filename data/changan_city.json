@@ -1,0 +1,2020 @@
+{
+ "grid": {
+  "cols": 12,
+  "rows": 9,
+  "block": [
+   26,
+   26
+  ],
+  "street": {
+   "zhunque": 9,
+   "main": 5,
+   "ring": 4
+  },
+  "wall": 1,
+  "margin": 10,
+  "palace_zone": {
+   "cols": [
+    4,
+    7
+   ],
+   "rows": [
+    0,
+    1
+   ]
+  },
+  "markets": [
+   {
+    "col": 3,
+    "row": 2,
+    "name": "西市"
+   },
+   {
+    "col": 8,
+    "row": 2,
+    "name": "东市"
+   }
+  ]
+ },
+ "version": "M0",
+ "blocks": [
+  {
+   "id": "ward_0_0",
+   "col": 0,
+   "row": 0,
+   "name": "修德坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "弘福寺"
+  },
+  {
+   "id": "ward_1_0",
+   "col": 1,
+   "row": 0,
+   "name": "光德坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_0",
+   "col": 2,
+   "row": 0,
+   "name": "通济坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_3_0",
+   "col": 3,
+   "row": 0,
+   "name": "丰安坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_4_0",
+   "col": 4,
+   "row": 0,
+   "name": "安化坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_5_0",
+   "col": 5,
+   "row": 0,
+   "name": "崇德坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_0",
+   "col": 6,
+   "row": 0,
+   "name": "怀远坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_7_0",
+   "col": 7,
+   "row": 0,
+   "name": "长兴坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_0",
+   "col": 8,
+   "row": 0,
+   "name": "崇仁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "长孙府/礼会院"
+  },
+  {
+   "id": "ward_9_0",
+   "col": 9,
+   "row": 0,
+   "name": "胜业坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "吴王府"
+  },
+  {
+   "id": "ward_10_0",
+   "col": 10,
+   "row": 0,
+   "name": "太平坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_11_0",
+   "col": 11,
+   "row": 0,
+   "name": "永平坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_0_1",
+   "col": 0,
+   "row": 1,
+   "name": "通轨坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_1_1",
+   "col": 1,
+   "row": 1,
+   "name": "大安坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_1",
+   "col": 2,
+   "row": 1,
+   "name": "义宁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_3_1",
+   "col": 3,
+   "row": 1,
+   "name": "普宁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_4_1",
+   "col": 4,
+   "row": 1,
+   "name": "辅兴坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_5_1",
+   "col": 5,
+   "row": 1,
+   "name": "颁政坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_1",
+   "col": 6,
+   "row": 1,
+   "name": "布政坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_7_1",
+   "col": 7,
+   "row": 1,
+   "name": "延寿坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_1",
+   "col": 8,
+   "row": 1,
+   "name": "宣阳坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "长乐公主府"
+  },
+  {
+   "id": "ward_9_1",
+   "col": 9,
+   "row": 1,
+   "name": "光行坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_10_1",
+   "col": 10,
+   "row": 1,
+   "name": "延祚坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_11_1",
+   "col": 11,
+   "row": 1,
+   "name": "丰乐坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_0_2",
+   "col": 0,
+   "row": 2,
+   "name": "安业坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_1_2",
+   "col": 1,
+   "row": 2,
+   "name": "修道坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_2",
+   "col": 2,
+   "row": 2,
+   "name": "敦义坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_3_2",
+   "col": 3,
+   "row": 2,
+   "name": "大通坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_4_2",
+   "col": 4,
+   "row": 2,
+   "name": "务本坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust",
+   "landmark": "房府/国子监"
+  },
+  {
+   "id": "ward_5_2",
+   "col": 5,
+   "row": 2,
+   "name": "昌明坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_2",
+   "col": 6,
+   "row": 2,
+   "name": "丰邑坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_7_2",
+   "col": 7,
+   "row": 2,
+   "name": "群贤坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_2",
+   "col": 8,
+   "row": 2,
+   "name": "怀贞坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_9_2",
+   "col": 9,
+   "row": 2,
+   "name": "宣风坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_10_2",
+   "col": 10,
+   "row": 2,
+   "name": "昭行坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_11_2",
+   "col": 11,
+   "row": 2,
+   "name": "永兴坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_0_3",
+   "col": 0,
+   "row": 3,
+   "name": "永昌坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_1_3",
+   "col": 1,
+   "row": 3,
+   "name": "翊善坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_3",
+   "col": 2,
+   "row": 3,
+   "name": "光宅坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_3_3",
+   "col": 3,
+   "row": 3,
+   "name": "长寿坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "怀化郡王府/西市畔"
+  },
+  {
+   "id": "ward_4_3",
+   "col": 4,
+   "row": 3,
+   "name": "延康坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "魏王府"
+  },
+  {
+   "id": "ward_5_3",
+   "col": 5,
+   "row": 3,
+   "name": "来庭坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_3",
+   "col": 6,
+   "row": 3,
+   "name": "安兴坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_7_3",
+   "col": 7,
+   "row": 3,
+   "name": "长乐坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_3",
+   "col": 8,
+   "row": 3,
+   "name": "平康坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "天香阁"
+  },
+  {
+   "id": "ward_9_3",
+   "col": 9,
+   "row": 3,
+   "name": "亲仁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "功臣府群入口"
+  },
+  {
+   "id": "ward_10_3",
+   "col": 10,
+   "row": 3,
+   "name": "大宁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_11_3",
+   "col": 11,
+   "row": 3,
+   "name": "兴宁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 0,
+   "fill": "residential_high",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_0_4",
+   "col": 0,
+   "row": 4,
+   "name": "新昌坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_1_4",
+   "col": 1,
+   "row": 4,
+   "name": "升道坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_4",
+   "col": 2,
+   "row": 4,
+   "name": "广德坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_3_4",
+   "col": 3,
+   "row": 4,
+   "name": "宣义坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "范阳卢府"
+  },
+  {
+   "id": "ward_4_4",
+   "col": 4,
+   "row": 4,
+   "name": "立政坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_5_4",
+   "col": 5,
+   "row": 4,
+   "name": "敦化坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_4",
+   "col": 6,
+   "row": 4,
+   "name": "昌乐坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "博陵崔府"
+  },
+  {
+   "id": "ward_7_4",
+   "col": 7,
+   "row": 4,
+   "name": "青龙坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_4",
+   "col": 8,
+   "row": 4,
+   "name": "曲江坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_9_4",
+   "col": 9,
+   "row": 4,
+   "name": "通善坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_10_4",
+   "col": 10,
+   "row": 4,
+   "name": "通济北坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_11_4",
+   "col": 11,
+   "row": 4,
+   "name": "乐游原坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_0_5",
+   "col": 0,
+   "row": 5,
+   "name": "升平坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_1_5",
+   "col": 1,
+   "row": 5,
+   "name": "修政坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_5",
+   "col": 2,
+   "row": 5,
+   "name": "崇贤坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust",
+   "landmark": "兰陵萧府"
+  },
+  {
+   "id": "ward_3_5",
+   "col": 3,
+   "row": 5,
+   "name": "保宁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_4_5",
+   "col": 4,
+   "row": 5,
+   "name": "安义东坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_5_5",
+   "col": 5,
+   "row": 5,
+   "name": "兰陵坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_5",
+   "col": 6,
+   "row": 5,
+   "name": "开化坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_7_5",
+   "col": 7,
+   "row": 5,
+   "name": "光福坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_5",
+   "col": 8,
+   "row": 5,
+   "name": "安宁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_9_5",
+   "col": 9,
+   "row": 5,
+   "name": "道德坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_10_5",
+   "col": 10,
+   "row": 5,
+   "name": "敦厚坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_11_5",
+   "col": 11,
+   "row": 5,
+   "name": "惠和坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": true,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_0_6",
+   "col": 0,
+   "row": 6,
+   "name": "永崇坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_1_6",
+   "col": 1,
+   "row": 6,
+   "name": "兴化坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_6",
+   "col": 2,
+   "row": 6,
+   "name": "昭国坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_3_6",
+   "col": 3,
+   "row": 6,
+   "name": "崇义坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "清河崔府"
+  },
+  {
+   "id": "ward_4_6",
+   "col": 4,
+   "row": 6,
+   "name": "新宁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_5_6",
+   "col": 5,
+   "row": 6,
+   "name": "化度坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_6",
+   "col": 6,
+   "row": 6,
+   "name": "丰泉坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_7_6",
+   "col": 7,
+   "row": 6,
+   "name": "福祥坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_6",
+   "col": 8,
+   "row": 6,
+   "name": "嘉会坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_9_6",
+   "col": 9,
+   "row": 6,
+   "name": "永达坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_10_6",
+   "col": 10,
+   "row": 6,
+   "name": "延福坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_11_6",
+   "col": 11,
+   "row": 6,
+   "name": "宗仁坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_0_7",
+   "col": 0,
+   "row": 7,
+   "name": "保义坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_1_7",
+   "col": 1,
+   "row": 7,
+   "name": "宣平坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_7",
+   "col": 2,
+   "row": 7,
+   "name": "丰宜坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_3_7",
+   "col": 3,
+   "row": 7,
+   "name": "安昌坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_4_7",
+   "col": 4,
+   "row": 7,
+   "name": "靖善坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "大兴善寺"
+  },
+  {
+   "id": "ward_5_7",
+   "col": 5,
+   "row": 7,
+   "name": "昌明东坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_7",
+   "col": 6,
+   "row": 7,
+   "name": "归义坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_7_7",
+   "col": 7,
+   "row": 7,
+   "name": "通闰坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_7",
+   "col": 8,
+   "row": 7,
+   "name": "常乐坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_9_7",
+   "col": 9,
+   "row": 7,
+   "name": "崇业坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_10_7",
+   "col": 10,
+   "row": 7,
+   "name": "恭安坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_11_7",
+   "col": 11,
+   "row": 7,
+   "name": "兴宁西坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_0_8",
+   "col": 0,
+   "row": 8,
+   "name": "资敬坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_1_8",
+   "col": 1,
+   "row": 8,
+   "name": "长庆坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_2_8",
+   "col": 2,
+   "row": 8,
+   "name": "履信坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_3_8",
+   "col": 3,
+   "row": 8,
+   "name": "永丰坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_4_8",
+   "col": 4,
+   "row": 8,
+   "name": "安义坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "E"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "晋王府"
+  },
+  {
+   "id": "ward_5_8",
+   "col": 5,
+   "row": 8,
+   "name": "安平坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S",
+    "W"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_6_8",
+   "col": 6,
+   "row": 8,
+   "name": "敦化北坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_7_8",
+   "col": 7,
+   "row": 8,
+   "name": "别坊89",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_8_8",
+   "col": 8,
+   "row": 8,
+   "name": "别坊90",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_9_8",
+   "col": 9,
+   "row": 8,
+   "name": "别坊91",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  },
+  {
+   "id": "ward_10_8",
+   "col": 10,
+   "row": 8,
+   "name": "晋昌坊",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 1,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust",
+   "landmark": "大慈恩寺"
+  },
+  {
+   "id": "ward_11_8",
+   "col": 11,
+   "row": 8,
+   "name": "别坊92",
+   "type": "ward",
+   "gates": [
+    "N",
+    "S"
+   ],
+   "stage_unlock": 2,
+   "fill": "residential_low",
+   "lots": [],
+   "interiors": [],
+   "npc_config": "",
+   "canals": false,
+   "trees": "locust"
+  }
+ ]
+}

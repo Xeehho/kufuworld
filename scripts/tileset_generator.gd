@@ -68,10 +68,19 @@ static func build_tileset() -> TileSet:
 		# ---- 画面改造P4b 山崖变体（碰撞同3，_paint_ground 噪声抖动选入）----
 		65: "res://sprites/tiles/mountain_b.png",     # 崖壁变体B（镜像）
 		66: "res://sprites/tiles/mountain_c.png",     # 崖壁变体C（翻转+压暗）
+		# ---- 长安城 M0（docs/长安城地图设计.md §5.1；设计稿拟用41~56已被占，改从67起编）----
+		67: "res://sprites/tiles/ward_gate_open.png",   # 坊门·开（无碰撞，宵禁态切换）
+		68: "res://sprites/tiles/ward_gate_closed.png", # 坊门·闭（有碰撞）
+		69: "res://sprites/tiles/city_wall.png",        # 宫墙（灰盒暂复用城墙砖纹，M2出专属纹样）
+		70: "res://sprites/tiles/city_wall.png",        # 外郭城墙（同上）
+		71: "res://sprites/tiles/stone.png",            # 朱雀大街御道（灰盒暂复用石板）
+		72: "res://sprites/tiles/path.png",             # 主干街甬道
+		73: "res://sprites/tiles/path.png",             # 坊内十字街土路
+		74: "res://sprites/tiles/path.png",             # 巷路
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66]
+	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
