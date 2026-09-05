@@ -55,6 +55,21 @@ func _ready() -> void:
 	_tp(p, cv.CITY_OFFSET + ch.cell_to_px(zq_cell))
 	await _settle(8)
 	_check(_in_city_space(p, cv), "朱雀大街中段(%s)可站立无弹飞" % zq_cell)
+	# 3.5) M2 剧情坊采样：宅邸门面前站立出样张（魏王府A门/天香阁A门）
+	for wb in [["yankang", "延康坊"], ["pingkang", "平康坊"]]:
+		var ward = null
+		for b in ch.blocks:
+			if String(b["name"]) == wb[1]:
+				ward = b
+				break
+		if ward == null:
+			continue
+		var wx: int = ch.col_x(int(ward["col"]))
+		var wy: int = ch.row_y(int(ward["row"]))
+		_tp(p, cv.CITY_OFFSET + ch.cell_to_px(Vector2i(wx + 19, wy + 11)))
+		await _settle(8)
+		_check(_in_city_space(p, cv), "%s宅门前可站立" % wb[1])
+		await _shot("changan_m2_%s.png" % wb[0])
 	# 4) 走到春明门豁口（城内侧坐标）→ 出城
 	var egap_in: Vector2i = ch.gate_info["E"]["gap_cells"][1]
 	p.global_position = cv.CITY_OFFSET + ch.cell_to_px(egap_in)

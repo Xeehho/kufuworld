@@ -52,6 +52,39 @@ func _ready() -> void:
 			m1_fails.append("%s门内落点不可通行" % g["name"])
 	if changan.portals_node == null or changan.portals_node.get_child_count() != 4:
 		m1_fails.append("出城Portals缺失或不全(%s)" % [changan.portals_node.get_child_count() if changan.portals_node else -1])
+	# ---- M2 断言：剧情坊 lots 布局（门面 tile 与 interiors 登记一致）----
+	var lot_wards := 0
+	for b in changan.blocks:
+		if String(b["type"]) != "ward" or int(b["stage_unlock"]) != 0:
+			continue   # 未解锁坊不填充（§六-3），无断言意义
+		var lots: Array = b.get("lots", [])
+		if lots.is_empty():
+			continue
+		lot_wards += 1
+		var interiors: Array = b.get("interiors", [])
+		for lot in lots:
+			if not interiors.has(lot["ref"]):
+				m1_fails.append("%s 门面 %s 未登记 interiors" % [b["name"], lot["ref"]])
+			# 门面格实铺校验（数据重算门位）
+			var gx: int = changan.col_x(int(b["col"])) + int(lot["at"][0])
+			var gy: int = changan.row_y(int(b["row"])) + int(lot["at"][1])
+			var w := int(lot["size"][0])
+			var h := int(lot["size"][1])
+			var expect := 0
+			match String(lot["grade"]):
+				"A": expect = 75
+				"B": expect = 76
+				"C": expect = 77
+			var got := -1
+			match String(lot["gate"]):
+				"S": got = int(changan.decor[(gy + h - 1) * changan.W + gx + w / 2 - 1])
+				"N": got = int(changan.decor[gy * changan.W + gx + w / 2 - 1])
+				"E": got = int(changan.decor[(gy + h / 2 - 1) * changan.W + gx + w - 1])
+				"W": got = int(changan.decor[(gy + h / 2 - 1) * changan.W + gx])
+			if got != expect:
+				m1_fails.append("%s·%s 门面tile期望%d实铺%d" % [b["name"], lot["ref"], expect, got])
+	if lot_wards < 8:
+		m1_fails.append("stage0剧情坊带lots数=%d(<8)" % lot_wards)
 	if not m1_fails.is_empty():
 		fails.append_array(m1_fails)
 	if fails.is_empty() and int(changan.stats["ms"]) <= 3000:

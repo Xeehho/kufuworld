@@ -37,6 +37,43 @@ STORY_WARDS = {
     (0, 0): ("修德坊", "弘福寺"),
 }
 
+# ---- M2 剧情坊 lots（§4.1 Schema：kind/ref/grade + 象限→at/size/gate 换算）----
+# 象限盒（坊26×26，十字街在12~13，坊墙0/25）：北象限门朝S接横街，南象限门朝N；W/E大盒门朝纵街
+QUAD_BOX = {
+    "NW": ([2, 2],  [9, 8], "S"), "NE": ([15, 2], [9, 8], "S"),
+    "SW": ([2, 16], [9, 8], "N"), "SE": ([15, 16], [9, 8], "N"),
+    "W":  ([2, 2],  [9, 21], "E"), "E": ([15, 2], [9, 21], "W"),
+}
+# grade→宅门瓦片：A=75 朱门金钉(亲王/公主/国寺) B=76 朱门铜钉(国公/郡王/士族) C=77 黑漆门(官署/曲坊)
+STORY_LOTS = {
+    "崇仁坊": [("mansion", "zhangsun_fu", "A", "NE"), ("office", "lihui_yuan", "C", "SW")],
+    "胜业坊": [("mansion", "wu_wangfu", "A", "NW")],
+    "宣阳坊": [("mansion", "changle_gongzhu_fu", "A", "NE")],
+    "务本坊": [("mansion", "fang_fu", "B", "NE"), ("office", "guozijian", "C", "NW")],
+    "延康坊": [("mansion", "wei_wangfu", "A", "NE")],
+    "平康坊": [("venue", "tianxiang_ge", "A", "NE"), ("house", "pingkang_zhai_1", "C", "SW"), ("house", "pingkang_zhai_2", "C", "NW")],
+    "亲仁坊": [("mansion", "gongchen_fu_1", "B", "NE"), ("mansion", "gongchen_fu_2", "B", "NW"), ("mansion", "gongchen_fu_3", "C", "SE")],
+    "长寿坊": [("mansion", "huaihua_junwang_fu", "B", "NE")],
+    "宣义坊": [("mansion", "fanyang_lu_fu", "B", "NE")],
+    "昌乐坊": [("mansion", "boling_cui_fu", "B", "NE")],
+    "崇贤坊": [("mansion", "lanling_xiao_fu", "B", "NE")],
+    "崇义坊": [("mansion", "qinghe_cui_fu", "B", "NE")],
+    "靖善坊": [("temple", "daxingshan_si", "A", "W")],
+    "安义坊": [("mansion", "jin_wangfu", "A", "NE")],
+    "晋昌坊": [("temple", "daciensi", "A", "W")],
+    "修德坊": [("temple", "hongfu_si", "B", "NE")],
+}
+
+
+def build_lots(ward_name: str):
+    lots, interiors = [], []
+    for kind, ref, grade, q in STORY_LOTS.get(ward_name, []):
+        at, size, gate = QUAD_BOX[q]
+        lots.append({"kind": kind, "ref": ref, "grade": grade,
+                     "at": at, "size": size, "gate": gate})
+        interiors.append(ref)   # M4 传送门登记：门面 ref 与 interiors 一致（M2 验收断言）
+    return lots, interiors
+
 # 其余坊名池（唐长安史实坊名，M2 校正）
 NAME_POOL = [
     "光德坊", "通济坊", "丰安坊", "安化坊", "崇德坊", "怀远坊", "长兴坊", "太平坊",
@@ -85,6 +122,7 @@ def main():
             }
             if landmark:
                 b["landmark"] = landmark
+                b["lots"], b["interiors"] = build_lots(name)   # M2：剧情坊宅邸布点
             blocks.append(b)
 
     data = {"grid": GRID, "version": "M0", "blocks": blocks}

@@ -133,6 +133,105 @@ func _paint_layout():
 		_paint_ward(b)
 	for mk in markets:
 		_paint_market(int(mk["col"]), int(mk["row"]))
+	# M2 坊内填充：剧情坊按 lots 铺宅邸门面，非剧情 stage0 坊程序化院落（未解锁坊留白，§六-3）
+	for b in blocks:
+		if String(b["type"]) != "ward" or _in_palace(int(b["col"]), int(b["row"])):
+			continue
+		if int(b["stage_unlock"]) != 0:
+			continue
+		_fill_ward_contents(b)
+
+# ---- M2 宅门品级瓦片（§5.1）----
+const GATE_TILE_BY_GRADE := {"A": 75, "B": 76, "C": 77}
+
+func _fill_ward_contents(b: Dictionary):
+	var lots: Array = b.get("lots", [])
+	if not lots.is_empty():
+		var x0 := col_x(int(b["col"]))
+		var y0 := row_y(int(b["row"]))
+		for lot in lots:
+			_paint_lot(x0, y0, lot)
+	else:
+		_fill_ward_generic(b)
+
+# 剧情坊 lot：院墙圈 + 品级宅门（带碰撞门面，M4 换传送门）+ 门前甬道 + 后部正屋
+func _paint_lot(x0: int, y0: int, lot: Dictionary):
+	var lx := x0 + int(lot["at"][0])
+	var ly := y0 + int(lot["at"][1])
+	var w := int(lot["size"][0])
+	var h := int(lot["size"][1])
+	var x1 := lx + w - 1
+	var y1 := ly + h - 1
+	var kind := String(lot["kind"])
+	var gate_id: int = GATE_TILE_BY_GRADE[String(lot["grade"])]
+	# 院墙圈
+	_set_rect(decor, lx, ly, w, h, T_WARD_WALL)
+	_set_rect(decor, lx + 1, ly + 1, w - 2, h - 2, 0)
+	# 寺观/风月场所院内满铺石板（体面），宅邸留草
+	if kind == "temple" or kind == "venue":
+		_set_rect(ground, lx + 1, ly + 1, w - 2, h - 2, T_STONE)
+	# 院门（门侧墙正中2格，品级瓦）+ 门前石板甬道
+	var gcx := lx + w / 2
+	var gcy := ly + h / 2
+	match String(lot.get("gate", "S")):
+		"S":
+			_set_rect(decor, gcx - 1, y1, 2, 1, gate_id)
+			_set_rect(ground, gcx - 1, ly + 2, 2, y1 - (ly + 2) + 1, T_STONE)
+		"N":
+			_set_rect(decor, gcx - 1, ly, 2, 1, gate_id)
+			_set_rect(ground, gcx - 1, ly, 2, y1 - 2 - ly + 1, T_STONE)
+		"E":
+			_set_rect(decor, x1, gcy - 1, 1, 2, gate_id)
+			_set_rect(ground, lx + 2, gcy - 1, x1 - (lx + 2) + 1, 2, T_STONE)
+		"W":
+			_set_rect(decor, lx, gcy - 1, 1, 2, gate_id)
+			_set_rect(ground, lx, gcy - 1, x1 - 2 - lx + 1, 2, T_STONE)
+	# 正屋：门对侧内墙处（寺观/场所3连屋，宅邸1屋）
+	var house_w := 3 if (kind == "temple" or kind == "venue") else 1
+	match String(lot.get("gate", "S")):
+		"S":
+			_set_rect(decor, gcx - house_w / 2, ly + 2, house_w, 1, 2)
+		"N":
+			_set_rect(decor, gcx - house_w / 2, y1 - 2, house_w, 1, 2)
+		"E":
+			_set_rect(decor, lx + 2, gcy - house_w / 2, 1, house_w, 2)
+		"W":
+			_set_rect(decor, x1 - 2, gcy - house_w / 2, 1, house_w, 2)
+
+# 非剧情坊程序化填充：四象限小院（朝十字街开敞口，不留封闭死角）+ 低密度坊散树
+func _fill_ward_generic(b: Dictionary):
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(String(b["id"]))
+	var high := String(b["fill"]) == "residential_high"
+	var x0 := col_x(int(b["col"]))
+	var y0 := row_y(int(b["row"]))
+	var boxes := [Vector2i(2, 2), Vector2i(15, 2), Vector2i(2, 16), Vector2i(15, 16)]
+	for q in range(4):
+		var chance := 0.85 if high else 0.55
+		if rng.randf() > chance:
+			continue
+		var bx: Vector2i = boxes[q]
+		var lw := 7
+		var lh := 6
+		var lx := x0 + bx.x + rng.randi_range(0, 2)
+		var ly := y0 + bx.y + rng.randi_range(0, 2)
+		_set_rect(decor, lx, ly, lw, lh, T_WARD_WALL)
+		_set_rect(decor, lx + 1, ly + 1, lw - 2, lh - 2, 0)
+		var hx := lx + lw / 2
+		var hy := ly + lh / 2
+		_set_rect(decor, hx, hy, 1, 1, 2)   # 屋1格（城镇房屋瓦）
+		if q < 2:   # 北象限小院朝南开敞口
+			_set_rect(decor, hx, ly + lh - 1, 1, 1, 0)
+			_set_rect(ground, hx, ly + lh - 1, 1, 1, T_WARD_STREET)
+		else:
+			_set_rect(decor, hx, ly, 1, 1, 0)
+			_set_rect(ground, hx, ly, 1, 1, T_WARD_STREET)
+	if not high:   # 低密度坊散树（橡树瓦，可行走装饰）
+		for i in range(rng.randi_range(2, 5)):
+			var tx := x0 + rng.randi_range(2, 23)
+			var ty := y0 + rng.randi_range(2, 23)
+			if int(decor[ty * W + tx]) == 0 and int(ground[ty * W + tx]) == 0:
+				decor[ty * W + tx] = 8
 	# 明德门：南城墙朱雀轴线开3格
 	var cx := col_x(5) - zq_s + zq_s / 2
 	_set_rect(decor, cx - 1, H - margin - wall, 3, 1, T_GATE_OPEN)
