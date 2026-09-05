@@ -23,7 +23,7 @@ func _ready() -> void:
 		74: Color(0.60, 0.50, 0.38), 71: Color(0.75, 0.73, 0.68), 35: Color(0.70, 0.68, 0.63),
 		43: Color(0.83, 0.80, 0.74), 40: Color(0.45, 0.44, 0.42), 69: Color(0.62, 0.35, 0.28),
 		70: Color(0.30, 0.30, 0.31), 67: Color(0.85, 0.45, 0.30), 68: Color(0.72, 0.25, 0.18),
-		5: Color(0.30, 0.48, 0.72),
+		5: Color(0.30, 0.48, 0.72), 17: Color(0.62, 0.52, 0.40),
 	}
 	var img := Image.create(changan.W, changan.H, false, Image.FORMAT_RGBA8)
 	for y in range(changan.H):
@@ -85,6 +85,57 @@ func _ready() -> void:
 				m1_fails.append("%s·%s 门面tile期望%d实铺%d" % [b["name"], lot["ref"], expect, got])
 	if lot_wards < 8:
 		m1_fails.append("stage0剧情坊带lots数=%d(<8)" % lot_wards)
+	# ---- M3 断言：三渠/宵禁/夜行BFS/锚点/城内NPC/阶段解锁 ----
+	var m3_fails: Array = []
+	# 三渠：每渠水格充足，桥格跨路
+	for canal_name in changan.canal_cells:
+		if int(changan.canal_cells[canal_name]) < 100:
+			m3_fails.append("水渠%s水格=%d(<100)" % [canal_name, changan.canal_cells[canal_name]])
+	if changan.bridge_count < 12:
+		m3_fails.append("渠桥格=%d(<12)" % changan.bridge_count)
+	# 宵禁册：坊门+市门格初始全开瓦，切换后换闭瓦（68 带碰撞）
+	if changan.curfew_gates.size() < 20:
+		m3_fails.append("宵禁门注册=%d(<20)" % changan.curfew_gates.size())
+	var first_gate: Vector2i = changan.curfew_gates[0]["cells"][0]
+	if int(changan.decor[first_gate.y * changan.W + first_gate.x]) != changan.T_GATE_OPEN:
+		m3_fails.append("宵禁门格初始非开瓦")
+	changan.set_curfew(true)
+	if int(changan.decor[first_gate.y * changan.W + first_gate.x]) != changan.T_GATE_CLOSED:
+		m3_fails.append("set_curfew(true) 未换闭门瓦")
+	if not changan.curfew:
+		m3_fails.append("curfew 标志未置位")
+	changan.set_curfew(false)
+	# 夜行 BFS：宵禁下四城门内侧仍可达
+	if changan.night_bfs_failures.size() != 0:
+		m3_fails.append("夜行BFS未达=%s" % [changan.night_bfs_failures])
+	# 锚点：坊门/市门/plaza 已注册，城门走 gate_info
+	for ref in ["plaza", "marketgate:西市:S", "marketgate:东市:S"]:
+		if not changan.anchors.has(ref):
+			m3_fails.append("锚点%s缺失" % ref)
+	if changan.get_anchor_px("citygate:S") == Vector2.ZERO:
+		m3_fails.append("citygate:S 锚点解析失败")
+	# 城内NPC：与配置数一致
+	if changan.npc_list.size() != changan.CITY_NPC_CONFIGS.size():
+		m3_fails.append("城内NPC=%d≠配置%d" % [changan.npc_list.size(), changan.CITY_NPC_CONFIGS.size()])
+	# 阶段解锁：stage1 坊开门后 BFS 可达其中心（闭门格换开瓦）
+	var stage1_before := 0
+	for b in changan.blocks:
+		if String(b["type"]) == "ward" and int(b["stage_unlock"]) == 1:
+			stage1_before += 1
+	changan.unlock_stage(1)
+	var reach: Dictionary = changan._bfs_from(Vector2i(changan.col_x(5) - changan.zq_s + changan.zq_s / 2 + 1, changan.H - changan.margin - changan.wall - 1))
+	var stage1_center_fail := false
+	for b in changan.blocks:
+		if String(b["type"]) != "ward" or int(b["stage_unlock"]) != 1:
+			continue
+		if not reach.has(Vector2i(changan.col_x(int(b["col"])) + changan.bw / 2, changan.row_y(int(b["row"])) + changan.bh / 2)):
+			stage1_center_fail = true
+	if stage1_before == 0:
+		m3_fails.append("数据中无 stage1 坊")
+	if stage1_center_fail:
+		m3_fails.append("unlock_stage(1) 后 stage1 坊中心不可达")
+	if not m3_fails.is_empty():
+		fails.append_array(m3_fails)
 	if not m1_fails.is_empty():
 		fails.append_array(m1_fails)
 	if fails.is_empty() and int(changan.stats["ms"]) <= 3000:

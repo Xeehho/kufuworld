@@ -13,7 +13,8 @@ const CITY_OFFSET := Vector2(0, 40000)   # 城内坐标空间（开放世界半�
 const FP_W := 64                          # footprint 外郭轮廓尺寸（格）
 const FP_H := 44
 const FP_SCAN_PAD := 8                    # 选址扫描净空外扩
-const FREEZE_NODES := ["WorldGenerator", "WeatherController", "FarmSystem", "StationSystem", "MobSpawner", "NPCSpawner", "TreeChopSystem"]
+const FREEZE_NODES := ["WorldGenerator", "FarmSystem", "StationSystem", "MobSpawner", "NPCSpawner", "TreeChopSystem"]
+# 注意：WeatherController 不冻结（M3）——城内时辰照常流动驱动宵禁，World CanvasModulate 夜色覆盖全画布
 
 var world: Node2D = null
 var world_gen = null
@@ -24,7 +25,6 @@ var footprint_origin := Vector2i.ZERO
 var gate_cells := {}                     # side -> {gap: Vector2i, outside: Vector2i}（footprint 格坐标）
 var _busy := false                       # 进出城过渡互斥
 var _fade_rect: ColorRect = null
-var _canvas_mod: CanvasModulate = null
 var _minimap: Control = null
 var _hint_shown := false
 
@@ -35,7 +35,6 @@ func _ready():
 		return
 	player = world.get_node_or_null("Player")
 	world_gen = world.get_node_or_null("WorldGenerator")
-	_canvas_mod = world.get_node_or_null("CanvasModulate")
 	_minimap = world.get_node_or_null("UI/MinimapHUD")
 	_setup_fade_layer()
 	# WorldGenerator._ready 在 Main._ready 同帧早已跑完（_setup_city_visit 排最后），可直接铺轮廓
@@ -160,8 +159,6 @@ func enter_city(gate_id: String) -> void:
 	_set_camera_limits(true)
 	if _minimap:
 		_minimap.visible = false   # 小地图渲染开放世界数据，城内隐藏（M3 做城内图）
-	if _canvas_mod:
-		_canvas_mod.visible = false   # 城内恒昼（宵禁/夜色 M3 落地）
 	await _fade(0.0)
 	in_city = true
 	_busy = false
@@ -182,8 +179,6 @@ func exit_city(gate_id: String) -> void:
 	_set_camera_limits(false)
 	if _minimap:
 		_minimap.visible = true
-	if _canvas_mod:
-		_canvas_mod.visible = true
 	_set_world_frozen(false)
 	player.global_position = Vector2(exit_cell.x * 16 + 8, exit_cell.y * 16 + 8)
 	player.velocity = Vector2.ZERO

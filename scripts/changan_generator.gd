@@ -20,6 +20,15 @@ const T_OUTER_WALL = 70     # 外郭城墙
 const T_ZHUQUE = 71         # 朱雀大街御道
 const T_MAIN_ROAD = 72      # 主干街
 const T_WARD_STREET = 73    # 坊内十字街
+const T_WATER = 5           # M3 三渠水（复用开放世界水瓦，碰撞）
+const T_BRIDGE = 17         # M3 渠桥（复用开放世界桥瓦，无碰撞）
+
+# ---- M3 宵禁（§六-2）：暮鼓戌时闭坊门/市门，晨鼓卯时开；四城门/宫门不闭 ----
+const CURFEW_START := 19.0
+const CURFEW_END := 5.0
+
+# ---- M3 三渠（龙首/清明/永安）：街缝内1宽水带，跨路处铺桥 ----
+const CANALS := [{"name": "清明渠", "seam": 1}, {"name": "龙首渠", "seam": 7}, {"name": "永安渠", "seam": 10}]
 
 const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70]
 
@@ -50,6 +59,36 @@ var tile_map: TileMap = null
 # 明德门(南中)/玄武门(北中)/春明门(东中)/开远门(西中)，豁口均3格与城内街网对齐
 var gate_info := {}
 var portals_node: Node2D = null
+# ---- M3 宵禁/锚点/NPC/阶段 ----
+var curfew := false                     # 当前宵禁状态（坊门/市门闭）
+var curfew_gates: Array = []            # 宵禁册：{cells, kind("ward"/"market"), ward}——仅 stage0 坊与两市
+var ward_gate_cells := {}               # 坊id -> 门格数组（unlock_stage 用）
+var canal_cells := {}                   # 渠名 -> 水格数（探针统计）
+var bridge_count := 0
+var anchors := {}                       # 日程锚点 ref -> 本地px（坊门/市门/plaza；城门走 gate_info）
+var npc_list: Array = []
+var night_bfs_failures: Array = []
+const NPC_SCENE = preload("res://scenes/npc.tscn")
+
+# 城内NPC（city_npc_configs 模式：legs=[state, ref, start, end, off]，锚点见 get_anchor_px）
+const CITY_NPC_CONFIGS := [
+	{"id": "ca01", "name": "明德武侯", "personality": "刚正", "npc_type": "guard",
+	 "legs": [["idle", "citygate:S", 6, 22, Vector2(1, 0)]]},
+	{"id": "ca02", "name": "西市门吏", "personality": "沉稳", "npc_type": "guard",
+	 "legs": [["idle", "marketgate:西市:S", 6, 19, Vector2(0, -1)]]},
+	{"id": "ca03", "name": "东市门吏", "personality": "沉稳", "npc_type": "guard",
+	 "legs": [["idle", "marketgate:东市:S", 6, 19, Vector2(0, -1)]]},
+	{"id": "ca04", "name": "更夫老赵", "personality": "阴沉", "npc_type": "elder",
+	 "legs": [["wander", "plaza", 18, 24, Vector2(2, 0)], ["wander", "citygate:N", 0, 6, Vector2(0, 1)], ["idle", "plaza", 6, 10, Vector2(-1, 0)]]},
+	{"id": "ca05", "name": "货郎陈四", "personality": "市侩", "npc_type": "merchant",
+	 "legs": [["wander", "marketgate:西市:W", 8, 18, Vector2(1, 0)], ["leisure", "plaza", 18, 21, Vector2(0, 0)]]},
+	{"id": "ca06", "name": "闲汉刘二", "personality": "狡诈", "npc_type": "mysterious",
+	 "legs": [["wander", "plaza", 10, 20, Vector2(0, 0)]]},
+	{"id": "ca07", "name": "游学书生", "personality": "儒雅", "npc_type": "scholar",
+	 "legs": [["wander", "citygate:E", 8, 16, Vector2(-1, 0)], ["leisure", "marketgate:东市:N", 16, 19, Vector2(0, 1)]]},
+	{"id": "ca08", "name": "浆洗王大娘", "personality": "慈悲", "npc_type": "peasant_f",
+	 "legs": [["wander", "citygate:W", 7, 18, Vector2(1, 0)], ["idle", "citygate:W", 18, 21, Vector2(2, 0)]]},
+]
 
 func _ready():
 	y_sort_enabled = true   # M1：与 World 递归 y-sort 对齐（玩家/坊墙按 y 排序）
@@ -132,7 +171,7 @@ func _paint_layout():
 			continue
 		_paint_ward(b)
 	for mk in markets:
-		_paint_market(int(mk["col"]), int(mk["row"]))
+		_paint_market(mk)
 	# M2 坊内填充：剧情坊按 lots 铺宅邸门面，非剧情 stage0 坊程序化院落（未解锁坊留白，§六-3）
 	for b in blocks:
 		if String(b["type"]) != "ward" or _in_palace(int(b["col"]), int(b["row"])):
@@ -140,9 +179,42 @@ func _paint_layout():
 		if int(b["stage_unlock"]) != 0:
 			continue
 		_fill_ward_contents(b)
+	_paint_canals()
+	# M3 锚点：朱雀大街中段为全城"广场"（日程汇合点）
+	anchors["plaza"] = cell_to_px(Vector2i(col_x(5) - zq_s + zq_s / 2, _origin().y + block_span_y() / 2))
 
 # ---- M2 宅门品级瓦片（§5.1）----
 const GATE_TILE_BY_GRADE := {"A": 75, "B": 76, "C": 77}
+
+# M3 三渠：水带走在纵向街缝正中（缝本身是主干街，水占中1格、两侧各留2格可走），桥只铺在横街缝/环路带穿过处。
+# 龙首渠缝7北段穿宫皇区（cols4~7），从宫区南侧横街起渠；清明/永安两渠纵贯全城。
+func _paint_canals():
+	var palace_bottom := row_y(palace_rows.y + 1) - main_s
+	# 桥位带：环路+横街缝（缝身整条都是主干街，桥只铺在横路穿过处）
+	var bands: Array = []
+	var m := margin + wall
+	bands.append([m, m + ring])
+	bands.append([H - m - ring, H - m])
+	for j in range(1, rows):
+		bands.append([row_y(j) - main_s, row_y(j)])
+	for canal in CANALS:
+		var seam := int(canal["seam"])
+		var x := col_x(seam) - main_s + main_s / 2
+		var y0 := palace_bottom if seam >= palace_cols.x and seam <= palace_cols.y + 1 else margin + wall
+		var cells := 0
+		for y in range(y0, H - margin - wall):
+			var in_band := false
+			for band in bands:
+				if y >= band[0] and y < band[1]:
+					in_band = true
+					break
+			if in_band:
+				ground[y * W + x] = T_BRIDGE
+				bridge_count += 1
+			else:
+				ground[y * W + x] = T_WATER
+				cells += 1
+		canal_cells[String(canal["name"])] = cells
 
 func _fill_ward_contents(b: Dictionary):
 	var lots: Array = b.get("lots", [])
@@ -286,25 +358,43 @@ func _paint_ward(b: Dictionary):
 	var gx0 := x0 + bw / 2 - 1
 	var gy0 := y0 + bh / 2 - 1
 	var open_id := T_GATE_OPEN if int(b["stage_unlock"]) == 0 else T_GATE_CLOSED
+	var ward_id := String(b["id"])
+	ward_gate_cells[ward_id] = []
 	for g in b["gates"]:
+		var cells: Array = []
 		match String(g):
 			"N":
-				_set_rect(decor, gx0, y0, 2, 1, open_id)
+				cells = [Vector2i(gx0, y0), Vector2i(gx0 + 1, y0)]
+			"S":
+				cells = [Vector2i(gx0, y1), Vector2i(gx0 + 1, y1)]
+			"W":
+				cells = [Vector2i(x0, gy0), Vector2i(x0, gy0 + 1)]
+			"E":
+				cells = [Vector2i(x1, gy0), Vector2i(x1, gy0 + 1)]
+		for gc in cells:
+			_set_rect(decor, gc.x, gc.y, 1, 1, open_id)
+		ward_gate_cells[ward_id].append_array(cells)
+		if int(b["stage_unlock"]) == 0:
+			curfew_gates.append({"cells": cells, "kind": "ward", "ward": ward_id})
+			var inward: Vector2i = {"N": Vector2i(0, 2), "S": Vector2i(0, -2), "W": Vector2i(2, 0), "E": Vector2i(-2, 0)}[String(g)]
+			anchors["wardgate:%s:%s" % [ward_id, String(g)]] = cell_to_px(cells[0] + inward)
+		# 门外街基（墙外1格+门洞2格深，接横/纵街）
+		match String(g):
+			"N":
 				_set_rect(ground, gx0, y0, 2, 3, T_WARD_STREET)
 			"S":
-				_set_rect(decor, gx0, y1, 2, 1, open_id)
 				_set_rect(ground, gx0, y1 - 2, 2, 3, T_WARD_STREET)
 			"W":
-				_set_rect(decor, x0, gy0, 1, 2, open_id)
 				_set_rect(ground, x0, gy0, 3, 2, T_WARD_STREET)
 			"E":
-				_set_rect(decor, x1, gy0, 1, 2, open_id)
 				_set_rect(ground, x1 - 2, gy0, 3, 2, T_WARD_STREET)
 	# 坊内十字街（2宽，与门洞对齐）
 	_set_rect(ground, gx0, y0 + 1, 2, bh - 2, T_WARD_STREET)
 	_set_rect(ground, x0 + 1, gy0, bw - 2, 2, T_WARD_STREET)
 
-func _paint_market(c: int, r: int):
+func _paint_market(mk: Dictionary):
+	var c := int(mk["col"])
+	var r := int(mk["row"])
 	var x0 := col_x(c)
 	var y0 := row_y(r)
 	var x1 := x0 + bw - 1
@@ -312,13 +402,23 @@ func _paint_market(c: int, r: int):
 	_set_rect(ground, x0, y0, bw, bh, T_STONE)
 	_set_rect(decor, x0, y0, bw, bh, T_WARD_WALL)
 	_set_rect(decor, x0 + 1, y0 + 1, bw - 2, bh - 2, 0)
-	# 市门四向各2格
+	# 市门四向各2格（入宵禁册，夜闭）
 	var gx0 := x0 + bw / 2 - 1
 	var gy0 := y0 + bh / 2 - 1
-	_set_rect(decor, gx0, y0, 2, 1, T_GATE_OPEN)
-	_set_rect(decor, gx0, y1, 2, 1, T_GATE_OPEN)
-	_set_rect(decor, x0, gy0, 1, 2, T_GATE_OPEN)
-	_set_rect(decor, x1, gy0, 1, 2, T_GATE_OPEN)
+	var mname := String(mk.get("name", "市"))
+	var sides := {
+		"N": [Vector2i(gx0, y0), Vector2i(gx0 + 1, y0)],
+		"S": [Vector2i(gx0, y1), Vector2i(gx0 + 1, y1)],
+		"W": [Vector2i(x0, gy0), Vector2i(x0, gy0 + 1)],
+		"E": [Vector2i(x1, gy0), Vector2i(x1, gy0 + 1)],
+	}
+	for g in sides:
+		var cells: Array = sides[g]
+		for cc in cells:
+			_set_rect(decor, cc.x, cc.y, 1, 1, T_GATE_OPEN)
+		curfew_gates.append({"cells": cells, "kind": "market", "ward": mname})
+		var inward: Vector2i = {"N": Vector2i(0, 2), "S": Vector2i(0, -2), "W": Vector2i(2, 0), "E": Vector2i(-2, 0)}[g]
+		anchors["marketgate:%s:%s" % [mname, g]] = cell_to_px(cells[0] + inward)
 
 func _set_rect(arr: PackedByteArray, x: int, y: int, w: int, h: int, id: int):
 	for yy in range(y, y + h):
@@ -392,13 +492,20 @@ func _fill_tilemap_async() -> void:
 	var ms := Time.get_ticks_msec() - t0
 	_build_portals()
 	_run_bfs()
+	_run_night_bfs()
+	set_curfew(_is_curfew_hour(GameManager.world_hour))   # 入场即同步宵禁（M3）
+	_spawn_city_npcs()
 	stats = {
 		"size": "%dx%d" % [W, H], "ms": ms,
 		"ground_cells": non_ground, "decor_cells": decor_cnt,
-		"bfs_fail": bfs_failures.size(),
+		"bfs_fail": bfs_failures.size(), "bfs_night_fail": night_bfs_failures.size(),
+		"canals": canal_cells.duplicate(), "bridges": bridge_count,
+		"curfew": curfew, "npcs": npc_list.size(),
 	}
 	print("[ChangAn-M0] %s 生成 %dms 地面=%d 装饰=%d BFS未达=%d 城门=%d" %
 			[stats["size"], ms, non_ground, decor_cnt, bfs_failures.size(), gate_info.size()])
+	print("[ChangAn-M3] 渠=%s 桥=%d 宵禁门=%d 夜BFS未达=%d 城内NPC=%d" %
+			[canal_cells, bridge_count, curfew_gates.size(), night_bfs_failures.size(), npc_list.size()])
 	done = true
 	generation_done.emit()
 
@@ -472,3 +579,148 @@ func _run_bfs():
 		var inside: Vector2i = gate_info[side]["inside"]
 		if not visited.has(inside):
 			bfs_failures.append(String(gate_info[side]["name"]) + "(门内)")
+
+# ---- M3 宵禁：全城坊门/市门统一广播（§六-2），_process 轮询时辰防逐门轮询 ----
+func _process(_delta):
+	if not done:
+		return
+	var c := _is_curfew_hour(GameManager.world_hour)
+	if c != curfew:
+		set_curfew(c)
+		print("[ChangAn-M3] 宵禁%s" % ["开始，坊市闭门" if c else "解除，晨鼓开门"])
+
+func _is_curfew_hour(h: float) -> bool:
+	return h >= CURFEW_START or h < CURFEW_END
+
+func set_curfew(closed: bool):
+	curfew = closed
+	var id := T_GATE_CLOSED if closed else T_GATE_OPEN
+	for gate in curfew_gates:
+		for c in gate["cells"]:
+			decor[c.y * W + c.x] = id
+			if tile_map:
+				tile_map.set_cell(1, c, id, Vector2i(0, 0))
+
+# 夜行连通断言：宵禁闭坊市门后，从朱雀大街中段出发，四城门内侧仍可达（主角夜行走大街）
+func _run_night_bfs():
+	var blocked := {}
+	for id in COLLIDING:
+		blocked[id] = true
+	var blocked_cells := {}
+	for gate in curfew_gates:
+		for c in gate["cells"]:
+			blocked_cells[c] = true
+	var start := Vector2i(col_x(5) - zq_s + zq_s / 2, _origin().y + block_span_y() / 2)
+	var visited := {start: true}
+	var queue: Array[Vector2i] = [start]
+	var qi := 0
+	while qi < queue.size():
+		var p: Vector2i = queue[qi]
+		qi += 1
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var q: Vector2i = p + d
+			if visited.has(q) or blocked_cells.has(q):
+				continue
+			if blocked.has(_tile_at(ground, q.x, q.y)) or blocked.has(_tile_at(decor, q.x, q.y)):
+				continue
+			visited[q] = true
+			queue.append(q)
+	for side in gate_info:
+		var inside: Vector2i = gate_info[side]["inside"]
+		if not visited.has(inside):
+			night_bfs_failures.append(String(gate_info[side]["name"]) + "(夜门内)")
+
+# ---- M3 日程锚点解析（city_npc_configs 模式）----
+func get_anchor_px(ref: String) -> Vector2:
+	if anchors.has(ref):
+		return anchors[ref]
+	if ref.begins_with("citygate:"):
+		var side := ref.substr(9)
+		if gate_info.has(side):
+			return cell_to_px(gate_info[side]["inside"])
+	push_warning("[ChangAn] 未知锚点 " + ref)
+	return anchors.get("plaza", cell_to_px(Vector2i(W / 2, H / 2)))
+
+func _spawn_city_npcs():
+	for cfg in CITY_NPC_CONFIGS:
+		var legs: Array = []
+		var first_pos := Vector2.ZERO
+		var cfg_legs: Array = cfg["legs"]
+		for i in range(cfg_legs.size()):
+			var L: Array = cfg_legs[i]
+			var p: Vector2 = get_anchor_px(String(L[1])) + Vector2(L[4]) * 16.0
+			if i == 0:
+				first_pos = p
+			legs.append({"start": int(L[2]), "end": int(L[3]), "state": String(L[0]), "pos": p})
+		var npc = NPC_SCENE.instantiate()
+		npc.name = cfg["name"]
+		npc.npc_type = cfg["npc_type"]
+		npc.position = first_pos
+		var nd = NPCData.new()
+		nd.npc_id = cfg["id"]
+		nd.npc_name = cfg["name"]
+		nd.personality = cfg["personality"]
+		nd.home_position = first_pos
+		nd.work_position = first_pos
+		nd.custom_schedule = legs
+		npc.npc_data = nd
+		add_child(npc)
+		npc_list.append(npc)
+
+# ---- M3 阶段解锁：stage1/2 坊开门+程序化院落填充+局部刷 TileMap（§六-3 阶段化城市）----
+# 通用白天规则 BFS：返回从 start 出发的可达集（探针/解锁校验用）
+func _bfs_from(start: Vector2i) -> Dictionary:
+	var blocked := {}
+	for id in COLLIDING:
+		blocked[id] = true
+	var visited := {start: true}
+	var queue: Array[Vector2i] = [start]
+	var qi := 0
+	while qi < queue.size():
+		var p: Vector2i = queue[qi]
+		qi += 1
+		for d in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var q: Vector2i = p + d
+			if visited.has(q):
+				continue
+			if blocked.has(_tile_at(ground, q.x, q.y)) or blocked.has(_tile_at(decor, q.x, q.y)):
+				continue
+			visited[q] = true
+			queue.append(q)
+	return visited
+
+func unlock_stage(stage: int):
+	if not done or tile_map == null:
+		push_warning("[ChangAn] unlock_stage 需在生成完成后调用")
+		return
+	var unlocked: Array = []
+	for b in blocks:
+		if String(b["type"]) != "ward" or _in_palace(int(b["col"]), int(b["row"])):
+			continue
+		var su := int(b["stage_unlock"])
+		if su == 0 or su > stage:
+			continue
+		unlocked.append(String(b["name"]))
+		var ward_id := String(b["id"])
+		# 程序化院落填充（hash 种子确定，与解锁时机无关）
+		_fill_ward_generic(b)
+		# 开坊门并入宵禁册（宵禁进行中则直接闭门）
+		var gate_tile := T_GATE_CLOSED if curfew else T_GATE_OPEN
+		var cells: Array = ward_gate_cells.get(ward_id, [])
+		for c in cells:
+			decor[c.y * W + c.x] = gate_tile
+		curfew_gates.append({"cells": cells, "kind": "ward", "ward": ward_id})
+		# 局部重刷该坊矩形（地面全量铺贴防黑洞，装饰空格擦除）
+		var x0 := col_x(int(b["col"]))
+		var y0 := row_y(int(b["row"]))
+		for yy in range(y0, y0 + bh):
+			var base = yy * W
+			for xx in range(x0, x0 + bw):
+				var cp := Vector2i(xx, yy)
+				tile_map.set_cell(0, cp, int(ground[base + xx]), Vector2i(0, 0))
+				var di := int(decor[base + xx])
+				if di != 0:
+					tile_map.set_cell(1, cp, di, Vector2i(0, 0))
+				else:
+					tile_map.erase_cell(1, cp)
+	print("[ChangAn-M3] unlock_stage(%d)：解锁坊=%s" % [stage, unlocked])

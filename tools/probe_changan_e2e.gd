@@ -70,6 +70,25 @@ func _ready() -> void:
 		await _settle(8)
 		_check(_in_city_space(p, cv), "%s宅门前可站立" % wb[1])
 		await _shot("changan_m2_%s.png" % wb[0])
+	# 3.6) M3 宵禁/夜色/时辰：城内时辰流动（Weather 未冻结）+ 暮鼓闭坊门 + 晨鼓复开
+	var weather = main.get_node_or_null("World/WeatherController")
+	_check(weather != null and weather.process_mode != Node.PROCESS_MODE_DISABLED,
+			"城内 Weather 未冻结（时辰流动/CanvasModulate 夜色生效）")
+	if weather:
+		var gcell: Vector2i = ch.curfew_gates[0]["cells"][0]
+		weather.world_time = 20.5 * 60.0 * weather.time_scale   # 戌时暮鼓
+		await _settle(6)
+		_check(ch.curfew and int(ch.decor[gcell.y * ch.W + gcell.x]) == ch.T_GATE_CLOSED,
+				"暮鼓宵禁：坊门换闭门瓦(68)")
+		await _wait(2.5)   # 等灯光 lerp 稳定再出夜色样张
+		await _shot("changan_m3_curfew_night.png")
+		weather.world_time = 10.0 * 60.0 * weather.time_scale   # 晨鼓开门
+		await _settle(6)
+		_check(not ch.curfew and int(ch.decor[gcell.y * ch.W + gcell.x]) == ch.T_GATE_OPEN,
+				"晨鼓开门：坊门复开(67)")
+	# 3.7) M3 城内NPC：按锚点日程生成
+	_check(ch.npc_list.size() == ch.CITY_NPC_CONFIGS.size(),
+			"城内NPC生成=%d（配置%d）" % [ch.npc_list.size(), ch.CITY_NPC_CONFIGS.size()])
 	# 4) 走到春明门豁口（城内侧坐标）→ 出城
 	var egap_in: Vector2i = ch.gate_info["E"]["gap_cells"][1]
 	p.global_position = cv.CITY_OFFSET + ch.cell_to_px(egap_in)
