@@ -32,6 +32,7 @@ var _busy := false                       # 进出城过渡互斥
 var _fade_rect: ColorRect = null
 var _minimap: Control = null
 var _hint_shown := false
+var auto_spawn_in_city := true           # 出生点=长安明德门内（探针环境自动跳过，防干扰回归/E2E）
 
 func _ready():
 	world = get_node_or_null("/root/Main/World")
@@ -44,6 +45,24 @@ func _ready():
 	_setup_fade_layer()
 	# WorldGenerator._ready 在 Main._ready 同帧早已跑完（_setup_city_visit 排最后），可直接铺轮廓
 	_setup_footprint()
+	if auto_spawn_in_city and not _probe_present():
+		_auto_enter_city()
+
+# 探针判定：root 下挂载 res://tools/ 脚本的节点（regress/E2E/mob/mtn 探针均为临时注入的 autoload）
+func _probe_present() -> bool:
+	for child in get_tree().root.get_children():
+		var s = child.get_script()
+		if s != null and String(s.resource_path).begins_with("res://tools/"):
+			return true
+	return false
+
+# 开局自动入城：等 NPC/系统生成稳定后走一次明德门入城（出生点=明德门内 3×3 校验点）
+func _auto_enter_city():
+	await get_tree().create_timer(4.0).timeout   # 与E2E同时长：等NPC生成/主线弹窗/系统首帧全部稳定
+	if in_city or changan != null or _busy:
+		return
+	print("[CityVisit] 出生点=长安明德门内（自动入城）")
+	enter_city("S", true)   # force=true：开局主线弹窗可能未关，直入（弹窗为CanvasLayer不依赖世界）
 
 # ---- 开放世界侧：外郭轮廓 + 四门触发区 ----
 func _setup_footprint():
@@ -142,11 +161,11 @@ func _on_entry_gate_body_entered(body: Node2D, side: String):
 		enter_city(side)
 
 # ---- 进出城流程 ----
-func enter_city(gate_id: String) -> void:
+func enter_city(gate_id: String, force: bool = false) -> void:
 	if _busy or in_city or changan != null:
 		return
-	if DialogManager.is_dialog_open():
-		return   # 对话中不入城（M1 从简）
+	if not force and DialogManager.is_dialog_open():
+		return   # 对话中不入城（M1 从简；开局自动入城走 force）
 	_busy = true
 	await _fade(1.0)
 	_set_world_frozen(true)
