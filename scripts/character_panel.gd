@@ -548,7 +548,7 @@ func open():
 		var tex = TextureGen.load_png_texture("res://sprites/player/idle_down_0.png")
 		if tex:
 			var img := tex.get_image()
-			var head := img.get_region(Rect2i(24, 15, 16, 17))
+			var head := img.get_region(Rect2i(17, 17, 16, 18))   # MW 48x48帧头位
 			portrait.texture = ImageTexture.create_from_image(head)
 	selected_idx = -1
 	detail_lbl.text = ""

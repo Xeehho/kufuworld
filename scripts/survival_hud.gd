@@ -28,10 +28,10 @@ const RING_MASK_SEGS = 48
 const SLOT_COUNT := 4
 
 # 头部裁剪区域（Phase F1着装后：64x64帧中发髻+头部位于 x24..39 y15..31）
-const HEAD_CROP_X = 24
-const HEAD_CROP_Y = 15
+const HEAD_CROP_X = 17   # MW 48x48帧: 乌发髻顶~下颌+肩线（唐装重着装后头部区域）
+const HEAD_CROP_Y = 17
 const HEAD_CROP_W = 16
-const HEAD_CROP_H = 17
+const HEAD_CROP_H = 18
 
 # 属性配置: key -> [标签, 颜色, 最大值]
 # 起始角度和弧度在_draw中动态计算

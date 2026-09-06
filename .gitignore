@@ -27,3 +27,15 @@ tools/_mcp_state/
 # 第三方素材包（MW license 禁止再分发，仅本地使用）
 downloaded_assets/mystic_woods_free_2.2/
 downloaded_assets/mystic_woods_2.2/
+
+# MW 派生玩家帧（import_mw22_player.py 本地生成；license 禁再分发，克隆后本地重跑即可）
+sprites/player/
+sprites/player_modern/
+
+# MW 派生样张/盘点图（样张工具本地重出；license 禁再分发）
+docs/shots/mw_graybox_original.png
+docs/shots/mw_graybox_tang.png
+docs/shots/mw_fangwall_specimen.png
+docs/shots/mw22_char_specimen.png
+docs/shots/mw22_player_ingame_check.png
+docs/shots/mw22_inventory/

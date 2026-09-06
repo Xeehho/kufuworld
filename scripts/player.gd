@@ -182,12 +182,12 @@ func rebuild_sprite_frames():
 	var sf = SpriteFrames.new()
 	var dir_names = ["down", "left", "right", "up"]
 	var specs = [
-		["idle", 4, 6.0, true],
+		["idle", 6, 6.0, true],       # MW付费版 idle 6帧（呼吸幅度大）
 		["walk", 6, 10.0, true],
 		["run", 6, 10.0, true],
-		["block", 4, 5.0, true],      # Carry_Idle 双掌推
-		["hurt", 4, 8.0, false],      # 受击
-		["death", 8, 10.0, false],    # 死亡倒地
+		["block", 4, 5.0, true],      # MW idle+程序化持盾（包内无防御帧）
+		["hurt", 4, 8.0, false],      # 受击（MW死亡帧前段回摆）
+		["death", 8, 10.0, false],    # 死亡倒地（MW 3帧+末态定格）
 	]
 	var loaded_any = false
 	for spec in specs:
@@ -210,14 +210,13 @@ func rebuild_sprite_frames():
 			for tex in frames:
 				sf.add_frame(anim_name, tex)
 			loaded_any = true
-	# BugFix: 徒手攻击原用Slice(斧)/Pierce(匕)素材帧，空手挥击凭空出现斧子/匕首
-	# 改用Collect空手帧：轻击=前段下探掌(0-3)，重击=后段起身升掌(4-7)
+	# MW付费版真挥砍帧（行6-8带弧光）：轻击=正序4帧，重击=倒序慢速（上行斩差异化）
 	for dir_name in dir_names:
-		for anim_def in [["attack", [0, 1, 2, 3], 10.0], ["heavy", [4, 5, 6, 7], 10.0]]:
+		for anim_def in [["attack", [0, 1, 2, 3], 10.0], ["heavy", [3, 2, 1, 0], 8.0]]:
 			var anim_name: String = str(anim_def[0]) + "_" + dir_name
 			var frames: Array = []
 			for i in anim_def[1]:
-				var tex = TextureGen.load_png_texture("res://sprites/player/collect_%s_%d.png" % [dir_name, i])
+				var tex = TextureGen.load_png_texture("res://sprites/player/attack_%s_%d.png" % [dir_name, i])
 				if tex:
 					frames.append(tex)
 			if frames.is_empty():
@@ -230,9 +229,9 @@ func rebuild_sprite_frames():
 			for tex in frames:
 				sf.add_frame(anim_name, tex)
 			loaded_any = true
-	# 工具专用动作动画（行为-表现一致）：axe=Slice挥斧 / watering=浇水 / collect=弯腰农作
+	# 工具专用动作动画（行为-表现一致）：axe=MW挥砍4帧 / watering=浇水(回摆8帧,待PixelLab专帧) / collect=农作(回摆8帧,同)
 	for dir_name in dir_names:
-		for tool_anim in [["axe", "attack", 8, 10.0], ["watering", "watering", 8, 10.0], ["collect", "collect", 8, 10.0]]:
+		for tool_anim in [["axe", "attack", 4, 10.0], ["watering", "watering", 8, 10.0], ["collect", "collect", 8, 10.0]]:
 			var anim_name: String = str(tool_anim[0]) + "_" + dir_name
 			var frames: Array = []
 			for i in range(int(tool_anim[2])):
@@ -275,8 +274,10 @@ func rebuild_sprite_frames():
 		loaded_any = true
 	if loaded_any:
 		anim.sprite_frames = sf
-		# Body_A 64x64帧人物脚线在y≈48，帧中心y=32 → 上移16px使脚底=节点原点
-		anim.offset = Vector2(0, -16)
+		# MW付费版 48x48帧：人物脚线在y≈43，帧中心y=24 → offset=-19×scale 使脚底=节点原点
+		# scale=1.5 保持与旧 64x64(32px人物) 同等体型（21px×1.5≈31.5px，约2瓦高）
+		anim.scale = Vector2(1.5, 1.5)
+		anim.offset = Vector2(0, -28.5)
 		_play_anim("idle")
 
 func _update_facing(dir: Vector2):
