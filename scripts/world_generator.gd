@@ -69,20 +69,22 @@ var main_tile_map: TileMap = null  # 场景中的主TileMap
 # ============ 素材包大树道具 (Pixel Crawler) ============
 # 树瓦片ID(4松/8橡/9竹)不再画进TileMap，改为生成y排序Sprite道具
 # MW换血 Slice B：松/橡切 sprites/tiles_mw22/ 四季树表（4x2=8变体，春/秋/枯/雪程序化调色，
-# tools/import_mw22_tiles.py 生成；MW缺失时回退 Pixel Crawler 原表）。竹9 MW无对应暂留PC包
+# tools/import_mw22_tiles.py 生成；MW缺失时回退 Pixel Crawler 原表）。
+# 竹9 Slice E(2026-09-06)：程序化 MW 调竹表 sprites/tiles/bamboo_mw.png（tools/gen_bamboo_mw.py
+# 生成，48x80 cell 3x2=6变体，纯程序化可入库；缺失回退 PC 包竹表）
 const TREE_SHEETS := {
 	4: {"path": "res://sprites/tiles_mw22/tree_pine.png", "fallback": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_03/Size_02.png", "cell": Vector2i(64, 64)},   # 松(圆冠代) 4x2=8变体
 	8: {"path": "res://sprites/tiles_mw22/tree_oak.png", "fallback": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_01/Size_02.png", "cell": Vector2i(64, 64)},    # 橡(宽冠) 4x2=8变体
-	9: {"path": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_02/Size_03.png", "cell": Vector2i(48, 80)},   # 竹/细高树 3x2=6变体（MW缺口，待AI补）
+	9: {"path": "res://sprites/tiles/bamboo_mw.png", "fallback": "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_02/Size_03.png", "cell": Vector2i(48, 80)},   # 竹/细高树 3x2=6变体（程序化MW调，v2=枯）
 }
 var _tree_sheet_cache: Dictionary = {}
 
 # Phase B-3(重映射MW变体序)：变体索引→季节表（MW表序=import_mw22_tiles.py: 0春1春花2秋3秋花4浅春5粉春6枯褐7雪覆）
-# 松4: 0/1春 2/4/5秋 3/6枯 7雪；橡8: 0/1/4/5春 2/3秋 6枯 7雪；竹9: 0/1/3/4春 2枯（5近空格不用）
+# 松4: 0/1春 2/4/5秋 3/6枯 7雪；橡8: 0/1/4/5春 2/3秋 6枯 7雪；竹9(gen_bamboo_mw): 0/1/3/4/5春 2枯
 const TREE_SEASONS := {
 	4: {"spring": [0, 1], "autumn": [2, 4, 5], "bare": [3, 6], "snow": [7]},
 	8: {"spring": [0, 1, 4, 5], "autumn": [2, 3], "bare": [6], "snow": [7]},
-	9: {"spring": [0, 1, 3, 4], "autumn": [], "bare": [2], "snow": []},
+	9: {"spring": [0, 1, 3, 4, 5], "autumn": [], "bare": [2], "snow": []},
 }
 
 func _pick_tree_variant(tid: int, wx: int, wy: int) -> int:

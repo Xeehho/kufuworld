@@ -45,8 +45,10 @@ docs/shots/mw22_tiles_check.png
 docs/shots/mw22_meditate_check.png
 docs/shots/mw22_meditate_dual.png
 docs/shots/mw22_npc_check.png
+docs/shots/bamboo_mw_specimen.png
 docs/shots/mw22_inventory/
 docs/shots/mw*.png.import
 
 # MW 派生 NPC 帧（import_mw22_npc.py 本地生成；克隆缺失时 npc_character 回退占位色块）
 sprites/npc/
+docs/shots/bamboo_mw_specimen.png.import
