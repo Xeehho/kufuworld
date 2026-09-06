@@ -101,6 +101,33 @@ func _ready() -> void:
 		await _settle(8)
 		_check(_in_city_space(p, cv), "%s坊内可站立" % wb[1])
 		await _shot("changan_m2_%s.png" % wb[0])
+	# 3.5a) v4 坊内修缮样张：腹地错缝错排（延康坊西半）+ 渠畔坊缘（龙首渠临坊，水/岸石可见）
+	var yk_block = null
+	for b in ch.blocks:
+		if String(b["name"]) == "延康坊":
+			yk_block = b
+			break
+	if yk_block != null:
+		var yx0: int = ch.col_x(int(yk_block["col"]))
+		var yy0: int = ch.row_y(int(yk_block["row"]))
+		var st_stag: Vector2i = ch.find_clear_spawn(Vector2i(yx0 + 6, yy0 + 12))
+		_tp(p, cv.CITY_OFFSET + ch.cell_to_px(st_stag))
+		await _settle(8)
+		_check(_in_city_space(p, cv), "延康坊腹地可站立")
+		await _shot("interior_ward_stagger.png")
+	var cw_block = null
+	for b in ch.blocks:
+		if int(b["col"]) == 7 and int(b["row"]) == 2:
+			cw_block = b
+			break
+	if cw_block != null:
+		var cx0: int = ch.col_x(7)
+		var cy0: int = ch.row_y(2)
+		var st_canal: Vector2i = ch.find_clear_spawn(Vector2i(cx0 + 4, cy0 + 12))
+		_tp(p, cv.CITY_OFFSET + ch.cell_to_px(st_canal))
+		await _settle(8)
+		_check(_in_city_space(p, cv), "龙首渠畔坊内可站立")
+		await _shot("interior_ward_canal.png")
 	# 3.5b) Slice F：宅门楼 prop 门前采样（站门外2格正对门楼；传送垫在门瓦上，门外不触发）
 	var tower_shot := false
 	for b in ch.blocks:
