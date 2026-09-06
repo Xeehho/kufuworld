@@ -94,6 +94,8 @@ static func build_tileset() -> TileSet:
 		106: ["res://sprites/tiles_changan_sckr/wall_city_body.png", "res://sprites/tiles/changan_outer_wall.png"],  # 外郭城墙·砖身行（横缝）
 		108: ["res://sprites/tiles_changan_sckr/wall_city_cap_w.png", "res://sprites/tiles/changan_outer_wall.png"], # 外郭城墙·垛口齿西列（竖段外列，齿朝西）
 		109: ["res://sprites/tiles_changan_sckr/wall_city_cap_e.png", "res://sprites/tiles/changan_outer_wall.png"], # 外郭城墙·垛口齿东列（竖段外列，齿朝东）
+		111: ["res://sprites/tiles_changan_sckr/quay_stone.png", "res://sprites/tiles_mw22/stone.png"],   # 岸石·渠岸顶面（范式v3）
+		112: ["res://sprites/tiles_changan_sckr/water_canal.png", "res://sprites/tiles/water.png"],       # 渠水/护城河·江南蓝（碰撞，范式v3）
 			# ---- 长安城 M4 内景瓦片族 80~89（§5.3 interior_tiles，独立小场景复用；M6 现代场景换皮肤）----
 		80: "res://sprites/tiles/interior_floor_wood.png",   # 木地板
 		81: "res://sprites/tiles/interior_floor_brick.png",  # 砖地板
@@ -108,7 +110,7 @@ static func build_tileset() -> TileSet:
 	}
 
 	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙, 100=长安坊墙, 102=建筑足印（透明碰撞）；75~77=宅门（M4起无碰撞接传送门）；83/84/86/88/89=内景墙/屏风/案/柜/架
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89, 100, 102, 103, 104, 105, 106, 108, 109]
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89, 100, 102, 103, 104, 105, 106, 108, 109, 112]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 

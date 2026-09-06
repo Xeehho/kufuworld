@@ -184,10 +184,10 @@ func _ready() -> void:
 	var tree_cnt := int(prop_names.get("tree_lush_a", 0)) + int(prop_names.get("tree_lush_b", 0)) + int(prop_names.get("tree_big", 0))
 	if tree_cnt < 12:
 		mv_fails.append("行道树=%d(<12)" % tree_cnt)
-	# 宫城：太极殿/两仪殿/东宫+角楼×4
+	# 宫城：太极殿/两仪殿/东宫+角楼×4（v3 廊庑配殿后 hall_gold2/3 各 ≥1，原=1 断言放宽）
 	if int(prop_names.get("hall_taiji", 0)) != 1:
 		mv_fails.append("太极殿prop缺失")
-	if int(prop_names.get("hall_gold2", 0)) != 1 or int(prop_names.get("hall_gold3", 0)) != 1:
+	if int(prop_names.get("hall_gold2", 0)) < 1 or int(prop_names.get("hall_gold3", 0)) < 1:
 		mv_fails.append("两仪殿/东宫prop缺失")
 	if int(prop_names.get("ting_gold", 0)) != 4:
 		mv_fails.append("宫城角楼亭=%d≠4" % int(prop_names.get("ting_gold", 0)))
@@ -246,6 +246,32 @@ func _ready() -> void:
 			if int(changan.decor[yy * changan.W + xx]) < 10:
 				col_txt += " "
 		print("[probe][V2] x=%d: %s" % [xx, col_txt])
+	# ---- 范式v3 断言（2026-09-06 密度重构）----
+	var v3_fails: Array = []
+	if int(changan.stats_v3.get("boats", 0)) < 12:
+		v3_fails.append("护城河船=%d(<12)" % int(changan.stats_v3.get("boats", 0)))
+	if int(changan.stats_v3.get("market_stalls", 0)) < 30:
+		v3_fails.append("两市摊位=%d(<30)" % int(changan.stats_v3.get("market_stalls", 0)))
+	if not ts_mv.has_source(111) or not ts_mv.has_source(112):
+		v3_fails.append("岸石111/渠水112未注册")
+	var moat_water := 0
+	for yy in range(changan.H - changan.margin, changan.H):
+		for xx in range(changan.margin, changan.W - changan.margin):
+			if int(changan.ground[yy * changan.W + xx]) == changan.T_WATER:
+				moat_water += 1
+	if moat_water < 900:
+		v3_fails.append("护城河水格=%d(<900)" % moat_water)
+	var life_cnt := 0
+	for k2 in prop_names:
+		if ["cart_horse_a", "carriage_blue", "ox_cart_cover", "sedan_red", "sedan_gold", "board_notice", "donkey_post"].has(String(k2)):
+			life_cnt += int(prop_names[k2])
+	if life_cnt < 12:
+		v3_fails.append("街面生活道具=%d(<12)" % life_cnt)
+	if int(prop_names.get("palace_gate_red", 0)) < 1:
+		v3_fails.append("承天门楼prop缺失")
+	if int(prop_names.get("bridge_arch_stone", 0)) < 1:
+		v3_fails.append("护城河拱桥prop缺失")
+	fails.append_array(v3_fails)
 	if not mv_fails.is_empty():
 		fails.append_array(mv_fails)
 	if not m3_fails.is_empty():

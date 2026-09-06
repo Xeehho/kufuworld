@@ -310,6 +310,19 @@ Main (Node2D) [Main.gd]
 - `active_inner_skill` 由 GameManager._ready 默认装备青木长生功（无装备则E键提示，不会静默失败）
 - 坐姿帧=程序化 `meditate_down_0/1.png`（`generate_meditate_frames` 双外观色板生成，Main._ensure_textures缺失即生成；唐装=乌发髻金簪/现代装=披发棕衫蓝裤）；头顶进度盘=内力条+修炼条；打坐每拍回内力+2
 
+## 长安城生成范式 v3（2026-09-06 新增，最高优先级）
+
+> 全文见 [docs/长安城生成范式v3-工程化解析.md](docs/长安城生成范式v3-工程化解析.md)。源自 ChatGPT《大唐长安》31 节工程规范（本项目实测校正：SCKR 素材=16px 纹理网格 + 48px 组装块，TileMap 保持 16px）。
+
+**角色定位铁律**：AI 不是素材生成器/概念画师——只负责用现有素材按规则组装可游玩的长安。禁止：自绘素材、非整数缩放、3D 透视、场景做成概念图。
+
+- **manifest-first**：切素材只能改 `tools/import_sckr_changan.py` 清单（产物 `data/sckr_manifest.json` 数据库），生成器只能引用已切片语义名，禁止临时像素窗口
+- **道路先行**：街网拓扑由 `data/changan_city.json` 冻结（BFS/宵禁/传送门锚定），改拓扑必须跑全套探针
+- **无空地纪律**：坊墙内禁裸草——地坪 74/101 铺满，绿化只做园池口袋；临街面店排/摊排连续
+- **prefab 纪律**：建筑=foot(T_FOOT 102)+sprite 底边锚，檐宽匹配 foot；新瓦片注册必须同步双份 COLLIDING（tileset_generator 与 changan_generator）
+- **密度与生活**：摊位/马车/轿子/街灯/人群 NPC 是"城市感"的来源，空旷即失败
+- **截图验收**：每街区跑 `run_changan_e2e.py windowed` 出实机样张，过黄金 5 问+一票否决项才算完成
+
 ## 已知问题与待优化
 
 ### 当前已知问题

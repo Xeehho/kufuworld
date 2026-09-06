@@ -1,0 +1,1392 @@
+{
+ "grid": {
+  "texture_px": 16,
+  "kit_block_px": 48
+ },
+ "source_root": "downloaded_assets/comshadow_bundle/",
+ "note": "SCKR 中式包工程化解析清单（范式v3）。派生PNG已gitignore，克隆后重跑本脚本再生。",
+ "assets": [
+  {
+   "name": "gate_tower_big",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    473,
+    98,
+    568,
+    192
+   ]
+  },
+  {
+   "name": "gate_tower_mid",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    620,
+    98,
+    706,
+    192
+   ]
+  },
+  {
+   "name": "gate_tower_big_o",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    473,
+    194,
+    568,
+    288
+   ]
+  },
+  {
+   "name": "wall_seg",
+   "kind": "prop",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    568,
+    116,
+    634,
+    192
+   ]
+  },
+  {
+   "name": "paifang_stone",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    290,
+    98,
+    384,
+    192
+   ]
+  },
+  {
+   "name": "paifang_stone_g",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    290,
+    196,
+    384,
+    288
+   ]
+  },
+  {
+   "name": "hall_taiji",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    0,
+    0,
+    144,
+    96
+   ]
+  },
+  {
+   "name": "palace_gate_red",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    144,
+    0,
+    288,
+    96
+   ]
+  },
+  {
+   "name": "gate_stone_gold",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    288,
+    0,
+    384,
+    96
+   ]
+  },
+  {
+   "name": "palace_gate_gold",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    0,
+    96,
+    144,
+    192
+   ]
+  },
+  {
+   "name": "gate_stone_blue",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    144,
+    96,
+    288,
+    192
+   ]
+  },
+  {
+   "name": "pagoda_blue",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    390,
+    0,
+    478,
+    99
+   ]
+  },
+  {
+   "name": "pagoda_gold",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    483,
+    96,
+    575,
+    192
+   ]
+  },
+  {
+   "name": "pagoda_green",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    490,
+    0,
+    566,
+    106
+   ]
+  },
+  {
+   "name": "lou_blue",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    676,
+    0,
+    763,
+    96
+   ]
+  },
+  {
+   "name": "lou_brown",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    576,
+    0,
+    667,
+    96
+   ]
+  },
+  {
+   "name": "lou_dark",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    386,
+    104,
+    478,
+    192
+   ]
+  },
+  {
+   "name": "hall_grey",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    0,
+    578,
+    96,
+    673
+   ]
+  },
+  {
+   "name": "hall_gold2",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    386,
+    584,
+    478,
+    672
+   ]
+  },
+  {
+   "name": "hall_gold3",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    578,
+    584,
+    670,
+    672
+   ]
+  },
+  {
+   "name": "hall_red",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    290,
+    674,
+    382,
+    768
+   ]
+  },
+  {
+   "name": "ting_gold",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    200,
+    389,
+    280,
+    479
+   ]
+  },
+  {
+   "name": "paifang_big_gold",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    674,
+    295,
+    768,
+    383
+   ]
+  },
+  {
+   "name": "paifang_red",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    482,
+    389,
+    575,
+    480
+   ]
+  },
+  {
+   "name": "gate_red_gold",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    482,
+    485,
+    575,
+    576
+   ]
+  },
+  {
+   "name": "lion_white_a",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    676,
+    483,
+    713,
+    529
+   ]
+  },
+  {
+   "name": "lion_white_b",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    727,
+    483,
+    764,
+    529
+   ]
+  },
+  {
+   "name": "pagoda_small",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    627,
+    495,
+    669,
+    576
+   ]
+  },
+  {
+   "name": "lamp_red",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    585,
+    507,
+    615,
+    559
+   ]
+  },
+  {
+   "name": "lamp_red2",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    670,
+    507,
+    700,
+    559
+   ]
+  },
+  {
+   "name": "lamp_stone",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    630,
+    501,
+    660,
+    562
+   ]
+  },
+  {
+   "name": "lion_stone_a",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    588,
+    5,
+    612,
+    51
+   ]
+  },
+  {
+   "name": "lion_stone_b",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    635,
+    5,
+    661,
+    51
+   ]
+  },
+  {
+   "name": "incense_bronze",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    584,
+    57,
+    616,
+    98
+   ]
+  },
+  {
+   "name": "stall_red",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    709,
+    509,
+    767,
+    563
+   ]
+  },
+  {
+   "name": "stall_wood",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    723,
+    576,
+    767,
+    623
+   ]
+  },
+  {
+   "name": "stall_red2",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    673,
+    623,
+    720,
+    673
+   ]
+  },
+  {
+   "name": "stall_banner",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    720,
+    627,
+    767,
+    670
+   ]
+  },
+  {
+   "name": "bell_tower",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    394,
+    290,
+    468,
+    386
+   ]
+  },
+  {
+   "name": "drum_tower",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    490,
+    290,
+    564,
+    386
+   ]
+  },
+  {
+   "name": "market_gate",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    487,
+    390,
+    569,
+    474
+   ]
+  },
+  {
+   "name": "house_win_a",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    195,
+    0,
+    288,
+    92
+   ]
+  },
+  {
+   "name": "house_door_a",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    295,
+    0,
+    390,
+    92
+   ]
+  },
+  {
+   "name": "house_win_small",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    395,
+    0,
+    480,
+    92
+   ]
+  },
+  {
+   "name": "house_shop_open",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    290,
+    96,
+    480,
+    192
+   ]
+  },
+  {
+   "name": "gable_ma",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    192,
+    96,
+    288,
+    192
+   ]
+  },
+  {
+   "name": "house_small_win",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    0,
+    194,
+    96,
+    290
+   ]
+  },
+  {
+   "name": "gable_white",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    96,
+    194,
+    190,
+    290
+   ]
+  },
+  {
+   "name": "house_small_door",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    285,
+    194,
+    386,
+    290
+   ]
+  },
+  {
+   "name": "compound_gate",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    434,
+    194,
+    532,
+    290
+   ]
+  },
+  {
+   "name": "tree_big",
+   "kind": "prop",
+   "category": "plant",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    672,
+    0,
+    768,
+    96
+   ]
+  },
+  {
+   "name": "tree_lush_a",
+   "kind": "prop",
+   "category": "plant",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    578,
+    672,
+    668,
+    768
+   ]
+  },
+  {
+   "name": "tree_lush_b",
+   "kind": "prop",
+   "category": "plant",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    670,
+    672,
+    764,
+    768
+   ]
+  },
+  {
+   "name": "gate_wood",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    385,
+    672,
+    473,
+    766
+   ]
+  },
+  {
+   "name": "gate_stone_small",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    481,
+    672,
+    576,
+    768
+   ]
+  },
+  {
+   "name": "sign_tea",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    488,
+    578,
+    522,
+    622
+   ]
+  },
+  {
+   "name": "sign_inn",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    577,
+    582,
+    620,
+    615
+   ]
+  },
+  {
+   "name": "sign_wine",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    727,
+    144,
+    761,
+    193
+   ]
+  },
+  {
+   "name": "banner_purple",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    632,
+    580,
+    652,
+    617
+   ]
+  },
+  {
+   "name": "willow_a",
+   "kind": "prop",
+   "category": "plant",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    575,
+    575,
+    670,
+    678
+   ]
+  },
+  {
+   "name": "willow_b",
+   "kind": "prop",
+   "category": "plant",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    677,
+    572,
+    767,
+    678
+   ]
+  },
+  {
+   "name": "stall_rw",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    580,
+    485,
+    665,
+    572
+   ]
+  },
+  {
+   "name": "market_counter",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    668,
+    495,
+    742,
+    568
+   ]
+  },
+  {
+   "name": "cart_horse_a",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    0,
+    0,
+    144,
+    96
+   ]
+  },
+  {
+   "name": "carriage_blue",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    192,
+    0,
+    336,
+    96
+   ]
+  },
+  {
+   "name": "sedan_gold",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    384,
+    0,
+    528,
+    96
+   ]
+  },
+  {
+   "name": "sedan_red",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    576,
+    96,
+    672,
+    192
+   ]
+  },
+  {
+   "name": "ox_cart_cover",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    384,
+    192,
+    528,
+    288
+   ]
+  },
+  {
+   "name": "stall_awn_blue",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    576,
+    0,
+    672,
+    96
+   ]
+  },
+  {
+   "name": "stall_awn_blue2",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    672,
+    0,
+    768,
+    96
+   ]
+  },
+  {
+   "name": "stall_awn_green",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    672,
+    192,
+    768,
+    288
+   ]
+  },
+  {
+   "name": "stall_red_open",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    384,
+    384,
+    480,
+    480
+   ]
+  },
+  {
+   "name": "stall_goods_blue",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    480,
+    384,
+    576,
+    480
+   ]
+  },
+  {
+   "name": "stall_white_awn",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    384,
+    480,
+    480,
+    576
+   ]
+  },
+  {
+   "name": "stall_green_awn",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    480,
+    480,
+    576,
+    576
+   ]
+  },
+  {
+   "name": "stall_food_a",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    192,
+    672,
+    288,
+    768
+   ]
+  },
+  {
+   "name": "stall_food_b",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jingcheng/tile-B-02.png",
+   "box": [
+    288,
+    672,
+    384,
+    768
+   ]
+  },
+  {
+   "name": "donkey_post",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-06.png",
+   "box": [
+    384,
+    216,
+    432,
+    288
+   ]
+  },
+  {
+   "name": "donkey_saddle",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-06.png",
+   "box": [
+    576,
+    216,
+    624,
+    288
+   ]
+  },
+  {
+   "name": "pillar_red",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jingcheng/tile-B-06.png",
+   "box": [
+    714,
+    0,
+    768,
+    96
+   ]
+  },
+  {
+   "name": "board_notice",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-06.png",
+   "box": [
+    240,
+    576,
+    288,
+    672
+   ]
+  },
+  {
+   "name": "banner_wine2",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-06.png",
+   "box": [
+    192,
+    576,
+    240,
+    672
+   ]
+  },
+  {
+   "name": "lamp_yellow",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-06.png",
+   "box": [
+    668,
+    576,
+    720,
+    672
+   ]
+  },
+  {
+   "name": "boat_row",
+   "kind": "prop",
+   "category": "water",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    384,
+    0,
+    480,
+    48
+   ]
+  },
+  {
+   "name": "boat_cover",
+   "kind": "prop",
+   "category": "water",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    384,
+    48,
+    480,
+    96
+   ]
+  },
+  {
+   "name": "boat_small",
+   "kind": "prop",
+   "category": "water",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    384,
+    192,
+    480,
+    240
+   ]
+  },
+  {
+   "name": "boat_sampan",
+   "kind": "prop",
+   "category": "water",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    384,
+    240,
+    480,
+    288
+   ]
+  },
+  {
+   "name": "pier_wood",
+   "kind": "prop",
+   "category": "water",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    384,
+    96,
+    528,
+    192
+   ]
+  },
+  {
+   "name": "moongate_white",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    672,
+    0,
+    768,
+    96
+   ]
+  },
+  {
+   "name": "bridge_arch_stone",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    480,
+    192,
+    576,
+    288
+   ]
+  },
+  {
+   "name": "bench_wood",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    576,
+    96,
+    624,
+    144
+   ]
+  },
+  {
+   "name": "shrine_small",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    576,
+    384,
+    624,
+    480
+   ]
+  },
+  {
+   "name": "shrine_red",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    624,
+    384,
+    672,
+    480
+   ]
+  },
+  {
+   "name": "bonsai_a",
+   "kind": "prop",
+   "category": "plant",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    384,
+    288,
+    432,
+    336
+   ]
+  },
+  {
+   "name": "bonsai_b",
+   "kind": "prop",
+   "category": "plant",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    432,
+    288,
+    480,
+    336
+   ]
+  },
+  {
+   "name": "stall_awn_bluew",
+   "kind": "prop",
+   "category": "market",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    480,
+    480,
+    576,
+    576
+   ]
+  },
+  {
+   "name": "street_main",
+   "kind": "tile",
+   "category": "ground",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    400,
+    492,
+    416,
+    508
+   ]
+  },
+  {
+   "name": "street_ward",
+   "kind": "tile",
+   "category": "ground",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    400,
+    492,
+    416,
+    508
+   ]
+  },
+  {
+   "name": "street_lane",
+   "kind": "tile",
+   "category": "ground",
+   "sheet": "jiangnan/tile-B-04.png",
+   "box": [
+    400,
+    492,
+    416,
+    508
+   ]
+  },
+  {
+   "name": "street_zhuque",
+   "kind": "tile",
+   "category": "ground",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    64,
+    176,
+    80,
+    192
+   ]
+  },
+  {
+   "name": "pave_market",
+   "kind": "tile",
+   "category": "ground",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    96,
+    544,
+    112,
+    560
+   ]
+  },
+  {
+   "name": "wall_city",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    568,
+    122,
+    584,
+    138
+   ]
+  },
+  {
+   "name": "wall_city_body",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    568,
+    138,
+    584,
+    154
+   ]
+  },
+  {
+   "name": "water_canal",
+   "kind": "tile",
+   "category": "ground",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    96,
+    344,
+    112,
+    360
+   ]
+  },
+  {
+   "name": "quay_stone",
+   "kind": "tile",
+   "category": "ground",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    304,
+    344,
+    320,
+    360
+   ]
+  },
+  {
+   "name": "wall_ward",
+   "kind": "composite_tile",
+   "category": "wall",
+   "sheet": "jiangnan/tile-B-04.png",
+   "strips": [
+    [
+     496,
+     194,
+     512,
+     198
+    ],
+    [
+     496,
+     208,
+     512,
+     266
+    ],
+    [
+     496,
+     272,
+     512,
+     290
+    ]
+   ]
+  },
+  {
+   "name": "wall_palace",
+   "kind": "composite_tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-03.png",
+   "strips": [
+    [
+     0,
+     142,
+     16,
+     146
+    ],
+    [
+     0,
+     151,
+     16,
+     162
+    ],
+    [
+     0,
+     166,
+     16,
+     175
+    ]
+   ]
+  },
+  {
+   "name": "wall_ward_v",
+   "kind": "composite_tile",
+   "category": "wall",
+   "sheet": "jiangnan/tile-B-04.png",
+   "strips": [
+    [
+     204,
+     36,
+     220,
+     52
+    ]
+   ]
+  },
+  {
+   "name": "wall_palace_v",
+   "kind": "composite_tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-03.png",
+   "strips": [
+    [
+     0,
+     152,
+     16,
+     162
+    ]
+   ]
+  },
+  {
+   "name": "wall_city_face_v",
+   "kind": "composite_tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "strips": [
+    [
+     568,
+     138,
+     584,
+     154
+    ]
+   ]
+  },
+  {
+   "name": "wall_city_cap_w",
+   "kind": "composite_tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "strips": [
+    [
+     568,
+     122,
+     584,
+     138
+    ]
+   ]
+  },
+  {
+   "name": "wall_city_cap_e",
+   "kind": "composite_tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "strips": [
+    [
+     568,
+     122,
+     584,
+     138
+    ]
+   ]
+  }
+ ]
+}

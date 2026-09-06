@@ -23,6 +23,8 @@ CONTACT = os.path.join(ROOT, "docs", "shots", "pack_jingcheng", "slice_contact.p
 
 JC = "jingcheng/tile-B-01.png"
 JC3 = "jingcheng/tile-B-03.png"
+JC2 = "jingcheng/tile-B-02.png"
+JC6 = "jingcheng/tile-B-06.png"
 JN = "jiangnan/tile-B-04.png"
 JN5 = "jiangnan/tile-B-05.png"
 JN2 = "jiangnan/tile-B-02.png"
@@ -98,6 +100,42 @@ PROPS = [
     ("willow_b",         JN5, (677, 572, 767, 678)),  # 柳树乙
     ("stall_rw",         JN5, (580, 485, 665, 572)),  # 大棚摊·红白
     ("market_counter",   JN5, (668, 495, 742, 568)),  # 市案·酒缸
+    # ---- v3 密度重构（2026-09-06）：市井生活族（京城 B02 马车/轿子/雨棚摊）----
+    ("cart_horse_a",     JC2, (0, 0, 144, 96)),       # 马车·客运
+    ("carriage_blue",    JC2, (192, 0, 336, 96)),     # 马车·蓝棚
+    ("sedan_gold",       JC2, (384, 0, 528, 96)),     # 轿子·金顶仪仗
+    ("sedan_red",        JC2, (576, 96, 672, 192)),   # 轿子·红
+    ("ox_cart_cover",    JC2, (384, 192, 528, 288)),  # 牛车·篷
+    ("stall_awn_blue",   JC2, (576, 0, 672, 96)),     # 雨棚摊·蓝
+    ("stall_awn_blue2",  JC2, (672, 0, 768, 96)),     # 雨棚摊·蓝乙
+    ("stall_awn_green",  JC2, (672, 192, 768, 288)),  # 雨棚摊·绿
+    ("stall_red_open",   JC2, (384, 384, 480, 480)),  # 开敞摊·红檐
+    ("stall_goods_blue", JC2, (480, 384, 576, 480)),  # 杂货摊·蓝檐
+    ("stall_white_awn",  JC2, (384, 480, 480, 576)),  # 布摊·白棚
+    ("stall_green_awn",  JC2, (480, 480, 576, 576)),  # 果摊·绿棚
+    ("stall_food_a",     JC2, (192, 672, 288, 768)),  # 食摊·红白
+    ("stall_food_b",     JC2, (288, 672, 384, 768)),  # 食摊·蓝白
+    # ---- v3：街道小件族（京城 B06 驴/柱/牌/灯）----
+    ("donkey_post",      JC6, (384, 216, 432, 288)),  # 拴柱驴
+    ("donkey_saddle",    JC6, (576, 216, 624, 288)),  # 驮驴
+    ("pillar_red",       JC6, (714, 0, 768, 96)),     # 朱红廊柱
+    ("board_notice",     JC6, (240, 576, 288, 672)),  # 告示牌
+    ("banner_wine2",     JC6, (192, 576, 240, 672)),  # 酒旗·竖
+    ("lamp_yellow",      JC6, (668, 576, 720, 672)),  # 黄灯柱
+    # ---- v3：水乡族（江南 B05 船/码头/月洞门/拱桥/神龛/盆景）----
+    ("boat_row",         JN5, (384, 0, 480, 48)),     # 小船·row
+    ("boat_cover",       JN5, (384, 48, 480, 96)),    # 客船·篷
+    ("boat_small",       JN5, (384, 192, 480, 240)),  # 小船·乙
+    ("boat_sampan",      JN5, (384, 240, 480, 288)),  # 舢板
+    ("pier_wood",        JN5, (384, 96, 528, 192)),   # 木码头平台
+    ("moongate_white",   JN5, (672, 0, 768, 96)),     # 月洞门（白墙）
+    ("bridge_arch_stone", JN5, (480, 192, 576, 288)),  # 石拱桥·侧视（护城河）
+    ("bench_wood",       JN5, (576, 96, 624, 144)),   # 条凳
+    ("shrine_small",     JN5, (576, 384, 624, 480)),  # 神龛·灰瓦
+    ("shrine_red",       JN5, (624, 384, 672, 480)),  # 神龛·红
+    ("lantern_stone_s",  JN5, (384, 288, 432, 336)),  # 石灯·小
+    ("bonsai_b",         JN5, (432, 288, 480, 336)),  # 盆景·乙
+    ("stall_awn_bluew",  JN5, (480, 480, 576, 576)),  # 大棚摊·蓝白条
 ]
 
 # ---- tile 清单：16×16 整窗（TileMap 图集源，不修边）----
@@ -111,6 +149,9 @@ TILES = [
     # 城墙（垛口+墙身同窗）
     ("wall_city",     JC, (568, 122, 584, 138)),  # 70 外郭城墙·垛口行（城齿+箭窗压顶）
     ("wall_city_body", JC, (568, 138, 584, 154)), # 106 外郭城墙·砖身行（横缝，N/S 走向段）
+    # ---- v3 水系（江南 B05）：渠水蓝+岸石顶面 ----
+    ("water_canal",   JN5, (96, 344, 112, 360)),  # 112 渠水/护城河·江南蓝（带微波纹）
+    ("quay_stone",    JN5, (200, 260, 216, 276)), # 111 岸石·渠岸顶面（浅灰石板，(304,344)曾误切木栈道）
 ]
 
 # 足印瓦（ID 102）：16×16 全透明带碰撞（TileMap 物理管建筑占格，prop 只做视觉；
@@ -303,6 +344,48 @@ def main():
             d.rectangle([cx, cy, cx + cw - 1, cy + ch - 1], outline=(90, 90, 100))
         out.convert("RGB").save(CONTACT)
         print("[sckr-changan] 联络表 →", CONTACT)
+    # ---- manifest（工程化解析数据库，范式v3）：生成器只能引用本清单语义名 ----
+    if made and not only:
+        import json
+        CATS = [
+            ("building", ("house_", "gable_", "compound_", "lou_", "hall_", "palace_", "gate_tower",
+                          "gate_red", "gate_stone", "ting_", "pagoda_", "bell_", "drum_", "market_gate", "moongate_")),
+            ("wall", ("wall_",)),
+            ("ground", ("street_", "pave_", "quay_", "water_", "foot")),
+            ("market", ("stall_", "market_counter", "cart_", "carriage_", "sedan_", "ox_cart")),
+            ("water", ("boat_", "pier_")),
+            ("plant", ("tree_", "willow_", "bonsai_")),
+            ("street_furniture", ("lamp_", "lantern_", "banner_", "sign_", "board_")),
+            ("decor", ("lion_", "paifang_", "pillar_", "shrine_", "incense_", "bench_", "donkey_", "bridge_")),
+        ]
+
+        def cat_of(name: str) -> str:
+            for cat, prefixes in CATS:
+                for p in prefixes:
+                    if name.startswith(p):
+                        return cat
+            return "misc"
+
+        assets = []
+        for name, rel, box in PROPS:
+            assets.append({"name": name, "kind": "prop", "category": cat_of(name),
+                           "sheet": rel, "box": list(box)})
+        for name, rel, box in TILES:
+            assets.append({"name": name, "kind": "tile", "category": cat_of(name),
+                           "sheet": rel, "box": list(box)})
+        for name, rel, strips, weights in COMPOSITES:
+            assets.append({"name": name, "kind": "composite_tile", "category": "wall",
+                           "sheet": rel, "strips": [list(s) for s in strips]})
+        out_m = {
+            "grid": {"texture_px": 16, "kit_block_px": 48},
+            "source_root": "downloaded_assets/comshadow_bundle/",
+            "note": "SCKR 中式包工程化解析清单（范式v3）。派生PNG已gitignore，克隆后重跑本脚本再生。",
+            "assets": assets,
+        }
+        manifest_path = os.path.join(ROOT, "data", "sckr_manifest.json")
+        with open(manifest_path, "w", encoding="utf-8") as mf:
+            json.dump(out_m, mf, ensure_ascii=False, indent=1)
+        print("[sckr-changan] manifest →", manifest_path, f"({len(assets)} 条)")
     print(f"[sckr-changan] 切片 {len(made)} 件 → props={OUT_PROPS} tiles={OUT_TILES}")
 
 if __name__ == "__main__":
