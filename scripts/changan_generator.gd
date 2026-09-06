@@ -175,10 +175,11 @@ func _paint_layout():
 	_set_rect(ground, m, H - m - ring, W - m * 2, ring, T_MAIN_ROAD)
 	_set_rect(ground, m, m, ring, H - m * 2, T_MAIN_ROAD)
 	_set_rect(ground, W - m - ring, m, ring, H - m * 2, T_MAIN_ROAD)
-	# 纵向街道缝 i=1..cols-1；i=5 为朱雀大街（宽9，恰在 col4|col5 之间）
+	# 纵向街道缝 i=1..cols-1；i=5 为朱雀大街（宽9）——夯土打底、仅中轴3宽铺御道石板（史实御道制式）
 	for i in range(1, cols):
 		if i == 5:
-			_set_rect(ground, col_x(5) - zq_s, _origin().y, zq_s, block_span_y(), T_ZHUQUE)
+			_set_rect(ground, col_x(5) - zq_s, _origin().y, zq_s, block_span_y(), T_MAIN_ROAD)
+			_set_rect(ground, col_x(5) - zq_s + 3, _origin().y, 3, block_span_y(), T_ZHUQUE)
 		else:
 			_set_rect(ground, col_x(i) - main_s, _origin().y, main_s, block_span_y(), T_MAIN_ROAD)
 	# 横向街道缝 j=1..rows-1
