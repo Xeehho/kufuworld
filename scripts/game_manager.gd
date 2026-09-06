@@ -4,6 +4,7 @@ signal world_state_changed
 signal relation_changed(a, b, new_value)
 signal world_event(title, body, importance)
 signal story_stage_changed(stage)
+signal player_appearance_changed(app: String)
 
 var morality: float = 0.0
 var reputation: float = 0.0
@@ -13,6 +14,20 @@ var max_qi: float = 100.0
 
 # 主线剧情进度（完成主N后=N；0=序章未开始）。定义见 docs/主线剧情设计.md §四
 var story_stage: int = 0
+
+# 玩家双外观（穿越换装）：modern=穿越前现代装（MW原样）/ tang=穿越后唐装
+# 帧目录 sprites/player_modern/ vs sprites/player/；剧情经 apply_story_effects("player_skin") 切换
+var player_appearance: String = "modern"
+
+func player_skin_root() -> String:
+	return "res://sprites/player_modern/" if player_appearance == "modern" else "res://sprites/player/"
+
+func set_player_appearance(app: String):
+	if player_appearance == app:
+		return
+	player_appearance = app
+	player_appearance_changed.emit(app)
+	print("[GameManager] 玩家外观切换 -> %s" % app)
 
 # W4：特性开关镜像（读 WorldFeatures.FLAG，任务冻结等系统统一经此查询）
 var feature_flags: Dictionary = WorldFeatures.FLAG
@@ -428,9 +443,12 @@ func advance_story_stage(n: int):
 # 支持: morality/reputation/gold/hunger/wood/stone
 #       relation(+relation_to 指定NPC名) / give_item(+give_count)
 #       event_title(+event_body/event_importance 默认4)
+#       player_skin(modern/tang——穿越换装，剧情节点挂此键切玩家外观)
 func apply_story_effects(effects: Dictionary):
 	if effects.is_empty():
 		return
+	if effects.has("player_skin"):
+		set_player_appearance(str(effects["player_skin"]))
 	if effects.has("morality"):
 		modify_morality(effects["morality"])
 	if effects.has("reputation"):

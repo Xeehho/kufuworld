@@ -273,6 +273,15 @@ def main():
           f"bridge={pb.get('bridge', 0)} demo={pb.get('demo', 0)} tree(info)={pb.get('tree', 0)} "
           f"（上限 3000，M2 全镇装点后收紧）", since="M0")
 
+    # ---------- 断言组：skin（美术重构·双外观：穿越换装 modern→tang） ----------
+    s = data.get("skin", {})
+    check("skin", "appearance_initial_modern", s.get("initial") == "modern" and s.get("initial_is_modern") is True,
+          f"skin={s.get('initial')} is_modern={s.get('initial_is_modern')} err={s.get('error', '')}", since="M2")
+    check("skin", "appearance_switch_tang", s.get("switched_is_tang") is True,
+          f"switched_is_tang={s.get('switched_is_tang')}", since="M2")
+    check("skin", "meditate_frames_both", bool(s.get("meditate_tang")) and bool(s.get("meditate_modern")),
+          f"tang={s.get('meditate_tang')} modern={s.get('meditate_modern')}", since="M2")
+
     # ---------- 报告 ----------
     STAGE_ORDER = ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8",
                    "M0", "M1", "M2", "M3", "M4", "M5"]   # v4 全量重构里程碑（立项书 §四）

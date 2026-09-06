@@ -60,6 +60,7 @@ var meditate_ui: Node2D = null                  # 打坐进度盘（头顶）：
 var med_qi_fill: ColorRect = null
 var med_prog_fill: ColorRect = null
 const MED_W := 46.0
+var _last_anim_prefix: String = "idle"   # 最近播放的动画前缀（双外观换根重建后续播用）
 
 func _setup_meditate_particles():
 	meditate_particles = CPUParticles2D.new()
@@ -136,9 +137,18 @@ func _ready():
 	_create_target_indicator()
 	# 纹理可能在Main._ensure_textures()中才生成（晚于本_ready），故延迟一帧重建帧动画
 	call_deferred("rebuild_sprite_frames")
+	# 双外观切换（穿越换装）：外观变更时整帧集换根重建（保留当前动画）
+	GameManager.player_appearance_changed.connect(_on_appearance_changed)
 	# Phase D：延迟预连死亡信号——deferred时点晚于Main._ready，DeathSystem必已就绪；
 	# 否则GameManager.take_hit内部触发的首次player_died会因未连接而丢失死亡表现
 	call_deferred("_hook_death_signals")
+
+func _on_appearance_changed(_app: String):
+	# 重建后按原动画前缀续播（换装瞬间不重置移动/战斗状态）
+	var cur_prefix := _last_anim_prefix
+	call_deferred("rebuild_sprite_frames")
+	if cur_prefix != "":
+		call_deferred("_play_anim", cur_prefix)
 
 # 面前目标格高亮指示器（星露谷式）：16x16描边贴图，跟随面向格移动
 func _create_target_indicator():
@@ -178,8 +188,10 @@ func _update_target_indicator():
 	target_indicator.global_position = Vector2(tgt.x * 16.0 + 8.0, tgt.y * 16.0 + 8.0)
 
 # 运行时从PNG直接重建SpriteFrames：绕过import系统，保证新生成的贴图立即生效
+# 双外观：帧根目录由 GameManager.player_appearance 决定（modern=sprites/player_modern / tang=sprites/player）
 func rebuild_sprite_frames():
 	var sf = SpriteFrames.new()
+	var skin_root: String = GameManager.player_skin_root()
 	var dir_names = ["down", "left", "right", "up"]
 	var specs = [
 		["idle", 6, 6.0, true],       # MW付费版 idle 6帧（呼吸幅度大）
@@ -197,7 +209,7 @@ func rebuild_sprite_frames():
 			# Phase G1：先收集帧，至少1帧才注册动画——防止磁盘帧缺失时产生空动画(角色隐身)
 			var frames: Array = []
 			for i in range(spec[1]):
-				var tex = TextureGen.load_png_texture("res://sprites/player/%s_%s_%d.png" % [prefix, dir_name, i])
+				var tex = TextureGen.load_png_texture(skin_root + "%s_%s_%d.png" % [prefix, dir_name, i])
 				if tex:
 					frames.append(tex)
 			if frames.is_empty():
@@ -216,7 +228,7 @@ func rebuild_sprite_frames():
 			var anim_name: String = str(anim_def[0]) + "_" + dir_name
 			var frames: Array = []
 			for i in anim_def[1]:
-				var tex = TextureGen.load_png_texture("res://sprites/player/attack_%s_%d.png" % [dir_name, i])
+				var tex = TextureGen.load_png_texture(skin_root + "attack_%s_%d.png" % [dir_name, i])
 				if tex:
 					frames.append(tex)
 			if frames.is_empty():
@@ -235,7 +247,7 @@ func rebuild_sprite_frames():
 			var anim_name: String = str(tool_anim[0]) + "_" + dir_name
 			var frames: Array = []
 			for i in range(int(tool_anim[2])):
-				var tex = TextureGen.load_png_texture("res://sprites/player/%s_%s_%d.png" % [str(tool_anim[1]), dir_name, i])
+				var tex = TextureGen.load_png_texture(skin_root + "%s_%s_%d.png" % [str(tool_anim[1]), dir_name, i])
 				if tex:
 					frames.append(tex)
 			if frames.is_empty():
@@ -254,12 +266,12 @@ func rebuild_sprite_frames():
 		var anim_name: String = "meditate_" + str(dir_name)
 		var frames: Array = []
 		for i in [0, 1]:
-			var tex = TextureGen.load_png_texture("res://sprites/player/meditate_down_%d.png" % i)
+			var tex = TextureGen.load_png_texture(skin_root + "meditate_down_%d.png" % i)
 			if tex:
 				frames.append(tex)
 		if frames.is_empty():
 			for i in [4, 5]:
-				var tex2 = TextureGen.load_png_texture("res://sprites/player/collect_%s_%d.png" % [dir_name, i])
+				var tex2 = TextureGen.load_png_texture(skin_root + "collect_%s_%d.png" % [dir_name, i])
 				if tex2:
 					frames.append(tex2)
 		if frames.is_empty():
@@ -301,6 +313,7 @@ func _dir_suffix() -> String:
 		_: return "down"
 
 func _play_anim(prefix: String):
+	_last_anim_prefix = prefix   # 双外观重建后续播用
 	var anim_name = prefix + "_" + _dir_suffix()
 	if anim and anim.sprite_frames and anim.sprite_frames.has_animation(anim_name):
 		anim.play(anim_name)

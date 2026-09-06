@@ -42,6 +42,8 @@ func _ready():
 	visible = false
 	add_to_group("ui_modal")
 	_build_ui()
+	# 双外观切换：清空头像缓存，下次 open() 按新外观重裁
+	GameManager.player_appearance_changed.connect(func(_app): portrait.texture = null)
 	var inv = _inv()
 	if inv:
 		inv.inventory_changed.connect(refresh_all)
@@ -545,7 +547,7 @@ func _count_of(item_id: String) -> int:
 
 func open():
 	if portrait.texture == null:
-		var tex = TextureGen.load_png_texture("res://sprites/player/idle_down_0.png")
+		var tex = TextureGen.load_png_texture(GameManager.player_skin_root() + "idle_down_0.png")
 		if tex:
 			var img := tex.get_image()
 			var head := img.get_region(Rect2i(17, 17, 16, 18))   # MW 48x48帧头位

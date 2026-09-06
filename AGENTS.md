@@ -173,17 +173,18 @@ Main (Node2D) [Main.gd]
 ### 玩家系统 (`player.gd`)
 
 - **状态机**：IDLE / MOVE / ATTACK / BLOCK / DODGE / MEDITATE / BUILD / STAGGER
-- **4方向动画**：down / left / right / up，每种有 idle(4帧) / walk(6帧) / attack(4帧) / block(2帧)
-- **帧尺寸**：32×48像素，1.5倍缩放
+- **4方向动画**：down / left / right / up，MW 帧管线：idle(6帧) / walk(6帧) / run(6帧=walk复用) / attack(4帧真挥砍，heavy=倒序慢速) / block(4帧程序化持盾) / hurt(4帧) / death(8帧) / meditate(2帧程序化) / 工具 axe(4帧)/watering(8帧)/collect(8帧)
+- **帧尺寸**：48×48像素（MW帧，脚线y≈43），scale 1.5、offset(0,-28.5) 使脚底=节点原点（人物≈31.5px≈2瓦高）
+- **双外观**：`GameManager.player_appearance`（modern=穿越前 / tang=穿越后唐装），帧根目录 `player_skin_root()`；`rebuild_sprite_frames()` 按外观换根重建，剧情经 `apply_story_effects({"player_skin": "tang"})` 切换（主1「醒来」完成时换唐装）；外观变更自动重建并续播原动画，HUD头像/人物面板跟随
 - **z_index**：5（确保在瓦片之上）
 - **碰撞形状**：24×36矩形
 - **地形碰撞**：完全由 TileSet 物理层 + `move_and_slide()` 处理（支持沿墙滑动）。曾用脚本级四角检测做双保险，但贴墙时角点浮点嵌入碰撞瓦片会导致四方向全部锁死，已移除；`_world_gen` 懒加载仅保留给建造区域校验 `_is_area_buildable()` 使用
 
 ### NPC系统 (`npc_character.gd` + `npc_spawner.gd`)
 
-- **5种外观**：warrior / scholar / merchant / elder / mysterious，根据性格自动分配
+- **11种外观**（MW player 底模逐帧重着装，与玩家同体型同画风）：男6=warrior/scholar/mysterious/merchant/elder/guard(红缨)，女5=tavern_f/matron_f/peasant_f/herbalist_f/seamstress_f；由 `tools/import_mw22_npc.py` 生成（克隆仓库后需重跑）
 - **日程状态**：idle / walking / working / sleeping
-- **4方向动画**：idle(4帧) / walk(6帧) × 4方向
+- **4方向动画**：idle(4帧) / walk(6帧) × 4方向（32×32画布，char 21px 原生，scale 1.5）
 - **z_index**：5
 
 ### 战斗系统
@@ -253,10 +254,14 @@ Main (Node2D) [Main.gd]
 
 ## Phase F 要点（2024新增，必读）
 
-### 玩家/NPC素材管线
-- 玩家帧由 import_pack_assets.py 导出后**逐帧着装**（_dress_frame：皮肤色域分类→头部连通分量→乌发+黛蓝长衫重绘），改管线后必须 `python tools/import_pack_assets.py player` 重导
-- NPC导出按**内容bbox归一化到29px高、脚底y=31**（修复merchant/elder过小）；必须逐帧处理——整条union-strip重采样会因帧间透明间隔错位产出损坏PNG（已踩坑，全量PNG校验脚本见REFACTOR_STATUS Phase F节）
-- SurvivalHUD头像裁剪框(24,15,16,17)对应着装后头部位置，改发型/头饰需同步
+### 玩家/NPC素材管线（MW 2.2 整包换血后，2026-09-06 更新）
+
+> 历史背景：旧管线为 Pixel Crawler（`import_pack_assets.py`，64×64 玩家帧/29px NPC）——已被 Mystic Woods 付费版管线取代，下述为现行管线；`sprites/{player,player_modern,npc,tiles_mw22}/` 均为 MW 派生贴图，因 license 禁再分发已 gitignore（克隆后用下列命令本地重生成）。
+
+- **玩家双外观帧**：`python tools/import_mw22_player.py` 一次生成 `sprites/player/`（唐装）+ `sprites/player_modern/`（MW原样备用）——MW player.png 48×48帧网格裁切+唐装逐帧重着装；打坐帧由 texture_generator.generate_meditate_frames 双外观色板程序化补（唐=乌发髻金簪/现=披发棕衫蓝裤），Main._ensure_textures 缺失即生成
+- **地形瓦片**：`python tools/import_mw22_tiles.py` → `sprites/tiles_mw22/`（31件：地面/装饰/水系6帧/岸环八向/山崖/四季树表8变体）
+- **NPC 11类**：`python tools/import_mw22_npc.py` → `sprites/npc/`（MW player 底模重着装，32×32画布旧命名兼容；克隆缺失时 npc_character 走占位色块降级）
+- **头像裁剪框(17,17,16,18)** 对应 MW 48×48 帧头位（SurvivalHUD/character_panel/character_sheet 三处同源），改发型/头饰需同步；三处均经 `GameManager.player_skin_root()` 取外观根，双外观自动跟随
 
 ### 交互规则（Phase F4）
 - **左/右键点击NPC=查看信息面板**（player._npc_at_mouse圆形查询npc组），不触发攻击；点空地才攻击
@@ -303,7 +308,7 @@ Main (Node2D) [Main.gd]
 
 ### 打坐
 - `active_inner_skill` 由 GameManager._ready 默认装备青木长生功（无装备则E键提示，不会静默失败）
-- 坐姿帧=程序化 `meditate_down_0/1.png`（`generate_meditate_frames`，Main._ensure_textures缺失即生成）；头顶进度盘=内力条+修炼条；打坐每拍回内力+2
+- 坐姿帧=程序化 `meditate_down_0/1.png`（`generate_meditate_frames` 双外观色板生成，Main._ensure_textures缺失即生成；唐装=乌发髻金簪/现代装=披发棕衫蓝裤）；头顶进度盘=内力条+修炼条；打坐每拍回内力+2
 
 ## 已知问题与待优化
 

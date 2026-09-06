@@ -599,6 +599,36 @@ func _ready():
 			+ int(prop_stat["bridge"]) + int(prop_stat["demo"])
 	data["props"] = prop_stat
 
+	# ---- 玩家双外观（穿越换装）：初始modern→切tang→还原modern；打坐帧双外观齐备 ----
+	var skin := {"initial": GameManager.player_appearance}
+	var pl = get_node_or_null("/root/Main/World/Player")
+	var texgen = load("res://scripts/texture_generator.gd")
+	if pl == null or texgen == null:
+		skin["error"] = "player_or_texgen_missing"
+	else:
+		await _wait(0.5)   # rebuild_sprite_frames 为 deferred，等帧集就绪
+		var spr = pl.get_node_or_null("AnimatedSprite2D")
+		if spr == null or spr.sprite_frames == null or not spr.sprite_frames.has_animation("idle_down"):
+			skin["error"] = "no_idle_anim"
+		else:
+			var h_modern: int = hash(texgen.load_png_texture("res://sprites/player_modern/idle_down_0.png").get_image().get_data())
+			var h_tang: int = hash(texgen.load_png_texture("res://sprites/player/idle_down_0.png").get_image().get_data())
+			skin["skins_differ"] = (h_modern != h_tang)
+			skin["initial_is_modern"] = (hash(spr.sprite_frames.get_frame_texture("idle_down", 0).get_image().get_data()) == h_modern)
+			GameManager.set_player_appearance("tang")
+			await get_tree().process_frame
+			await get_tree().process_frame
+			spr = pl.get_node_or_null("AnimatedSprite2D")   # 重建后是新 SpriteFrames 实例
+			if spr != null and spr.sprite_frames != null and spr.sprite_frames.has_animation("idle_down"):
+				skin["switched_is_tang"] = (hash(spr.sprite_frames.get_frame_texture("idle_down", 0).get_image().get_data()) == h_tang)
+			else:
+				skin["switched_is_tang"] = false
+			GameManager.set_player_appearance("modern")   # 还原现场
+			await get_tree().process_frame
+	skin["meditate_tang"] = FileAccess.file_exists("res://sprites/player/meditate_down_0.png")
+	skin["meditate_modern"] = FileAccess.file_exists("res://sprites/player_modern/meditate_down_0.png")
+	data["skin"] = skin
+
 	_write(data)
 	_log("[RegressProbe] data written: zones=%d adj_pairs=%d reach=%d" % [zones.size(), adj.size(), spawn_reach.size()])
 	await _wait(0.3)

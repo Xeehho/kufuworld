@@ -78,12 +78,19 @@ func _ready():
 	display_arcs = stat_arcs.duplicate()
 
 func _load_avatar():
-	var full_tex = TextureGen.load_png_texture("res://sprites/player/idle_down_0.png")
+	_refresh_avatar_texture()
+	_add_avatar_click_button()
+	GameManager.player_appearance_changed.connect(_on_appearance_changed)
+
+func _refresh_avatar_texture():
+	var full_tex = TextureGen.load_png_texture(GameManager.player_skin_root() + "idle_down_0.png")
 	if full_tex:
 		var img = full_tex.get_image()
 		var head_img = img.get_region(Rect2i(HEAD_CROP_X, HEAD_CROP_Y, HEAD_CROP_W, HEAD_CROP_H))
 		avatar_texture = ImageTexture.create_from_image(head_img)
-	_add_avatar_click_button()
+
+func _on_appearance_changed(_app: String):
+	_refresh_avatar_texture()   # 双外观切换：头像换根重裁（_draw 逐帧读取自动生效）
 
 # 头像可点击 → 打开统一角色面板（用户要求：点击页面左侧顶部头像展示）
 func _add_avatar_click_button():

@@ -142,8 +142,9 @@ func _ensure_textures():
 			gen4.generate_demo_buildings()
 			gen4.queue_free()
 			print("[Main] Demo buildings regenerated")
-	# 打坐专用坐姿帧（meditate_down_0/1，程序化生成；素材包无坐姿）
-	if not FileAccess.file_exists("res://sprites/player/meditate_down_0.png"):
+	# 打坐专用坐姿帧（meditate_down_0/1，程序化生成；素材包无坐姿）——双外观一次生成
+	if not FileAccess.file_exists("res://sprites/player/meditate_down_0.png") \
+			or not FileAccess.file_exists("res://sprites/player_modern/meditate_down_0.png"):
 		var gen_script3 = load("res://scripts/texture_generator.gd")
 		if gen_script3:
 			var gen3 = Node.new()

@@ -1848,14 +1848,39 @@ const M_SKIN_D := Color8(146, 101, 74)
 const M_BOOT := Color8(28, 22, 20)
 const M_OUT := Color8(0, 0, 0)
 
+# 现代装（MW player 原样）打坐帧色板——主色实测自 sprites/player_modern/idle_down_0.png
+# 棕色束腰上衣+蓝裤+米色镶边+黑发（陷阱42：谓词对照烘焙PNG实测主色）
+const MM_ROBE := Color8(87, 58, 35)
+const MM_ROBE_D := Color8(64, 39, 23)
+const MM_TRIM := Color8(193, 172, 143)
+const MM_BELT := Color8(33, 17, 13)
+const MM_HAIR := Color8(30, 20, 14)
+const MM_PANTS := Color8(44, 101, 181)
+const MM_PANTS_D := Color8(29, 67, 138)
+
+# 打坐帧双外观色板：tang=唐装（乌发髻金簪/绯袍金带）modern=现代装（披发无簪/棕衫蓝裤）
+const MEDITATE_PALETTES := {
+	"res://sprites/player": {
+		"robe": M_ROBE, "robe_d": M_ROBE_D, "trim": M_TRIM, "belt": M_BELT,
+		"hair": M_HAIR, "skin": M_SKIN, "skin_d": M_SKIN_D, "boot": M_BOOT,
+		"bun": true,
+	},
+	"res://sprites/player_modern": {
+		"robe": MM_ROBE, "robe_d": MM_ROBE_D, "trim": MM_TRIM, "belt": MM_BELT,
+		"hair": MM_HAIR, "skin": M_SKIN, "skin_d": M_SKIN_D, "boot": MM_BELT,
+		"bun": false, "pants": MM_PANTS, "pants_d": MM_PANTS_D,
+	},
+}
+
 func generate_meditate_frames():
-	DirAccess.make_dir_recursive_absolute("res://sprites/player")
-	for f in range(2):
-		var img := Image.create(48, 48, false, Image.FORMAT_RGBA8)
-		img.fill(Color(0, 0, 0, 0))
-		_draw_meditate_pose(img, f)
-		img.save_png("res://sprites/player/meditate_down_%d.png" % f)
-	print("[TextureGen] meditate frames generated (2, 48x48)")
+	for root in MEDITATE_PALETTES:
+		DirAccess.make_dir_recursive_absolute(root)
+		for f in range(2):
+			var img := Image.create(48, 48, false, Image.FORMAT_RGBA8)
+			img.fill(Color(0, 0, 0, 0))
+			_draw_meditate_pose(img, f, MEDITATE_PALETTES[root])
+			img.save_png(root + "/meditate_down_%d.png" % f)
+	print("[TextureGen] meditate frames generated (2 appearances x 2, 48x48)")
 
 func _mpx(img: Image, x: int, y: int, c: Color):
 	if x >= 0 and x < 48 and y >= 0 and y < 48:
@@ -1866,42 +1891,59 @@ func _mrect(img: Image, x0: int, y0: int, x1: int, y1: int, c: Color):
 		for y in range(y0, y1 + 1):
 			_mpx(img, x, y, c)
 
-func _draw_meditate_pose(img: Image, frame: int):
+func _draw_meditate_pose(img: Image, frame: int, pal: Dictionary = {}):
+	var robe: Color = pal.get("robe", M_ROBE)
+	var robe_d: Color = pal.get("robe_d", M_ROBE_D)
+	var trim: Color = pal.get("trim", M_TRIM)
+	var belt: Color = pal.get("belt", M_BELT)
+	var hair: Color = pal.get("hair", M_HAIR)
+	var skin: Color = pal.get("skin", M_SKIN)
+	var skin_d: Color = pal.get("skin_d", M_SKIN_D)
+	var boot: Color = pal.get("boot", M_BOOT)
+	var leg: Color = robe          # 盘腿下摆：唐装=袍裾同色 / 现代=蓝裤
+	var leg_d: Color = robe_d
+	if pal.has("pants"):
+		leg = pal["pants"]
+		leg_d = pal["pants_d"]
 	var bob := 1 if frame == 1 else 0   # 呼吸：第二帧身体下沉1px
 	# ---- 盘腿下摆（贴地加宽，盘坐轮廓，底缘=y43与MW脚线齐）----
-	_mrect(img, 17, 40, 31, 43, M_ROBE_D)          # 下摆贴地
-	_mrect(img, 18, 38, 30, 40, M_ROBE)            # 腿盘上沿
+	_mrect(img, 17, 40, 31, 43, leg_d)             # 下摆贴地
+	_mrect(img, 18, 38, 30, 40, leg)               # 腿盘上沿
 	_mpx(img, 17, 39, M_OUT); _mpx(img, 31, 39, M_OUT)
-	_mrect(img, 20, 42, 23, 43, M_BOOT)            # 交叠脚尖
-	_mrect(img, 25, 42, 28, 43, M_BOOT)
+	_mrect(img, 20, 42, 23, 43, boot)              # 交叠脚尖
+	_mrect(img, 25, 42, 28, 43, boot)
 	# ---- 躯干（压缩至盘坐比例）----
-	_mrect(img, 20, 31 + bob, 28, 39, M_ROBE)
-	_mrect(img, 26, 33 + bob, 28, 39, M_ROBE_D)    # 侧影
+	_mrect(img, 20, 31 + bob, 28, 39, robe)
+	_mrect(img, 26, 33 + bob, 28, 39, robe_d)      # 侧影
 	_mpx(img, 19, 32 + bob, M_OUT); _mpx(img, 19, 38, M_OUT); _mpx(img, 29, 32 + bob, M_OUT); _mpx(img, 29, 38, M_OUT)
-	# ---- 金束带 ----
-	_mrect(img, 20, 36 + bob, 28, 36 + bob, M_BELT)
-	# ---- 交领 ----
-	_mrect(img, 23, 31 + bob, 25, 32 + bob, M_TRIM)
-	_mpx(img, 24, 33 + bob, M_TRIM); _mpx(img, 23, 34 + bob, M_TRIM); _mpx(img, 25, 34 + bob, M_TRIM)
+	# ---- 束带 ----
+	_mrect(img, 20, 36 + bob, 28, 36 + bob, belt)
+	# ---- 领口 ----
+	_mrect(img, 23, 31 + bob, 25, 32 + bob, trim)
+	_mpx(img, 24, 33 + bob, trim); _mpx(img, 23, 34 + bob, trim); _mpx(img, 25, 34 + bob, trim)
 	# ---- 搭膝的手臂与手 ----
-	_mrect(img, 16, 35 + bob, 19, 39 + bob, M_ROBE)
-	_mrect(img, 29, 35 + bob, 32, 39 + bob, M_ROBE)
-	_mpx(img, 16, 38 + bob, M_ROBE_D); _mpx(img, 32, 38 + bob, M_ROBE_D)
-	_mrect(img, 17, 38 + bob, 19, 39 + bob, M_SKIN)    # 左手搭膝
-	_mrect(img, 29, 38 + bob, 31, 39 + bob, M_SKIN)    # 右手搭膝
+	_mrect(img, 16, 35 + bob, 19, 39 + bob, robe)
+	_mrect(img, 29, 35 + bob, 32, 39 + bob, robe)
+	_mpx(img, 16, 38 + bob, robe_d); _mpx(img, 32, 38 + bob, robe_d)
+	_mrect(img, 17, 38 + bob, 19, 39 + bob, skin)    # 左手搭膝
+	_mrect(img, 29, 38 + bob, 31, 39 + bob, skin)    # 右手搭膝
 	# ---- 颈与头 ----
-	_mrect(img, 23, 29 + bob, 25, 30 + bob, M_SKIN_D)
-	_mrect(img, 21, 24 + bob, 27, 30 + bob, M_SKIN)    # 脸
-	_mrect(img, 22, 29 + bob, 26, 30 + bob, M_SKIN_D)  # 下颌影
+	_mrect(img, 23, 29 + bob, 25, 30 + bob, skin_d)
+	_mrect(img, 21, 24 + bob, 27, 30 + bob, skin)    # 脸
+	_mrect(img, 22, 29 + bob, 26, 30 + bob, skin_d)  # 下颌影
 	# 闭目吐纳（细横点）
 	_mpx(img, 22, 27 + bob, M_OUT); _mpx(img, 26, 27 + bob, M_OUT)
-	# ---- 乌发+发髻+金簪（与唐装重着装同款）----
-	_mrect(img, 20, 21 + bob, 28, 25 + bob, M_HAIR)
-	_mrect(img, 19, 24 + bob, 20, 28 + bob, M_HAIR)    # 左鬓
-	_mrect(img, 28, 24 + bob, 29, 28 + bob, M_HAIR)    # 右鬓
-	_mrect(img, 22, 18 + bob, 26, 21 + bob, M_HAIR)    # 发髻
-	_mpx(img, 27, 19 + bob, M_RIBBON)                  # 金簪
-	_mpx(img, 19, 19 + bob, M_HAIR); _mpx(img, 29, 19 + bob, M_HAIR)
+	# ---- 头发：唐装=乌发+发髻+金簪 / 现代=披发无饰（鬓角贴脸垂至下颌）----
+	_mrect(img, 20, 21 + bob, 28, 25 + bob, hair)
+	if pal.get("bun", true):
+		_mrect(img, 19, 24 + bob, 20, 28 + bob, hair)    # 左鬓
+		_mrect(img, 28, 24 + bob, 29, 28 + bob, hair)    # 右鬓
+		_mrect(img, 22, 18 + bob, 26, 21 + bob, hair)    # 发髻
+		_mpx(img, 27, 19 + bob, M_RIBBON)                # 金簪
+		_mpx(img, 19, 19 + bob, hair); _mpx(img, 29, 19 + bob, hair)
+	else:
+		_mrect(img, 19, 24 + bob, 20, 30 + bob, hair)    # 披发垂肩
+		_mrect(img, 28, 24 + bob, 29, 30 + bob, hair)
 
 # ============ 城镇样板区 prefab（材质包 1:1 欧式木框架乡村屋，docs/立项-城镇样板区重构.md P2） ============
 # 风格：人字形瓦顶（正面视角梯形屋面）+木框抹灰墙+石砌烟囱+门窗台——区别于中式反曲顶 _compose_big_building
