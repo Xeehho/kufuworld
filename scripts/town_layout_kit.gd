@@ -21,7 +21,8 @@ const FENCE_PNG := "res://sprites/demo/demo_fence.png"
 const TRELLIS_PNG := "res://sprites/demo/demo_trellis.png"
 const FLOWERS_PNG := "res://sprites/demo/demo_flowers.png"
 const CROP_PNGS := ["res://sprites/farm/crop_1.png", "res://sprites/farm/crop_2.png", "res://sprites/farm/crop_3.png"]
-const ORCHARD_SHEET := "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_01/Size_02.png"  # 橡树 sheet（4x2 变体，帧 64x64）
+const ORCHARD_SHEET := "res://sprites/tiles_mw22/tree_oak.png"  # MW橡树表（4x2变体，帧64x64；MW换血Slice B）
+const ORCHARD_SHEET_FALLBACK := "res://downloaded_assets/Pixel Crawler - Free Pack/Environment/Props/Static/Trees/Model_01/Size_02.png"  # MW素材缺失回退PC包
 const DECO_TILES := [13, 55, 56, 57, 58, 59, 60, 61, 62, 63]   # 密度统计口径：花卉/碎屑层瓦片
 
 var wg                        # WorldGenerator 引用（无类型）
@@ -241,6 +242,8 @@ func stamp_tree(c: Vector2i, sheet: Texture2D = null) -> bool:
 	脚底入土锚定 + 树影。sheet 可外部传入免重复加载。"""
 	if sheet == null:
 		sheet = TextureGen.load_png_texture(ORCHARD_SHEET)
+	if sheet == null:
+		sheet = TextureGen.load_png_texture(ORCHARD_SHEET_FALLBACK)
 	if sheet == null:
 		return false
 	var variant := int(fposmod(wg.detail_noise.get_noise_2d(c.x * 5.1, c.y * 7.3) + 1.0, 1.0) * 4.0) % 4
