@@ -9,11 +9,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from import_pack_assets import load_png, save_png
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MW = os.path.join(ROOT, "downloaded_assets", "mystic_woods_free_2.2", "sprites")
+MW = os.path.join(ROOT, "downloaded_assets", "mystic_woods_2.2", "sprites")
 OUT = os.path.join(ROOT, "docs", "shots")
 TS = 16          # MW 瓦片尺寸
 SCALE = 2        # 输出放大倍数
-COLS, ROWSN = 44, 26
+COLS, ROWSN = 44, 29
 
 def P(*p): return os.path.join(MW, *p)
 
@@ -31,6 +31,17 @@ def paste(canvas, piece, cx, cy):
         for j in range(0, len(line), 4):
             if line[j+3] >= 10:
                 dst[x0+j:x0+j+4] = line[j:j+4]
+
+def paste_px(canvas, rows, px_x, px_y):
+    """任意宽高的像素块贴到画布像素坐标（alpha 合成），用于大树等多瓦物件"""
+    for i, line in enumerate(rows):
+        y = px_y + i
+        if not (0 <= y < len(canvas)): continue
+        dst = canvas[y]
+        for j in range(0, len(line), 4):
+            x = px_x + j//4
+            if 0 <= x < COLS*TS and line[j+3] >= 10:
+                dst[x*4:x*4+4] = line[j:j+4]
 
 def color_classify(piece):
     """返回 (绿占比, 棕占比, 灰占比, 透明占比)"""
@@ -69,6 +80,9 @@ def main():
     fences = load_png(P("tilesets", "fences.png"))
     door   = load_png(P("tilesets", "walls", "wooden_door.png"))
     decor  = load_png(P("tilesets", "decor_16x16.png"))
+    objects = load_png(P("objects", "objects.png"))
+    water1 = load_png(P("tilesets", "water1.png"))
+    wooden = load_png(P("tilesets", "floors", "wooden.png"))
     player = load_png(P("characters", "player.png"))
 
     # ---- 自动选瓦片 ----
@@ -94,7 +108,7 @@ def main():
                 if want == "b" and r > g > bb and r-bb > 15: hit += 1
         return hit/n
     edge_top = edge_bot = None
-    for ty in range(min(4, plains[1]//TS)):
+    for ty in range(plains[1]//TS):
         for tx in range(plains[0]//TS):
             if (tx, ty) == dirt: continue
             pc = tile(plains[2], tx, ty)
@@ -135,9 +149,9 @@ def main():
             if cross_y0 <= y <= cross_y1: continue
             paste(cv, tang_shift(et) if shift else et, zq_x0-1, y)
             paste(cv, tang_shift(eb) if shift else eb, zq_x1+1, y)
-        # 坊墙: 朱雀大街两侧 x=14 / x=28, 主干街处断开为坊门
+        # 坊墙: 朱雀大街两侧 x=14 / x=28, 主干街处断开为坊门, 南端止于永安渠
         for wx in (14, 28):
-            for y in range(ROWSN):
+            for y in range(20):
                 if cross_y0 <= y <= cross_y1: continue
                 paste(cv, tang_shift(tile(walls[2], *wall_face)) if shift else tile(walls[2], *wall_face), wx, y)
             # 门
@@ -157,6 +171,25 @@ def main():
         for (dx, dy, sx, sy) in [(8, 7, 0, 0), (33, 19, 1, 0), (36, 6, 0, 0)]:
             dp = tile(decor[2], sx, sy)
             paste(cv, tang_shift(dp) if shift else dp, dx, dy)
+        # 永安渠(付费版真水系): 横贯全图 y=20..22, 大池塘上岸/水面/下岸三瓦平铺
+        CANAL_Y0 = 20
+        for cy, src in ((CANAL_Y0, (2,0)), (CANAL_Y0+1, (2,1)), (CANAL_Y0+2, (2,2))):
+            for x in range(COLS):
+                paste(cv, tang_shift(tile(water1[2], *src)) if shift else tile(water1[2], *src), x, cy)
+        # 主干街南延土路(x=20..22)到渠边 + 木板桥跨渠
+        for y in range(cross_y1+1, CANAL_Y0):
+            for x in range(20, 23):
+                paste(cv, tang_shift(dirt_t) if shift else dirt_t, x, y)
+        for x in range(20, 23):
+            for cy in (CANAL_Y0, CANAL_Y0+1, CANAL_Y0+2):
+                paste(cv, tang_shift(tile(wooden[2], 0, 0)) if shift else tile(wooden[2], 0, 0), x, cy)
+        # 槐树(付费版 objects.png 大树): 街西/街东/渠南
+        TREE_BOXES = [(1,80,46,144), (49,80,94,144), (3,147,46,208), (51,147,94,208), (1,80,46,144), (49,80,94,144)]
+        TREE_AT = [(3,2), (9,2), (31,2), (37,5), (5,23), (35,23)]
+        for (box, pos) in zip(TREE_BOXES, TREE_AT):
+            x0c, y0c, x1c, y1c = box
+            rows = [objects[2][y][x0c*4:(x1c+1)*4] for y in range(y0c, y1c)]
+            paste_px(cv, tang_shift(rows) if shift else rows, pos[0]*TS, pos[1]*TS)
         # 玩家(体型/比例参照)
         pp = tang_shift(player_idle) if shift else player_idle
         pw = tang_shift(player_walk) if shift else player_walk

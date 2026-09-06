@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from import_pack_assets import load_png, save_png
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MW = os.path.join(ROOT, "downloaded_assets", "mystic_woods_free_2.2", "sprites")
+MW = os.path.join(ROOT, "downloaded_assets", "mystic_woods_2.2", "sprites")
 OUT = os.path.join(ROOT, "docs", "shots")
 TS = 16
 SCALE = 4
