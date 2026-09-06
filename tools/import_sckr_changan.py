@@ -230,7 +230,39 @@ def key_water_bg(im):
                     halo.append((xx, yy))
         for xx, yy in halo:
             px[xx, yy] = (0, 0, 0, 0)
+    im = keep_largest_component(im)
     return trim_alpha(im)
+
+def keep_largest_component(im):
+    """只保留最大不透明连通体（=目标物体），窗口带进的邻居碎片（灯笼/枯枝/水花点）全丢弃。
+    前提：目标物体各部件互相连通（四船的桅/篷均连在船体上）。"""
+    px = im.load()
+    w, h = im.size
+    lab = [[0] * w for _ in range(h)]
+    best_id, best_cnt = 0, 0
+    nid = 0
+    for sy in range(h):
+        for sx in range(w):
+            if lab[sy][sx] or px[sx, sy][3] <= 10:
+                continue
+            nid += 1
+            stack = [(sx, sy)]
+            lab[sy][sx] = nid
+            cnt = 0
+            while stack:
+                x, y = stack.pop()
+                cnt += 1
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < w and 0 <= ny < h and not lab[ny][nx] and px[nx, ny][3] > 10:
+                        lab[ny][nx] = nid
+                        stack.append((nx, ny))
+            if cnt > best_cnt:
+                best_cnt, best_id = cnt, nid
+    for yy in range(h):
+        for xx in range(w):
+            if px[xx, yy][3] > 10 and lab[yy][xx] != best_id:
+                px[xx, yy] = (0, 0, 0, 0)
+    return im
 
 def main():
     only = set(sys.argv[1:])
