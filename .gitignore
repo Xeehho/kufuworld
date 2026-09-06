@@ -35,6 +35,11 @@ sprites/player_modern/
 # MW 派生地形瓦片（import_mw22_tiles.py 本地生成；同上）
 sprites/tiles_mw22/
 
+# SCKR 中式包派生长安切片（import_sckr_changan.py 本地生成；license 禁再分发，克隆后自购材质包重跑）
+sprites/changan_props_sckr/
+sprites/tiles_changan_sckr/
+docs/shots/pack_jingcheng/
+
 # MW 派生样张/盘点图（样张工具本地重出；license 禁再分发）
 docs/shots/mw_graybox_original.png
 docs/shots/mw_graybox_tang.png

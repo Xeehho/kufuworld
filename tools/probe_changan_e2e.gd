@@ -184,6 +184,17 @@ func _ready() -> void:
 		var dx2: float = absf(p.global_position.x - (cv.CITY_OFFSET.x + ch.cell_to_px(wcell).x))
 		var dy2: float = absf(p.global_position.y - (cv.CITY_OFFSET.y + ch.cell_to_px(wcell).y))
 		_check(dx2 <= 24.0 and dy2 <= 24.0, "魏王府返回门面前原位")
+	# 3.5) 视觉重构样张：宫城太极殿 + 晋昌坊大雁塔（unlock_stage(1) 后立塔）
+	ch.unlock_stage(1)
+	var ppal: Vector2 = cv.CITY_OFFSET + ch.cell_to_px(ch.interior_portals["taiji_dian"])
+	_tp(p, ppal + Vector2(0, 48))
+	await _settle(8)
+	_check(_in_city_space(p, cv), "宫城丹墀可站立")
+	await _shot("changan_v_palace.png")
+	var pag_cell := Vector2i(ch.col_x(10) + 5, ch.row_y(8) + 12)   # 晋昌坊 daciensi 院内塔前
+	_tp(p, cv.CITY_OFFSET + ch.cell_to_px(pag_cell))
+	await _settle(8)
+	await _shot("changan_v_pagoda.png")
 	# 4) 走到春明门豁口（城内侧坐标）→ 出城
 	var egap_in: Vector2i = ch.gate_info["E"]["gap_cells"][1]
 	p.global_position = cv.CITY_OFFSET + ch.cell_to_px(egap_in)

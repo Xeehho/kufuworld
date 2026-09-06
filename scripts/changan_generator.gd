@@ -13,7 +13,14 @@ const TilesetGen = preload("res://scripts/tileset_generator.gd")
 # ---- 瓦片 ID（tileset_generator.gd 注册表）----
 const T_GRASS = 0
 const T_STONE = 35
-const T_WARD_WALL = 43      # W2 唐制坊墙（白灰淡砖，带碰撞）
+const T_HOUSE = 2           # 旧建筑占格（退役保留常量）
+const T_FOOT = 102          # 建筑footprint占格（全透明带碰撞；SCKR prop 视觉承担外观）
+const T_WARD_WALL = 100     # 长安坊墙（SCKR白灰墙+瓦顶，带碰撞；43 旧唐制坊墙退役）
+const T_PAVE = 101          # 长安方砖（两市地面/宫院丹墀）
+const T_WARD_WALL_V = 105   # 坊墙·竖（E/W 走向段，墙身竖缝）
+const T_PALACE_WALL_V = 104 # 宫墙·竖
+const T_WALL_BODY = 106     # 外郭城墙·砖身行（横缝，N/S 段）——两行制：垛口行70+砖身行106/107
+const T_WALL_BODY_V = 107   # 外郭城墙·砖身行·竖（E/W 段）
 const T_GATE_OPEN = 67      # 坊门·开（无碰撞）
 const T_GATE_CLOSED = 68    # 坊门·闭（宵禁/未解锁，带碰撞）
 const T_PALACE_WALL = 69    # 宫墙
@@ -21,6 +28,7 @@ const T_OUTER_WALL = 70     # 外郭城墙
 const T_ZHUQUE = 71         # 朱雀大街御道
 const T_MAIN_ROAD = 72      # 主干街
 const T_WARD_STREET = 73    # 坊内十字街
+const T_LANE = 74           # 巷路
 const T_WATER = 5           # M3 三渠水（复用开放世界水瓦，碰撞）
 const T_BRIDGE = 17         # M3 渠桥（复用开放世界桥瓦，无碰撞）
 
@@ -31,7 +39,7 @@ const CURFEW_END := 5.0
 # ---- M3 三渠（龙首/清明/永安）：街缝内1宽水带，跨路处铺桥 ----
 const CANALS := [{"name": "清明渠", "seam": 1}, {"name": "龙首渠", "seam": 7}, {"name": "永安渠", "seam": 10}]
 
-const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89]   # 宅门75~77已去碰撞（M4传送门）；83~89=内景瓦碰撞段（市内门面用）
+const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 100, 102, 104, 105, 106, 107, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89]   # 坊墙43→100、足印=T_FOOT(102)（透明碰撞）；宅门75~77已去碰撞（M4传送门）；83~89=内景瓦碰撞段
 
 # ---- 网格参数（JSON 解析后类型化）----
 var bw := 26
@@ -71,6 +79,7 @@ var npc_list: Array = []
 var night_bfs_failures: Array = []
 var interior_portals := {}               # M4/M5 内景传送门：ref -> 门前景格（"area:ref"=Area2D已挂标记）
 var grid_palace_interiors: Array = []    # 宫区非标杆内景（两仪殿/东宫，数据驱动）
+var unlocked_wards := {}                 # 已解锁坊登记（防 unlock_stage 递进调用重复填充/开门）
 const NPC_SCENE = preload("res://scenes/npc.tscn")
 
 # 城内NPC（city_npc_configs 模式：legs=[state, ref, start, end, off]，锚点见 get_anchor_px）
@@ -147,9 +156,16 @@ func _paint_layout():
 	ground.resize(W * H)          # 默认0=草
 	decor = PackedByteArray()
 	decor.resize(W * H)
-	# 外郭城墙（1圈）+ 城外荒带（margin 默认草）
-	_set_rect(decor, margin, margin, W - margin * 2, H - margin * 2, T_OUTER_WALL)
-	_set_rect(decor, margin + 1, margin + 1, W - margin * 2 - 2, H - margin * 2 - 2, 0)
+	# 外郭城墙两行制：垛口行（70）在外 + 砖身行（106/107 按走向）在内——城墙视觉加高
+	_set_rect(decor, margin, margin, W - margin * 2, 1, T_OUTER_WALL)
+	_set_rect(decor, margin, H - margin - 1, W - margin * 2, 1, T_OUTER_WALL)
+	_set_rect(decor, margin, margin, 1, H - margin * 2, T_OUTER_WALL)
+	_set_rect(decor, W - margin - 1, margin, 1, H - margin * 2, T_OUTER_WALL)
+	_set_rect(decor, margin + 1, margin + 1, W - margin * 2 - 2, 1, T_WALL_BODY)
+	_set_rect(decor, margin + 1, H - margin - 2, W - margin * 2 - 2, 1, T_WALL_BODY)
+	_set_rect(decor, margin + 1, margin + 1, 1, H - margin * 2 - 2, T_WALL_BODY_V)
+	_set_rect(decor, W - margin - 2, margin + 1, 1, H - margin * 2 - 2, T_WALL_BODY_V)
+	_set_rect(decor, margin + 2, margin + 2, W - margin * 2 - 4, H - margin * 2 - 4, 0)
 	# 环路（贴城墙内侧，4宽土路）
 	var m := margin + wall
 	_set_rect(ground, m, m, W - m * 2, ring, T_MAIN_ROAD)
@@ -187,39 +203,86 @@ func _paint_layout():
 			continue
 		_fill_ward_contents(b)
 	_paint_canals()
+	# 视觉重构：四城门楼 prop + 街巷点缀（牌坊/街灯/行道树/渠柳）——放在渠之后可避开水格
+	_spawn_city_gates_all()
+	_paint_street_dressing()
 	# M3 锚点：朱雀大街中段为全城"广场"（日程汇合点）
 	anchors["plaza"] = cell_to_px(Vector2i(col_x(5) - zq_s + zq_s / 2, _origin().y + block_span_y() / 2))
 
 # ---- M2 宅门品级瓦片（§5.1）----
 const GATE_TILE_BY_GRADE := {"A": 75, "B": 76, "C": 77}
 
-# ---- Slice F 宅门楼 prop（24x36，与人物体型相当；瓦片门面保留=传送垫+探针断言基準，prop 只做视觉增高）----
+# ---- SCKR prop 框架（视觉重构 2026-09-06）：切片由 tools/import_sckr_changan.py 产出，
+#      克隆仓库未跑切片时 _prop_tex 返回 null → 各处自动跳过（结构不受影响）。
+#      footprint 占格=T_HOUSE(2)（TileMap 碰撞+BFS 一致），prop 只做视觉，禁小瓦片拼大件（§5.2）----
 const TextureGen = preload("res://scripts/texture_generator.gd")
-const TOWER_TEX_BY_GRADE := {
-	"A": "res://sprites/tiles/changan_gate_tower_a.png",
-	"B": "res://sprites/tiles/changan_gate_tower_b.png",
-	"C": "res://sprites/tiles/changan_gate_tower_c.png",
-}
-var _tower_tex := {}
+const PROP_ROOT := "res://sprites/changan_props_sckr/"
+# 宅门楼品级：A=朱金大门（亲王/公主）B=白墙院门楼（国公/士族）C=石门楼（官署/小宅）
+const GATE_PROP_BY_GRADE := {"A": "gate_red_gold", "B": "compound_gate", "C": "gate_stone_small"}
+# 民居变体池（散院/小宅随机取，hash 种子定）
+const HOUSE_PROPS := ["house_win_a", "house_door_a", "house_win_small", "house_small_door"]
+# 城门楼：明德门用大骑楼，其余三门用中型
+const CITY_GATE_PROP := {"S": "gate_tower_big", "N": "gate_tower_mid", "E": "gate_tower_mid", "W": "gate_tower_mid"}
+var _prop_tex_cache := {}
 
-func _gate_tower_tex(grade: String) -> Texture2D:
-	if _tower_tex.has(grade):
-		return _tower_tex[grade]
-	var tex: Texture2D = TextureGen.load_png_texture(str(TOWER_TEX_BY_GRADE[grade]))
-	_tower_tex[grade] = tex   # 克隆仓库缺 PNG（未跑 gen_changan_tiles.py）时为 null→跳过生成
+func _prop_tex(pname: String) -> Texture2D:
+	if _prop_tex_cache.has(pname):
+		return _prop_tex_cache[pname]
+	var tex: Texture2D = TextureGen.load_png_texture(PROP_ROOT + pname + ".png")
+	_prop_tex_cache[pname] = tex
 	return tex
 
-func _spawn_gate_tower(center_x: float, bottom_y: float, grade: String):
-	var tex := _gate_tower_tex(grade)
+# 通用 prop 生成：底边中点锚（y-sort 与玩家自然遮挡），缺失切片静默跳过
+func _spawn_prop(pname: String, center_x: float, bottom_y: float, z := 2) -> Sprite2D:
+	var tex := _prop_tex(pname)
 	if tex == null:
-		return
+		return null
 	var prop := Sprite2D.new()
 	prop.texture = tex
 	prop.position = Vector2(center_x, bottom_y)
-	prop.offset = Vector2(0, -18.0)   # 24x36 锚底：原点=门枕底缘，y-sort 与玩家自然遮挡
-	prop.z_index = 2                  # 实体层（同玩家），压 TileMap 墙体
-	prop.add_to_group("gate_tower")
+	prop.offset = Vector2(0, -tex.get_height() / 2.0)
+	prop.z_index = z
+	if pname != "":
+		prop.add_to_group("changan_prop")
+		prop.set_meta("prop", pname)   # 探针按名断言
 	add_child(prop)
+	return prop
+
+# 建筑 prop：footprint 占格（T_FOOT 透明碰撞，镂空 prop 不露身后画）+ 底边中点锚 sprite
+func _spawn_building(pname: String, foot: Rect2i):
+	for yy in range(foot.position.y, foot.position.y + foot.size.y):
+		for xx in range(foot.position.x, foot.position.x + foot.size.x):
+			decor[yy * W + xx] = T_FOOT
+	var tex := _prop_tex(pname)
+	if tex == null:
+		return
+	var cx := (foot.position.x + foot.size.x / 2.0) * 16.0
+	var by := (foot.position.y + foot.size.y) * 16.0
+	_spawn_prop(pname, cx, by)
+
+# 城门楼 prop + 门垛碰撞（拱门走廊净宽≥26px，出城触发区仍在豁口格）
+func _spawn_city_gate(side: String):
+	var pname: String = CITY_GATE_PROP.get(side, "gate_tower_mid")
+	if _prop_tex(pname) == null:
+		return
+	var g: Dictionary = gate_info[side]
+	var cells: Array = g["gap_cells"]
+	var c0: Vector2i = cells[0]
+	var c1: Vector2i = cells[cells.size() - 1]
+	var center_px := Vector2((c0.x + c1.x) * 0.5 + 0.5, (c0.y + c1.y) * 0.5 + 0.5) * 16.0
+	_spawn_prop(pname, center_px.x, center_px.y + 8.0)
+	var body := StaticBody2D.new()
+	body.position = center_px
+	var vertical := (side == "E" or side == "W")
+	for sgn in [-1.0, 1.0]:
+		var cs := CollisionShape2D.new()
+		var shape := RectangleShape2D.new()
+		# 门垛盖两行墙（垛口+砖身），拱门净宽 32px ≥ 玩家 24px
+		shape.size = Vector2(8, 30) if not vertical else Vector2(30, 8)
+		cs.shape = shape
+		cs.position = Vector2(sgn * 20.0, -6.0) if not vertical else Vector2(0, sgn * 20.0 - 6.0)
+		body.add_child(cs)
+	add_child(body)
 # M4 内景家具瓦（与 changan_interior.gd 一致；门面店铺陈设用）
 const T_SHELF = 89
 const T_CABINET = 88
@@ -257,15 +320,20 @@ func _paint_canals():
 
 func _fill_ward_contents(b: Dictionary):
 	var lots: Array = b.get("lots", [])
-	if not lots.is_empty():
-		var x0 := col_x(int(b["col"]))
-		var y0 := row_y(int(b["row"]))
-		for lot in lots:
-			_paint_lot(x0, y0, lot)
-	else:
+	if lots.is_empty():
 		_fill_ward_generic(b)
+		return
+	# 剧情坊：先铺 lots，再对四象限空位补散院（M2 遗留①：剧情坊非 lot 象限留白）
+	var x0 := col_x(int(b["col"]))
+	var y0 := row_y(int(b["row"]))
+	var occupied: Array = []
+	for lot in lots:
+		_paint_lot(x0, y0, lot)
+		occupied.append(Rect2(x0 + int(lot["at"][0]) - 1, y0 + int(lot["at"][1]) - 1,
+				int(lot["size"][0]) + 2, int(lot["size"][1]) + 2))
+	_fill_ward_generic(b, occupied)
 
-# 剧情坊 lot：院墙圈 + 品级宅门（带碰撞门面，M4 换传送门）+ 门前甬道 + 后部正屋
+# 剧情坊 lot：院墙圈 + 品级宅门（SCKR 门楼 prop，75~77 门面瓦保留=传送垫+探针基准）+ 门前甬道 + 后部正屋
 func _paint_lot(x0: int, y0: int, lot: Dictionary):
 	var lx := x0 + int(lot["at"][0])
 	var ly := y0 + int(lot["at"][1])
@@ -274,48 +342,77 @@ func _paint_lot(x0: int, y0: int, lot: Dictionary):
 	var x1 := lx + w - 1
 	var y1 := ly + h - 1
 	var kind := String(lot["kind"])
-	var gate_id: int = GATE_TILE_BY_GRADE[String(lot["grade"])]
-	# 院墙圈
-	_set_rect(decor, lx, ly, w, h, T_WARD_WALL)
+	var grade := String(lot["grade"])
+	var ref := String(lot["ref"])
+	var gate_id: int = GATE_TILE_BY_GRADE[grade]
+	# 院墙圈（方向感知）
+	_set_wall_ring(lx, ly, w, h, T_WARD_WALL, T_WARD_WALL_V)
 	_set_rect(decor, lx + 1, ly + 1, w - 2, h - 2, 0)
-	# 寺观/风月场所院内满铺石板（体面），宅邸留草
+	# 寺观/风月场所院内满铺方砖（体面），宅邸留草
 	if kind == "temple" or kind == "venue":
-		_set_rect(ground, lx + 1, ly + 1, w - 2, h - 2, T_STONE)
-	# 院门（门侧墙正中2格，品级瓦）+ 门前石板甬道
+		_set_rect(ground, lx + 1, ly + 1, w - 2, h - 2, T_PAVE)
+	# 院门（门侧墙正中2格，品级瓦）+ 门前石板甬道 + SCKR 门楼 prop
 	var gcx := lx + w / 2
 	var gcy := ly + h / 2
-	var tower_grade := String(lot["grade"])
 	match String(lot.get("gate", "S")):
 		"S":
 			_set_rect(decor, gcx - 1, y1, 2, 1, gate_id)
-			_set_rect(ground, gcx - 1, ly + 2, 2, y1 - (ly + 2) + 1, T_STONE)
-			_spawn_gate_tower(gcx * 16.0, (y1 + 1) * 16.0, tower_grade)
+			_set_rect(ground, gcx - 1, ly + 2, 2, y1 - (ly + 2) + 1, T_PAVE)
+			_spawn_prop(GATE_PROP_BY_GRADE[grade], gcx * 16.0, (y1 + 1) * 16.0)
 		"N":
 			_set_rect(decor, gcx - 1, ly, 2, 1, gate_id)
-			_set_rect(ground, gcx - 1, ly, 2, y1 - 2 - ly + 1, T_STONE)
-			_spawn_gate_tower(gcx * 16.0, (ly + 1) * 16.0, tower_grade)
+			_set_rect(ground, gcx - 1, ly, 2, y1 - 2 - ly + 1, T_PAVE)
+			_spawn_prop(GATE_PROP_BY_GRADE[grade], gcx * 16.0, (ly + 1) * 16.0)
 		"E":
 			_set_rect(decor, x1, gcy - 1, 1, 2, gate_id)
-			_set_rect(ground, lx + 2, gcy - 1, x1 - (lx + 2) + 1, 2, T_STONE)
-			_spawn_gate_tower(x1 * 16.0 + 8.0, (gcy + 1) * 16.0, tower_grade)
+			_set_rect(ground, lx + 2, gcy - 1, x1 - (lx + 2) + 1, 2, T_PAVE)
+			_spawn_prop(GATE_PROP_BY_GRADE[grade], x1 * 16.0 + 8.0, (gcy + 1) * 16.0)
 		"W":
 			_set_rect(decor, lx, gcy - 1, 1, 2, gate_id)
-			_set_rect(ground, lx, gcy - 1, x1 - 2 - lx + 1, 2, T_STONE)
-			_spawn_gate_tower(lx * 16.0 + 8.0, (gcy + 1) * 16.0, tower_grade)
-	# 正屋：门对侧内墙处（寺观/场所3连屋，宅邸1屋）
-	var house_w := 3 if (kind == "temple" or kind == "venue") else 1
+			_set_rect(ground, lx, gcy - 1, x1 - 2 - lx + 1, 2, T_PAVE)
+			_spawn_prop(GATE_PROP_BY_GRADE[grade], lx * 16.0 + 8.0, (gcy + 1) * 16.0)
+	# 正屋（SCKR 建筑 prop + T_HOUSE footprint）：形制按 kind/grade；名寺配塔
+	var hall_prop := "house_door_a"
+	var foot_w := 3
+	match kind:
+		"temple":
+			hall_prop = "hall_grey"
+			foot_w = 5
+		"venue":
+			hall_prop = "lou_blue"
+			foot_w = 5
+		"office":
+			hall_prop = "hall_grey"
+			foot_w = 5
+		"mansion":
+			match grade:
+				"A":
+					hall_prop = "hall_red"
+					foot_w = 5
+				"B":
+					hall_prop = "house_door_a"
+				_:
+					hall_prop = "house_small_door"
 	match String(lot.get("gate", "S")):
 		"S":
-			_set_rect(decor, gcx - house_w / 2, ly + 2, house_w, 1, 2)
+			_spawn_building(hall_prop, Rect2i(gcx - foot_w / 2, ly + 1, foot_w, 2))
 		"N":
-			_set_rect(decor, gcx - house_w / 2, y1 - 2, house_w, 1, 2)
+			_spawn_building(hall_prop, Rect2i(gcx - foot_w / 2, y1 - 3, foot_w, 2))
 		"E":
-			_set_rect(decor, lx + 2, gcy - house_w / 2, 1, house_w, 2)
+			_spawn_building(hall_prop, Rect2i(lx + 1, gcy - 1, 5, 2))
 		"W":
-			_set_rect(decor, x1 - 2, gcy - house_w / 2, 1, house_w, 2)
+			_spawn_building(hall_prop, Rect2i(x1 - 5, gcy - 1, 5, 2))
+	# 名寺宝塔（大慈恩寺=大雁塔青塔，大兴善寺=金塔）：正屋北侧
+	if ref == "daciensi":
+		_spawn_building("pagoda_blue", Rect2i(lx + 3, gcy - 6, 3, 2))
+	elif ref == "daxingshan_si":
+		_spawn_building("pagoda_gold", Rect2i(lx + 3, gcy - 6, 3, 2))
+	elif kind == "temple":
+		_spawn_building("pagoda_small", Rect2i(gcx - 1, ly + 4, 2, 2))
 
-# 非剧情坊程序化填充：四象限小院（朝十字街开敞口，不留封闭死角）+ 低密度坊散树
-func _fill_ward_generic(b: Dictionary):
+# 非剧情坊程序化填充：四象限小院（朝十字街开敞口，不留封闭死角）+ SCKR 民居 prop + 低密度坊散树
+# occupied：lot 占用矩形（全局格坐标 Rect2），相交象限跳过（剧情坊补散院用）
+func _fill_ward_generic(b: Dictionary, occupied: Array = []):
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash(String(b["id"]))
 	var high := String(b["fill"]) == "residential_high"
@@ -327,19 +424,28 @@ func _fill_ward_generic(b: Dictionary):
 		if rng.randf() > chance:
 			continue
 		var bx: Vector2i = boxes[q]
-		var lw := 7
-		var lh := 6
-		var lx := x0 + bx.x + rng.randi_range(0, 2)
-		var ly := y0 + bx.y + rng.randi_range(0, 2)
-		_set_rect(decor, lx, ly, lw, lh, T_WARD_WALL)
+		var lw := 9
+		var lh := 7
+		var lx := x0 + bx.x + rng.randi_range(0, 1)
+		var ly := y0 + bx.y + rng.randi_range(0, 1)
+		var skip := false
+		for oc in occupied:
+			if oc.intersects(Rect2(lx, ly, lw, lh)):
+				skip = true
+				break
+		if skip:
+			continue
+		_set_wall_ring(lx, ly, lw, lh, T_WARD_WALL, T_WARD_WALL_V)
 		_set_rect(decor, lx + 1, ly + 1, lw - 2, lh - 2, 0)
 		var hx := lx + lw / 2
-		var hy := ly + lh / 2
-		_set_rect(decor, hx, hy, 1, 1, 2)   # 屋1格（城镇房屋瓦）
-		if q < 2:   # 北象限小院朝南开敞口
+		# SCKR 民居（foot 4×2 压 T_FOOT，匹配 ~95px 檐宽：檐口恰贴院墙内缘不越墙），hash 定变体
+		var variant: String = HOUSE_PROPS[rng.randi_range(0, HOUSE_PROPS.size() - 1)]
+		if q < 2:   # 北象限小院：屋坐北朝南，敞口在南墙
+			_spawn_building(variant, Rect2i(hx - 2, ly + 1, 4, 2))
 			_set_rect(decor, hx, ly + lh - 1, 1, 1, 0)
 			_set_rect(ground, hx, ly + lh - 1, 1, 1, T_WARD_STREET)
-		else:
+		else:       # 南象限小院：屋坐南朝北，敞口在北墙
+			_spawn_building(variant, Rect2i(hx - 2, ly + lh - 3, 4, 2))
 			_set_rect(decor, hx, ly, 1, 1, 0)
 			_set_rect(ground, hx, ly, 1, 1, T_WARD_STREET)
 	if not high:   # 低密度坊散树（橡树瓦，可行走装饰）
@@ -348,17 +454,36 @@ func _fill_ward_generic(b: Dictionary):
 			var ty := y0 + rng.randi_range(2, 23)
 			if int(decor[ty * W + tx]) == 0 and int(ground[ty * W + tx]) == 0:
 				decor[ty * W + tx] = 8
-	# 明德门：南城墙朱雀轴线开3格
+	# 临街店面带（前店后院坊市肌理）：坊南墙内 1 行店排面南，sprite 95~100px step 6 格近接成排
+	if rng.randf() < 0.7:
+		var shop_vars := ["house_shop_open", "house_door_a", "gable_ma"]
+		for k in range(3):
+			var sx := x0 + 4 + k * 6
+			var blocked := false
+			for xx in range(sx, sx + 2):
+				if int(decor[(y0 + 24) * W + xx]) != 0:
+					blocked = true
+			if not blocked:
+				_spawn_building(shop_vars[rng.randi_range(0, shop_vars.size() - 1)], Rect2i(sx, y0 + 24, 2, 1))
+	# 坊内地标（破天际线）：临横街北侧 35% 立 2 层楼/殿，hash 定
+	if rng.randf() < 0.35:
+		var lm: String = ["lou_brown", "lou_blue", "hall_grey"][rng.randi_range(0, 2)]
+		_spawn_building(lm, Rect2i(x0 + 17, y0 + 10, 3, 2))
+	# 明德门：南城墙朱雀轴线开3格（两行制：垛口行+砖身行都挖开）
 	var cx := col_x(5) - zq_s + zq_s / 2
 	_set_rect(decor, cx - 1, H - margin - wall, 3, 1, T_GATE_OPEN)
+	_set_rect(decor, cx - 1, H - margin - wall - 1, 3, 1, T_GATE_OPEN)
 	# M1 四城门：豁口+注册（明德门S已有，玄武门N/春明门E/开远门W，均对齐街网轴线）
 	_register_gate("S", "明德门", [Vector2i(cx - 1, H - margin - wall), Vector2i(cx, H - margin - wall), Vector2i(cx + 1, H - margin - wall)], Vector2i(cx, H - margin - wall - 2))
 	_set_rect(decor, cx - 1, margin, 3, 1, T_GATE_OPEN)
+	_set_rect(decor, cx - 1, margin + 1, 3, 1, T_GATE_OPEN)
 	_register_gate("N", "玄武门", [Vector2i(cx - 1, margin), Vector2i(cx, margin), Vector2i(cx + 1, margin)], Vector2i(cx, margin + wall + 1))
 	var cyc := _center_seam_y()
 	_set_rect(decor, W - margin - wall, cyc - 1, 1, 3, T_GATE_OPEN)
+	_set_rect(decor, W - margin - wall - 1, cyc - 1, 1, 3, T_GATE_OPEN)
 	_register_gate("E", "春明门", [Vector2i(W - margin - wall, cyc - 1), Vector2i(W - margin - wall, cyc), Vector2i(W - margin - wall, cyc + 1)], Vector2i(W - margin - wall - 2, cyc))
 	_set_rect(decor, margin, cyc - 1, 1, 3, T_GATE_OPEN)
+	_set_rect(decor, margin + 1, cyc - 1, 1, 3, T_GATE_OPEN)
 	_register_gate("W", "开远门", [Vector2i(margin, cyc - 1), Vector2i(margin, cyc), Vector2i(margin, cyc + 1)], Vector2i(margin + wall + 1, cyc))
 
 # 中央横街缝（rows=9 → row4|row5 之间 j=5 缝的y中心），东西门与其对齐
@@ -367,6 +492,74 @@ func _center_seam_y() -> int:
 
 func _register_gate(side: String, gname: String, gap: Array, inside: Vector2i):
 	gate_info[side] = {"name": gname, "gap_cells": gap, "inside": inside}
+
+# ---- 视觉重构：四城门楼 prop（明德门大骑楼，余三门中楼）+ 门垛碰撞 ----
+func _spawn_city_gates_all():
+	for side in ["S", "N", "E", "W"]:
+		if gate_info.has(side):
+			_spawn_city_gate(side)
+
+# ---- 视觉重构：街巷点缀（放在水系之后：逐格校验避水/避墙）----
+func _paint_street_dressing():
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 20260906
+	var zq_x0 := col_x(5) - zq_s
+	var zq_x1 := col_x(5) - 1
+	# 朱雀大街：红灯笼街灯两侧对列 + 国槐行道树（props 无碰撞，落在御道边缘格）
+	var y := _origin().y + 6
+	var alt := 0
+	while y < H - margin - wall - 4:
+		var lx := zq_x0 + 1 if alt % 2 == 0 else zq_x1 - 1
+		if _dressing_cell_free(lx, y):
+			_spawn_prop("lamp_red", lx * 16.0 + 8.0, (y + 1) * 16.0)
+		var tx := zq_x1 - 1 if alt % 2 == 0 else zq_x0 + 1
+		if y % 16 == 6 and _dressing_cell_free(tx, y - 3):
+			_spawn_prop("tree_lush_a" if alt % 3 == 0 else "tree_lush_b", tx * 16.0 + 8.0, (y - 2) * 16.0)
+		alt += 1
+		y += 12
+	# 三渠沿岸柳：水带两侧各 2 格路，每隔 14 格一棵（避桥带）
+	for canal in CANALS:
+		var cxx := col_x(int(canal["seam"])) - main_s + main_s / 2
+		for wy in range(margin + wall + 4, H - margin - wall - 4, 14):
+			for dx in [-2, 2]:
+				if _dressing_cell_free(cxx + dx, wy) and int(ground[wy * W + cxx + dx]) != T_BRIDGE:
+					_spawn_prop("willow_a" if (wy / 14) % 2 == 0 else "willow_b", (cxx + dx) * 16.0 + 8.0, (wy + 1) * 16.0)
+	# 主干街行道槐带（"槐衙"）：纵/横缝两侧列植橡树瓦（可行走 decor，零节点成本），每 4 格一株
+	for i in range(1, cols):
+		if i == 5:
+			continue   # 朱雀已用 prop 大树
+		var sx0 := col_x(i) - main_s
+		for wy in range(_origin().y + 3, _origin().y + block_span_y(), 4):
+			for sx in [sx0, col_x(i) - 1]:
+				if _dressing_cell_free(sx, wy):
+					decor[wy * W + sx] = 8
+	for j in range(1, rows):
+		var sy0 := row_y(j) - main_s
+		for wx in range(_origin().x + 3, _origin().x + block_span_x(), 4):
+			for sy in [sy0, row_y(j) - 1]:
+				if _dressing_cell_free(wx, sy):
+					decor[sy * W + wx] = 8
+	# 环路行道大树
+	for wy in range(margin + wall + ring, H - margin - wall - ring, 24):
+		for xx in [margin + wall + 2, W - margin - wall - ring - 2]:
+			if _dressing_cell_free(xx, wy):
+				_spawn_prop("tree_big", xx * 16.0 + 8.0, (wy + 1) * 16.0)
+	# 牌坊：承天门外金大牌坊 + 明德门内石牌坊（朱雀轴线礼制门户）
+	var pcx := col_x(5) - zq_s + zq_s / 2
+	var palace_south := row_y(palace_rows.y) + bh
+	_spawn_prop("paifang_big_gold", (pcx + 0.5) * 16.0, (palace_south + 3) * 16.0)
+	_spawn_prop("paifang_stone_g", (pcx + 0.5) * 16.0, (H - margin - wall - 4) * 16.0)
+	# 明德门内石狮
+	_spawn_prop("lion_white_a", (pcx - 2) * 16.0 + 8.0, (H - margin - wall - 2) * 16.0)
+	_spawn_prop("lion_white_b", (pcx + 3) * 16.0 + 8.0, (H - margin - wall - 2) * 16.0)
+
+# 点缀落格校验：格内须为可走地面且无装饰（避水/避墙/避坊内）
+func _dressing_cell_free(x: int, y: int) -> bool:
+	if x < 0 or y < 0 or x >= W or y >= H:
+		return false
+	var g := int(ground[y * W + x])
+	var d := int(decor[y * W + x])
+	return d == 0 and (g == T_MAIN_ROAD or g == T_ZHUQUE or g == T_LANE)
 
 func _in_market(c: int, r: int) -> bool:
 	for mk in markets:
@@ -383,8 +576,22 @@ func _paint_palace():
 	var px1 := col_x(palace_cols.y) + bw - 1
 	var py1 := row_y(palace_rows.y) + bh - 1
 	_set_rect(ground, px0, py0, px1 - px0 + 1, py1 - py0 + 1, T_GRASS)
-	_set_rect(decor, px0, py0, px1 - px0 + 1, py1 - py0 + 1, T_PALACE_WALL)
+	_set_wall_ring(px0, py0, px1 - px0 + 1, py1 - py0 + 1, T_PALACE_WALL, T_PALACE_WALL_V)
 	_set_rect(decor, px0 + 1, py0 + 1, px1 - px0 - 1, py1 - py0 - 1, 0)
+	# 丹墀广场：院内满铺方砖（金砖漫地），中轴御道直抵太极殿
+	_set_rect(ground, px0 + 1, py0 + 1, px1 - px0 - 1, py1 - py0 - 1, T_PAVE)
+	var pcx := col_x(5) - zq_s + zq_s / 2
+	_set_rect(ground, pcx - 1, py0 + 1, 3, py1 - py0 - 1, T_ZHUQUE)
+	# 太极殿（重檐金顶，foot 9×3 压 T_HOUSE）坐北朝南；两仪殿/东宫东西对峙
+	_spawn_building("hall_taiji", Rect2i(pcx - 4, py0 + 2, 9, 3))
+	var mid_y := py0 + (py1 - py0) / 2
+	_spawn_building("hall_gold2", Rect2i(px1 - 9, mid_y - 3, 5, 2))
+	_spawn_building("hall_gold3", Rect2i(px0 + 4, mid_y - 3, 5, 2))
+	# 四角金亭（角楼意象）+ 承天门内石狮一对
+	for corner in [Vector2i(px0 + 2, py0 + 2), Vector2i(px1 - 3, py0 + 2), Vector2i(px0 + 2, py1 - 3), Vector2i(px1 - 3, py1 - 3)]:
+		_spawn_building("ting_gold", Rect2i(corner.x - 1, corner.y - 1, 2, 2))
+	_spawn_prop("lion_white_a", (pcx - 2) * 16.0 + 8.0, (py1 - 1) * 16.0)
+	_spawn_prop("lion_white_b", (pcx + 2) * 16.0 + 8.0, (py1 - 1) * 16.0)
 	# 四门：南中3（承天门，对朱雀轴线）、北中2、东西各2
 	var cx := col_x(5) - zq_s + zq_s / 2
 	var my := py0 + (py1 - py0) / 2
@@ -402,8 +609,13 @@ func _paint_ward(b: Dictionary):
 	var y1 := y0 + bh - 1
 	# 坊内清底（覆盖先铺的街道）再围坊墙
 	_set_rect(ground, x0, y0, bw, bh, T_GRASS)
-	_set_rect(decor, x0, y0, bw, bh, T_WARD_WALL)
+	_set_wall_ring(x0, y0, bw, bh, T_WARD_WALL, T_WARD_WALL_V)
 	_set_rect(decor, x0 + 1, y0 + 1, bw - 2, bh - 2, 0)
+	# 坊脚散水（墙外 1 圈竖砖路肩）：坊墙不再生硬接草/接街
+	_set_rect(ground, x0 - 1, y0 - 1, bw + 2, 1, T_LANE)
+	_set_rect(ground, x0 - 1, y1 + 1, bw + 2, 1, T_LANE)
+	_set_rect(ground, x0 - 1, y0, 1, bh, T_LANE)
+	_set_rect(ground, x1 + 1, y0, 1, bh, T_LANE)
 	# 门洞：宽2，坊墙正中；stage>0 未解锁=闭门
 	var gx0 := x0 + bw / 2 - 1
 	var gy0 := y0 + bh / 2 - 1
@@ -441,6 +653,10 @@ func _paint_ward(b: Dictionary):
 	# 坊内十字街（2宽，与门洞对齐）
 	_set_rect(ground, gx0, y0 + 1, 2, bh - 2, T_WARD_STREET)
 	_set_rect(ground, x0 + 1, gy0, bw - 2, 2, T_WARD_STREET)
+	# 坊门门楼（S 门正面挂灰瓦榜门楼 prop，门洞内露出开/闭门瓦=宵禁可见）
+	for g in b["gates"]:
+		if String(g) == "S":
+			_spawn_prop("market_gate", (gx0 + 1) * 16.0, (y1 + 1) * 16.0)
 
 func _paint_market(mk: Dictionary):
 	var c := int(mk["col"])
@@ -449,8 +665,8 @@ func _paint_market(mk: Dictionary):
 	var y0 := row_y(r)
 	var x1 := x0 + bw - 1
 	var y1 := y0 + bh - 1
-	_set_rect(ground, x0, y0, bw, bh, T_STONE)
-	_set_rect(decor, x0, y0, bw, bh, T_WARD_WALL)
+	_set_rect(ground, x0, y0, bw, bh, T_PAVE)
+	_set_wall_ring(x0, y0, bw, bh, T_WARD_WALL, T_WARD_WALL_V)
 	_set_rect(decor, x0 + 1, y0 + 1, bw - 2, bh - 2, 0)
 	# 市门四向各2格（入宵禁册，夜闭）
 	var gx0 := x0 + bw / 2 - 1
@@ -469,9 +685,35 @@ func _paint_market(mk: Dictionary):
 		curfew_gates.append({"cells": cells, "kind": "market", "ward": mname})
 		var inward: Vector2i = {"N": Vector2i(0, 2), "S": Vector2i(0, -2), "W": Vector2i(2, 0), "E": Vector2i(-2, 0)}[g]
 		anchors["marketgate:%s:%s" % [mname, g]] = cell_to_px(cells[0] + inward)
-	# M5 两市店铺门面（数据驱动：grid.markets[].shops，皮肤决定内景陈设）
+	# 市楼（西市钟楼/东市鼓楼，foot 3×2）压在市内中巷北端（两侧店铺间 x11~13）
+	_spawn_building("bell_tower" if mname == "西市" else "drum_tower", Rect2i(x0 + 11, y0 + 2, 3, 2))
+	# M5 两市店铺门面（数据驱动：grid.markets[].shops，皮肤决定门面形制）
 	for shop in mk.get("shops", []):
 		_paint_shop_front(x0 + int(shop["at"][0]), y0 + int(shop["at"][1]), 8, 6, shop)
+	# 摊贩：市门内侧+市楼两翼固定摊位（foot 2×1 压 T_HOUSE）。
+	# 布点纪律：不进中巷/环路走带——玩家碰撞体24px 需2格净宽，摊位占带即堵路
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash(mname)
+	var stall_props := ["stall_red", "stall_wood", "stall_red2", "stall_rw", "stall_banner"]
+	var stall_spots := [Vector2i(9, 1), Vector2i(15, 1), Vector2i(8, 2), Vector2i(16, 2),
+			Vector2i(9, 24), Vector2i(15, 24), Vector2i(1, 12), Vector2i(23, 12)]
+	for spot in stall_spots:
+		_spawn_stall(stall_props[rng.randi_range(0, stall_props.size() - 1)], x0 + spot.x, y0 + spot.y)
+
+func _spawn_stall(pname: String, sx: int, sy: int):
+	if sx < 0 or sy < 0 or sx + 2 >= W or sy >= H:
+		return
+	for xx in range(sx, sx + 2):
+		if int(decor[sy * W + xx]) != 0:
+			return
+	_spawn_building(pname, Rect2i(sx, sy, 2, 1))
+
+# 方向感知单行墙：N/S 走向段（横墙）用 cap_h，E/W 走向段（竖墙）用 cap_v——砖缝方向与墙走向一致
+func _set_wall_ring(x0: int, y0: int, w: int, h: int, cap_h: int, cap_v: int):
+	_set_rect(decor, x0, y0, w, 1, cap_h)
+	_set_rect(decor, x0, y0 + h - 1, w, 1, cap_h)
+	_set_rect(decor, x0, y0 + 1, 1, h - 2, cap_v)
+	_set_rect(decor, x0 + w - 1, y0 + 1, 1, h - 2, cap_v)
 
 func _set_rect(arr: PackedByteArray, x: int, y: int, w: int, h: int, id: int):
 	for yy in range(y, y + h):
@@ -598,17 +840,27 @@ func _on_portal_body_entered(body: Node2D, side: String):
 
 
 # ---- M4 内景传送门 ----
-# 西市店铺门面：墙圈+铜钉门（76）+店内柜台架（外观即门厅），门前景格挂触发区
+# ---- 视觉重构：店铺门面（SCKR 门面楼 prop 按皮肤，76 门垫保留=传送锚+探针基准）----
+const SHOP_FACADE_BY_SKIN := {
+	"wine": "lou_brown",      # 酒肆：二层楼+酒旗
+	"silk": "house_shop_open",# 绸缎庄：开敞铺面
+	"book": "house_shop_open",# 书肆：开敞铺面
+	"herb": "house_door_a",   # 药铺：木门铺宅
+	"pawn": "house_win_small",# 当铺：小窗厚墙
+}
+const SHOP_SIGN_BY_SKIN := {"wine": "sign_wine", "book": "banner_purple"}
+
 func _paint_shop_front(sx: int, sy: int, sw: int, sh: int, shop: Dictionary):
 	_set_rect(decor, sx, sy, sw, sh, T_WARD_WALL)
 	_set_rect(decor, sx + 1, sy + 1, sw - 2, sh - 2, 0)
 	var gx := sx + sw / 2
 	var gy := sy + sh - 1
 	_set_rect(decor, gx - 1, gy, 2, 1, 76)
-	_spawn_gate_tower(gx * 16.0, (gy + 1) * 16.0, "B")
-	for prop in [[T_SHELF, sx + 2, sy + 1], [T_SHELF, sx + 4, sy + 1], [T_CABINET, sx + 5, sy + 1],
-			[T_DESK, sx + 2, sy + 3], [T_DESK, sx + 4, sy + 3]]:
-		_set_rect(decor, int(prop[1]), int(prop[2]), 1, 1, int(prop[0]))
+	# 门面楼（foot 4×2 坐店内北侧）+ 皮肤幌子
+	var skin := String(shop.get("skin", "silk"))
+	_spawn_building(SHOP_FACADE_BY_SKIN.get(skin, "house_shop_open"), Rect2i(sx + 2, sy + 1, 4, 2))
+	if SHOP_SIGN_BY_SKIN.has(skin):
+		_spawn_prop(SHOP_SIGN_BY_SKIN[skin], (sx + 1) * 16.0 + 4.0, (sy + sh - 1) * 16.0)
 	interior_portals[String(shop["ref"])] = Vector2i(gx, sy + sh)
 
 # 剧情坊 lot 门面 → 门外 1 格触发点
@@ -641,14 +893,14 @@ func _register_interior_portals():
 			continue
 		for lot in b.get("lots", []):
 			_register_lot_portal(String(lot["ref"]))
-	# 宫城：承天门内→太极殿（标杆），东门内→两仪殿，西门内→东宫
+	# 宫城：太极殿（标杆）/两仪殿/东宫 传送门=各殿门前（外观 prop 已立，殿脚即门）
 	var pcx := col_x(5) - zq_s + zq_s / 2
-	interior_portals["taiji_dian"] = Vector2i(pcx, row_y(palace_rows.y) + bh - 2)
+	interior_portals["taiji_dian"] = Vector2i(pcx, row_y(palace_rows.x) + 6)
 	var ppin := row_y(palace_rows.x) + (bh * 2 + main_s) / 2
 	var pgx0 := col_x(palace_cols.x)
 	var pgx1 := col_x(palace_cols.y) + bw - 1
-	interior_portals["liangyi_dian"] = Vector2i(pgx1 - 2, ppin)
-	interior_portals["donggong"] = Vector2i(pgx0 + 2, ppin)
+	interior_portals["liangyi_dian"] = Vector2i(pgx1 - 7, ppin)
+	interior_portals["donggong"] = Vector2i(pgx0 + 6, ppin)
 	if tile_map == null:
 		return
 	for ref in interior_portals.keys():
@@ -855,12 +1107,15 @@ func unlock_stage(stage: int):
 		var su := int(b["stage_unlock"])
 		if su == 0 or su > stage:
 			continue
+		var ward_id := String(b["id"])
+		if unlocked_wards.has(ward_id):
+			continue   # 递进解锁（1→2）不重复填充/开门/入宵禁册
+		unlocked_wards[ward_id] = true
 		unlocked.append(String(b["name"]))
 		for lot in b.get("lots", []):
 			unlocked_lot_refs.append(String(lot["ref"]))
-		var ward_id := String(b["id"])
-		# 程序化院落填充（hash 种子确定，与解锁时机无关）
-		_fill_ward_generic(b)
+		# 填充（hash 种子确定，与解锁时机无关）：lots 坊铺 lot+空象限散院，余坊程序化院落
+		_fill_ward_contents(b)
 		# 开坊门并入宵禁册（宵禁进行中则直接闭门）
 		var gate_tile := T_GATE_CLOSED if curfew else T_GATE_OPEN
 		var cells: Array = ward_gate_cells.get(ward_id, [])

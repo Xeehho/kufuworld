@@ -24,6 +24,9 @@ func _ready() -> void:
 		43: Color(0.83, 0.80, 0.74), 40: Color(0.45, 0.44, 0.42), 69: Color(0.62, 0.35, 0.28),
 		70: Color(0.30, 0.30, 0.31), 67: Color(0.85, 0.45, 0.30), 68: Color(0.72, 0.25, 0.18),
 		5: Color(0.30, 0.48, 0.72), 17: Color(0.62, 0.52, 0.40),
+		100: Color(0.90, 0.88, 0.82), 101: Color(0.62, 0.66, 0.74), 102: Color(0.16, 0.16, 0.18),
+		2: Color(0.55, 0.40, 0.30), 75: Color(0.80, 0.30, 0.25), 76: Color(0.75, 0.38, 0.30),
+		77: Color(0.35, 0.32, 0.30), 8: Color(0.30, 0.50, 0.28),
 	}
 	var img := Image.create(changan.W, changan.H, false, Image.FORMAT_RGBA8)
 	for y in range(changan.H):
@@ -90,22 +93,26 @@ func _ready() -> void:
 				m1_fails.append("%s·%s 门面tile期望%d实铺%d" % [b["name"], lot["ref"], expect, got])
 	if lot_wards < 8:
 		m1_fails.append("stage0剧情坊带lots数=%d(<8)" % lot_wards)
-	# ---- Slice F 断言：宅门楼 prop（与人物体型相当，视觉增高；tile 门面仍是断言基准） ----
-	# 期望=门面瓦(75/76/77)实铺数/2（每座门楼盖 2 格门面）——从铺设真值推导，不依赖 JSON 结构
-	var gate_tiles := 0
-	for v in changan.decor:
-		var tid := int(v)
-		if tid == 75 or tid == 76 or tid == 77:
-			gate_tiles += 1
-	var towers: Array = changan.get_children().filter(func(n): return n.is_in_group("gate_tower"))
-	if towers.size() != gate_tiles / 2:
-		m1_fails.append("门楼prop=%d≠门面瓦%d/2（克隆缺PNG会全跳过）" % [towers.size(), gate_tiles])
+	# ---- Slice F→视觉重构 断言：宅门楼 SCKR prop（75/76/77 门面瓦仍是探针基准） ----
+	# 期望从数据推导：stage0 坊 lots 按品级计门楼数（两市店铺 76 门垫不配门楼，改配门面楼 prop）
+	var expect_gate_props := 0
+	for b in changan.blocks:
+		if String(b["type"]) != "ward" or int(b["stage_unlock"]) != 0:
+			continue
+		expect_gate_props += b.get("lots", []).size()
+	var props: Array = changan.get_children().filter(func(n): return n.is_in_group("changan_prop"))
+	var prop_names := {}
+	for p in props:
+		prop_names[String(p.get_meta("prop", ""))] = prop_names.get(String(p.get_meta("prop", "")), 0) + 1
+	var gate_props := int(prop_names.get("gate_red_gold", 0)) + int(prop_names.get("compound_gate", 0)) + int(prop_names.get("gate_stone_small", 0))
+	if gate_props != expect_gate_props:
+		m1_fails.append("宅门楼prop=%d≠stage0 lots数%d（克隆缺切片会全跳过）" % [gate_props, expect_gate_props])
 	var bad_tex := 0
-	for t2 in towers:
-		if t2.texture == null or t2.offset != Vector2(0, -18):
+	for p2 in props:
+		if p2.texture == null or p2.offset.y != -p2.texture.get_height() / 2.0:
 			bad_tex += 1
 	if bad_tex > 0:
-		m1_fails.append("门楼prop纹理/锚点异常=%d" % bad_tex)
+		m1_fails.append("prop纹理/底边锚异常=%d" % bad_tex)
 	# ---- M3 断言：三渠/宵禁/夜行BFS/锚点/城内NPC/阶段解锁 ----
 	var m3_fails: Array = []
 	# 三渠：每渠水格充足，桥格跨路
@@ -155,6 +162,84 @@ func _ready() -> void:
 		m3_fails.append("数据中无 stage1 坊")
 	if stage1_center_fail:
 		m3_fails.append("unlock_stage(1) 后 stage1 坊中心不可达")
+	# ---- 视觉重构断言（SCKR 第一层换皮 2026-09-06）----
+	var mv_fails: Array = []
+	# 瓦片注册：SCKR 首选路径存在（69~74 换皮 + 新 100/101；load_png_texture 无 resource_path，查文件）
+	var ts_mv: TileSet = changan.tile_map.tile_set
+	var sckr_paths := {69: "wall_palace.png", 70: "wall_city.png", 71: "street_zhuque.png",
+			72: "street_main.png", 73: "street_ward.png", 74: "street_lane.png",
+			100: "wall_ward.png", 101: "pave_market.png", 104: "wall_palace_v.png",
+			105: "wall_ward_v.png", 106: "wall_city_body.png", 107: "wall_city_body_v.png"}
+	for tid in sckr_paths:
+		if not ts_mv.has_source(tid):
+			mv_fails.append("瓦片%d未注册" % tid)
+		if not FileAccess.file_exists("res://sprites/tiles_changan_sckr/" + sckr_paths[tid]):
+			mv_fails.append("SCKR切片缺失 tiles_changan_sckr/%s（跑 tools/import_sckr_changan.py）" % sckr_paths[tid])
+	# 城门楼×4（大骑楼明德门+中楼×3）
+	if int(prop_names.get("gate_tower_big", 0)) != 1 or int(prop_names.get("gate_tower_mid", 0)) != 3:
+		mv_fails.append("城门楼prop big=%d mid=%d≠1/3" % [int(prop_names.get("gate_tower_big", 0)), int(prop_names.get("gate_tower_mid", 0))])
+	# 街巷点缀阈值（落格校验会吞个别格，阈值留余量）
+	if int(prop_names.get("lamp_red", 0)) < 15:
+		mv_fails.append("街灯=%d(<15)" % int(prop_names.get("lamp_red", 0)))
+	var tree_cnt := int(prop_names.get("tree_lush_a", 0)) + int(prop_names.get("tree_lush_b", 0)) + int(prop_names.get("tree_big", 0))
+	if tree_cnt < 12:
+		mv_fails.append("行道树=%d(<12)" % tree_cnt)
+	# 宫城：太极殿/两仪殿/东宫+角楼×4
+	if int(prop_names.get("hall_taiji", 0)) != 1:
+		mv_fails.append("太极殿prop缺失")
+	if int(prop_names.get("hall_gold2", 0)) != 1 or int(prop_names.get("hall_gold3", 0)) != 1:
+		mv_fails.append("两仪殿/东宫prop缺失")
+	if int(prop_names.get("ting_gold", 0)) != 4:
+		mv_fails.append("宫城角楼亭=%d≠4" % int(prop_names.get("ting_gold", 0)))
+	# 民居密度：散院民居 prop ≥ 60（stage0 38坊×4象限×命中率）
+	var house_cnt := int(prop_names.get("house_win_a", 0)) + int(prop_names.get("house_door_a", 0)) \
+			+ int(prop_names.get("house_win_small", 0)) + int(prop_names.get("house_small_door", 0))
+	if house_cnt < 60:
+		mv_fails.append("民居prop=%d(<60)" % house_cnt)
+	# 两市：市楼钟/鼓各1、摊贩≥12、店铺门面=9
+	if int(prop_names.get("bell_tower", 0)) != 1 or int(prop_names.get("drum_tower", 0)) != 1:
+		mv_fails.append("市楼钟/鼓≠1/1")
+	var stall_cnt := 0
+	for k in prop_names:
+		if String(k).begins_with("stall_"):
+			stall_cnt += int(prop_names[k])
+	if stall_cnt < 12:
+		mv_fails.append("市摊=%d(<12)" % stall_cnt)
+	if int(prop_names.get("house_shop_open", 0)) < 4:
+		mv_fails.append("店铺门面prop=%d(<4)" % int(prop_names.get("house_shop_open", 0)))
+	# 坊门门楼（各坊 S 门挂灰瓦榜门楼，门洞内露开/闭门瓦）
+	if int(prop_names.get("market_gate", 0)) < 90:
+		mv_fails.append("坊门楼=%d(<90)" % int(prop_names.get("market_gate", 0)))
+	# 坊墙方向感知抽样：竖段（E/W 走向）应为 105 竖版瓦
+	var v_sample := Vector2i(changan.col_x(3), changan.row_y(6) + 13)   # 坊 w_3_6 西墙竖段中点
+	if int(changan.decor[v_sample.y * changan.W + v_sample.x]) != changan.T_WARD_WALL_V:
+		mv_fails.append("坊墙竖段未用竖版瓦(%d)" % int(changan.decor[v_sample.y * changan.W + v_sample.x]))
+	# 街灯/行道树阈值已前置（城门楼断言后）——此处只留牌坊
+	if int(prop_names.get("paifang_big_gold", 0)) != 1 or int(prop_names.get("paifang_stone_g", 0)) != 1:
+		mv_fails.append("朱雀牌坊≠1/1")
+	# footprint 与 prop 对齐：T_HOUSE(2) 占格数 ≥ 建筑props×2（每foot至少2格）
+	var foot_cells := 0
+	for v2 in changan.decor:
+		if int(v2) == changan.T_FOOT:
+			foot_cells += 1
+	if foot_cells < 200:
+		mv_fails.append("建筑footprint格=%d(<200)" % foot_cells)
+	# 大雁塔：unlock_stage(1) 后晋昌坊 daciensi 塔出现（unlock_stage(1) 已在 M3 段调用过）
+	var has_pagoda := false
+	for p3 in changan.get_children():
+		if p3.is_in_group("changan_prop") and String(p3.get_meta("prop", "")) == "pagoda_blue":
+			has_pagoda = true
+			break
+	if not has_pagoda:
+		mv_fails.append("大雁塔prop缺失（unlock_stage(1) 后应立）")
+	# [DEBUG-V] 塔院/丹墀地坪 id 直查（daciensi lot 内格 + 宫城丹墀格）
+	var dcell := Vector2i(changan.col_x(10) + 5, changan.row_y(8) + 10)
+	print("[probe][V-DBG] daciensi yard(", dcell, ") ground=", int(changan.ground[dcell.y * changan.W + dcell.x]),
+			" decor=", int(changan.decor[dcell.y * changan.W + dcell.x]))
+	var pcell := Vector2i(changan.col_x(5) - changan.zq_s + changan.zq_s / 2 + 2, changan.row_y(0) + 10)
+	print("[probe][V-DBG] palace pave(", pcell, ") ground=", int(changan.ground[pcell.y * changan.W + pcell.x]))
+	if not mv_fails.is_empty():
+		fails.append_array(mv_fails)
 	if not m3_fails.is_empty():
 		fails.append_array(m3_fails)
 	# ---- M4 断言：内景瓦片族/传送门注册/三标杆构建+BFS ----

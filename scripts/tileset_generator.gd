@@ -73,16 +73,25 @@ static func build_tileset() -> TileSet:
 		# ---- 长安城 M0（docs/长安城地图设计.md §5.1；设计稿拟用41~56已被占，改从67起编）----
 		67: "res://sprites/tiles/ward_gate_open.png",   # 坊门·开（无碰撞，宵禁态切换）
 		68: "res://sprites/tiles/ward_gate_closed.png", # 坊门·闭（有碰撞）
-		69: "res://sprites/tiles/changan_palace_wall.png",  # 宫墙（M2专属纹样：朱红墙+灰瓦压顶）
-		70: "res://sprites/tiles/changan_outer_wall.png",   # 外郭城墙（M2专属纹样：夯土大砖）
-		71: "res://sprites/tiles/changan_zhuque.png",       # 朱雀大街御道（M2专属纹样：大块石板纵列）
-		72: "res://sprites/tiles/path.png",             # 主干街甬道（长安路网沿用MW土路，见ID1）
-		73: "res://sprites/tiles/path.png",             # 坊内十字街土路
-		74: "res://sprites/tiles/path.png",             # 巷路
+		# ---- 长安视觉重构（SCKR中式包首选，gen_changan_tiles 自绘回退；切片管线 tools/import_sckr_changan.py）----
+		69: ["res://sprites/tiles_changan_sckr/wall_palace.png", "res://sprites/tiles/changan_palace_wall.png"],  # 宫墙（金瓦顶红墙身石基）
+		70: ["res://sprites/tiles_changan_sckr/wall_city.png", "res://sprites/tiles/changan_outer_wall.png"],     # 外郭城墙（垛口顶+城砖身）
+		71: ["res://sprites/tiles_changan_sckr/street_zhuque.png", "res://sprites/tiles/changan_zhuque.png"],     # 朱雀大街御道（大石板）
+		72: ["res://sprites/tiles_changan_sckr/street_main.png", "res://sprites/tiles/path.png"],        # 主干街甬道（顺砖）
+		73: ["res://sprites/tiles_changan_sckr/street_ward.png", "res://sprites/tiles/path.png"],        # 坊内十字街（竖砖）
+		74: ["res://sprites/tiles_changan_sckr/street_lane.png", "res://sprites/tiles/path.png"],        # 巷路（人字纹）
 		# ---- 长安城 M2 宅门品级（§5.1 75~80备用段：宅门A/B/C；78/79市墙市门未注册）----
 		75: "res://sprites/tiles/changan_gate_a.png",   # 宅门·A 朱门金钉（亲王/公主/国寺）
 		76: "res://sprites/tiles/changan_gate_b.png",   # 宅门·B 朱门铜钉（国公/郡王/士族）
 		77: "res://sprites/tiles/changan_gate_c.png",   # 宅门·C 黑漆木门（官署/曲坊小宅）
+		# ---- 长安视觉重构 新瓦片（100 起；90~99 已预留现代族 M6 勿占）----
+		100: ["res://sprites/tiles_changan_sckr/wall_ward.png", "res://sprites/tiles/ward_wall.png"],     # 长安坊墙（白灰墙+灰瓦顶+砖脚）
+		101: ["res://sprites/tiles_changan_sckr/pave_market.png", "res://sprites/tiles_mw22/stone.png"],  # 长安方砖（两市/宫院丹墀铺装）
+		102: ["res://sprites/tiles_changan_sckr/foot.png", "res://sprites/tiles/house_town.png"],        # 建筑足印（全透明带碰撞；回退=可见16px小屋）
+		104: ["res://sprites/tiles_changan_sckr/wall_palace_v.png", "res://sprites/tiles/changan_palace_wall.png"],  # 宫墙·竖（E/W 走向段）
+		105: ["res://sprites/tiles_changan_sckr/wall_ward_v.png", "res://sprites/tiles/ward_wall.png"],   # 长安坊墙·竖
+		106: ["res://sprites/tiles_changan_sckr/wall_city_body.png", "res://sprites/tiles/changan_outer_wall.png"],  # 外郭城墙·砖身行（横缝）
+		107: ["res://sprites/tiles_changan_sckr/wall_city_body_v.png", "res://sprites/tiles/changan_outer_wall.png"], # 外郭城墙·砖身行·竖
 		# ---- 长安城 M4 内景瓦片族 80~89（§5.3 interior_tiles，独立小场景复用；M6 现代场景换皮肤）----
 		80: "res://sprites/tiles/interior_floor_wood.png",   # 木地板
 		81: "res://sprites/tiles/interior_floor_brick.png",  # 砖地板
@@ -96,8 +105,8 @@ static func build_tileset() -> TileSet:
 		89: "res://sprites/tiles/interior_shelf.png",        # 架（碰撞）
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙；75~77=宅门（M4起无碰撞接传送门）；83/84/86/88/89=内景墙/屏风/案/柜/架
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89]
+	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙, 100=长安坊墙, 102=建筑足印（透明碰撞）；75~77=宅门（M4起无碰撞接传送门）；83/84/86/88/89=内景墙/屏风/案/柜/架
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89, 100, 102, 104, 105, 106, 107]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
