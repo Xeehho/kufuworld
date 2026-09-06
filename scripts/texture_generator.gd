@@ -158,10 +158,11 @@ func generate_tiles():
 func _city_wall_tile() -> Image:
 	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
 	# 2026-08-31：大城砖重砌——8px高砖行×2、错缝、细灰缝（旧4px小碎砖视觉似石子）
-	var base := Color(0.46, 0.46, 0.47)   # 青砖
-	var mortar := Color(0.30, 0.30, 0.31)
-	var hi := Color(0.56, 0.56, 0.57)
-	var lo := Color(0.37, 0.37, 0.38)
+	# 2026-09-06 Slice D：校色对齐 MW 石砖调（主色实测 walls.png 103,117,152/缝65,75,102/棱143,154,176）
+	var base := Color8(103, 117, 152)   # 青砖（MW蓝灰石主调）
+	var mortar := Color8(65, 75, 102)
+	var hi := Color8(143, 154, 176)
+	var lo := Color8(84, 96, 126)
 	img.fill(base)
 	for y in range(TILE_SIZE):
 		var yy := y % 8
@@ -197,13 +198,13 @@ func _boundary_stone_img() -> Image:
 					img.set_pixel(x, y, dark if edge else stone)
 	return img
 
-# 坊墙瓦片：城砖淡色版（白灰坊墙，唐制里坊围合；tile id 43，W2）
+# 坊墙瓦片：唐制里坊围合（tile id 43，W2）；Slice D 校色=MW蓝灰石提亮版（白灰意象靠高明度保留）
 func _ward_wall_tile() -> Image:
 	var img := Image.create(TILE_SIZE, TILE_SIZE, false, Image.FORMAT_RGBA8)
-	var base := Color(0.74, 0.71, 0.66)   # 白灰淡砖
-	var mortar := Color(0.56, 0.54, 0.50)
-	var hi := Color(0.83, 0.80, 0.75)
-	var lo := Color(0.63, 0.60, 0.56)
+	var base := Color8(136, 148, 178)   # 蓝灰淡砖（MW石调提亮）
+	var mortar := Color8(94, 106, 138)
+	var hi := Color8(168, 178, 202)
+	var lo := Color8(112, 124, 154)
 	img.fill(base)
 	for y in range(TILE_SIZE):
 		var yy := y % 8

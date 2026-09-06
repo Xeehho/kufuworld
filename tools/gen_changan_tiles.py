@@ -2,6 +2,7 @@
 """长安城瓦片 PNG 生成（M0 坊门 + M2 宅门品级/宫墙/外郭墙/御道）
 色系锚定 sprites/tiles/ward_wall.png（白灰暖砖）——门框色直接采样复用
 配色参照: 参考14号(红门气派) + 唐风微调色板
+Slice D(2026-09-06): 全族校色对齐 MW 调子——石作=蓝灰(walls.png实测103,117,152)、木作=暖棕(117,83,56)、毯=绛红(158,46,70)
 输出:
   M0: ward_gate_open.png / ward_gate_closed.png
   M2: changan_gate_a/b/c.png（宅门品级75~77）changan_palace_wall.png（69宫墙）
@@ -26,14 +27,14 @@ for line in _rows:
 BRICK = cnt.most_common(1)[0][0]                      # 砖面主色
 BRICK_DARK = min(cnt, key=lambda c: sum(c))          # 灰缝/暗色
 
-WOOD_D = (90, 58, 38)     # 门楣深木
-WOOD_M = (146, 92, 56)    # 门扇木中
-WOOD_L = (178, 120, 78)   # 木高光
-RED_M  = (156, 58, 38)    # 红漆门扇（唐风锚点色）
-RED_D  = (112, 38, 24)
+WOOD_D = (80, 54, 37)     # 门楣深木（MW wooden_door 暗棕实测）
+WOOD_M = (117, 83, 56)    # 门扇木中（MW wooden 地板面实测）
+WOOD_L = (142, 104, 72)   # 木高光
+RED_M  = (164, 52, 42)    # 红漆门扇（唐风锚点色相+MW饱和度）
+RED_D  = (118, 36, 28)
 GOLD   = (216, 178, 90)
-HOLE   = (44, 38, 34)     # 门洞内暗
-HOLE_L = (58, 50, 44)
+HOLE   = (36, 30, 28)     # 门洞内暗
+HOLE_L = (50, 42, 38)
 
 def px(t, x, y, c):
     if 0 <= x < TS and 0 <= y < TS:
@@ -93,7 +94,7 @@ def draw_mansion_gate(grade: str):
     brick_rect(t, 13, 0, 15, 15)
     # 门楣+屋顶压边：A/B 出挑檐口（灰瓦），C 素木楣
     if grade in ("A", "B"):
-        rect(t, 0, 0, 15, 1, (70, 70, 76))    # 檐口灰瓦
+        rect(t, 0, 0, 15, 1, (86, 92, 114))   # 檐口青瓦（MW蓝灰调）
         rect(t, 1, 2, 14, 2, WOOD_D)          # 门楣
         rect(t, 1, 3, 14, 3, WOOD_M)
         if grade == "A":
@@ -102,7 +103,7 @@ def draw_mansion_gate(grade: str):
     else:
         rect(t, 0, 0, 15, 1, WOOD_D)
         rect(t, 1, 1, 14, 3, WOOD_D)          # 黑漆素楣
-        rect(t, 1, 3, 14, 3, (60, 40, 28))
+        rect(t, 1, 3, 14, 3, (52, 35, 25))
     # 门扇
     if grade == "C":
         rect(t, 3, 4, 12, 15, (52, 44, 40))   # 黑漆门扇
@@ -129,11 +130,11 @@ def draw_mansion_gate(grade: str):
 # ---- M2 宫墙 69：朱红墙身+顶部灰瓦压顶（大明宫红墙意象）----
 def draw_palace_wall():
     t = bytearray(b"\x00"*(TS*TS*4))
-    REDD = (146, 56, 40)     # 墙身朱红
-    REDD_D = (112, 40, 28)   # 红暗缝
-    REDD_L = (172, 74, 52)   # 受光
-    TILE_G = (84, 84, 92)    # 灰瓦
-    TILE_GD = (62, 62, 70)
+    REDD = (164, 52, 44)     # 墙身朱红（唐朱相+MW饱和）
+    REDD_D = (118, 38, 32)   # 红暗缝
+    REDD_L = (186, 74, 56)   # 受光
+    TILE_G = (88, 94, 118)   # 青瓦（MW蓝灰调）
+    TILE_GD = (62, 66, 88)
     rect(t, 0, 0, 15, 1, TILE_G)       # 顶部灰瓦压顶
     rect(t, 0, 2, 15, 2, TILE_GD)
     for x in (3, 8, 13):
@@ -150,10 +151,10 @@ def draw_palace_wall():
 # ---- M2 外郭城墙 70：夯土大砖（黄土墙身+深缝+根部的黑土线）----
 def draw_outer_wall():
     t = bytearray(b"\x00"*(TS*TS*4))
-    EARTH = (168, 138, 96)
-    EARTH_D = (128, 102, 70)
-    EARTH_L = (190, 162, 118)
-    rect(t, 0, 0, 15, 0, (86, 82, 78))         # 墙顶压边
+    EARTH = (174, 138, 90)
+    EARTH_D = (132, 100, 64)
+    EARTH_L = (196, 160, 110)
+    rect(t, 0, 0, 15, 0, (76, 64, 50))         # 墙顶压边
     rect(t, 0, 1, 15, 13, EARTH)
     for y in (4, 9):                            # 大块夯土层缝
         rect(t, 0, y, 15, y, EARTH_D)
@@ -162,15 +163,15 @@ def draw_outer_wall():
         rect(t, jx, y, jx, y+2, EARTH_D)
         rect(t, (12 if band % 2 == 0 else 6), y, (12 if band % 2 == 0 else 6), y+2, EARTH_D)
     rect(t, 0, 1, 15, 1, EARTH_L)               # 顶部受光
-    rect(t, 0, 14, 15, 15, (96, 78, 56))        # 根部
+    rect(t, 0, 14, 15, 15, (102, 80, 56))        # 根部
     return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
 
 # ---- M2 朱雀御道 71：大块石板+纵列对缝（比石板更整饬，中轴气势）----
 def draw_zhuque():
     t = bytearray(b"\x00"*(TS*TS*4))
-    ST = (172, 164, 150)
-    ST_D = (138, 130, 118)
-    ST_L = (196, 189, 176)
+    ST = (150, 156, 172)
+    ST_D = (116, 122, 142)
+    ST_L = (176, 182, 196)
     rect(t, 0, 0, 15, 15, ST)
     for y in (0, 8):                            # 两排大石板
         rect(t, 0, y, 15, y, ST_D)
@@ -188,12 +189,12 @@ def draw_zhuque():
 # ==================== M4 内景瓦片族 80~89（§5.3 interior_tiles） ====================
 # 木/砖/毯地板 + 内墙/屏风/灯烛 + 家具案/榻/柜/架；便利店等现代场景 M6 仅换皮肤复用
 
-WOOD_F  = (168, 122, 74)   # 木地板面
-WOOD_FD = (128, 90, 52)    # 板缝
-CARPET  = (148, 44, 40)    # 毯面朱
-CARPET_D= (112, 30, 28)
-IWALL   = (96, 74, 58)     # 内墙木框
-IWALL_D = (64, 48, 36)
+WOOD_F  = (143, 103, 66)   # 木地板面（MW wooden 实测调）
+WOOD_FD = (100, 70, 44)    # 板缝
+CARPET  = (158, 46, 70)    # 毯面绛红（MW carpet 实测）
+CARPET_D= (113, 25, 60)
+IWALL   = (104, 74, 50)     # 内墙木框（MW木族）
+IWALL_D = (72, 50, 34)
 IWALL_P = (206, 192, 168)  # 墙面粉白（纸面）
 LAMP_F  = (238, 196, 110)  # 灯焰
 def draw_floor_wood():
@@ -204,18 +205,18 @@ def draw_floor_wood():
     for band, y0 in enumerate((1, 6, 11)):      # 竖向错缝
         jx = (4, 11)[band % 2]
         rect(t, jx, y0, jx, y0+3, WOOD_FD)
-    rect(t, 0, 1, 15, 1, (188, 142, 92))        # 板面受光
+    rect(t, 0, 1, 15, 1, (168, 126, 80))        # 板面受光
     return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
 
 def draw_floor_brick():
     t = bytearray(b"\x00"*(TS*TS*4))
-    rect(t, 0, 0, 15, 15, (146, 138, 126))
+    rect(t, 0, 0, 15, 15, (140, 148, 168))
     for y in (0, 7, 15):
-        rect(t, 0, y, 15, y, (118, 110, 100))
+        rect(t, 0, y, 15, y, (108, 116, 138))
     for x in (0, 7, 15):
-        rect(t, x, 0, x, 6, (118, 110, 100))
-        rect(t, x+4 if x+4 <= 15 else 4, 8, x+4 if x+4 <= 15 else 4, 14, (118, 110, 100))
-    rect(t, 1, 1, 5, 1, (166, 158, 146))
+        rect(t, x, 0, x, 6, (108, 116, 138))
+        rect(t, x+4 if x+4 <= 15 else 4, 8, x+4 if x+4 <= 15 else 4, 14, (108, 116, 138))
+    rect(t, 1, 1, 5, 1, (164, 170, 188))
     return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
 
 def draw_carpet():
@@ -255,9 +256,9 @@ def draw_screen():
 def draw_lamp():
     # 灯烛：铜灯座+暖焰（底透）
     t = bytearray(b"\x00"*(TS*TS*4))
-    rect(t, 6, 13, 9, 15, (110, 84, 52))        # 座
-    rect(t, 5, 9, 10, 12, (140, 108, 66))       # 灯身
-    rect(t, 6, 10, 9, 11, (170, 134, 82))
+    rect(t, 6, 13, 9, 15, (96, 68, 44))        # 座
+    rect(t, 5, 9, 10, 12, (124, 90, 58))       # 灯身
+    rect(t, 6, 10, 9, 11, (150, 112, 72))
     rect(t, 7, 5, 8, 8, LAMP_F)                 # 焰
     px(t, 7, 4, (255, 232, 160)); px(t, 8, 4, (255, 232, 160))
     return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
@@ -277,7 +278,7 @@ def draw_couch():
     t = bytearray(b"\x00"*(TS*TS*4))
     rect(t, 1, 8, 14, 13, WOOD_M)
     rect(t, 2, 5, 13, 9, CARPET)                # 垫
-    rect(t, 2, 5, 13, 6, (176, 66, 58))
+    rect(t, 2, 5, 13, 6, (188, 73, 82))
     rect(t, 1, 13, 14, 13, WOOD_D)
     rect(t, 1, 8, 1, 12, WOOD_L)
     return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
