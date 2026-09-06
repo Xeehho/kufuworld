@@ -69,7 +69,8 @@ var bridge_count := 0
 var anchors := {}                       # 日程锚点 ref -> 本地px（坊门/市门/plaza；城门走 gate_info）
 var npc_list: Array = []
 var night_bfs_failures: Array = []
-var interior_portals := {}               # M4 内景传送门：ref -> 门前景格（天香阁/琥珀光/太极殿）
+var interior_portals := {}               # M4/M5 内景传送门：ref -> 门前景格（"area:ref"=Area2D已挂标记）
+var grid_palace_interiors: Array = []    # 宫区非标杆内景（两仪殿/东宫，数据驱动）
 const NPC_SCENE = preload("res://scenes/npc.tscn")
 
 # 城内NPC（city_npc_configs 模式：legs=[state, ref, start, end, off]，锚点见 get_anchor_px）
@@ -120,6 +121,7 @@ func _load_data() -> bool:
 	palace_cols = Vector2i(int(g["palace_zone"]["cols"][0]), int(g["palace_zone"]["cols"][1]))
 	palace_rows = Vector2i(int(g["palace_zone"]["rows"][0]), int(g["palace_zone"]["rows"][1]))
 	markets = g["markets"]
+	grid_palace_interiors = g["palace_zone"].get("interiors", [])
 	blocks = parsed["blocks"]
 	W = margin * 2 + wall * 2 + ring * 2 + cols * bw + (cols - 1) * main_s + (zq_s - main_s)
 	H = margin * 2 + wall * 2 + ring * 2 + rows * bh + (rows - 1) * main_s
@@ -434,9 +436,9 @@ func _paint_market(mk: Dictionary):
 		curfew_gates.append({"cells": cells, "kind": "market", "ward": mname})
 		var inward: Vector2i = {"N": Vector2i(0, 2), "S": Vector2i(0, -2), "W": Vector2i(2, 0), "E": Vector2i(-2, 0)}[g]
 		anchors["marketgate:%s:%s" % [mname, g]] = cell_to_px(cells[0] + inward)
-	# M4 标杆：西市·胡姬酒肆「琥珀光」门面（南内侧店铺一间，玩法MD §西市）
-	if mname == "西市":
-		_paint_shop_front(x0 + 14, y0 + 17, 8, 6, "huguguang")
+	# M5 两市店铺门面（数据驱动：grid.markets[].shops，皮肤决定内景陈设）
+	for shop in mk.get("shops", []):
+		_paint_shop_front(x0 + int(shop["at"][0]), y0 + int(shop["at"][1]), 8, 6, shop)
 
 func _set_rect(arr: PackedByteArray, x: int, y: int, w: int, h: int, id: int):
 	for yy in range(y, y + h):
@@ -564,7 +566,7 @@ func _on_portal_body_entered(body: Node2D, side: String):
 
 # ---- M4 内景传送门 ----
 # 西市店铺门面：墙圈+铜钉门（76）+店内柜台架（外观即门厅），门前景格挂触发区
-func _paint_shop_front(sx: int, sy: int, sw: int, sh: int, ref: String):
+func _paint_shop_front(sx: int, sy: int, sw: int, sh: int, shop: Dictionary):
 	_set_rect(decor, sx, sy, sw, sh, T_WARD_WALL)
 	_set_rect(decor, sx + 1, sy + 1, sw - 2, sh - 2, 0)
 	var gx := sx + sw / 2
@@ -573,7 +575,7 @@ func _paint_shop_front(sx: int, sy: int, sw: int, sh: int, ref: String):
 	for prop in [[T_SHELF, sx + 2, sy + 1], [T_SHELF, sx + 4, sy + 1], [T_CABINET, sx + 5, sy + 1],
 			[T_DESK, sx + 2, sy + 3], [T_DESK, sx + 4, sy + 3]]:
 		_set_rect(decor, int(prop[1]), int(prop[2]), 1, 1, int(prop[0]))
-	interior_portals[ref] = Vector2i(gx, sy + sh)
+	interior_portals[String(shop["ref"])] = Vector2i(gx, sy + sh)
 
 # 剧情坊 lot 门面 → 门外 1 格触发点
 func _register_lot_portal(ref: String) -> bool:
@@ -597,27 +599,64 @@ func _register_lot_portal(ref: String) -> bool:
 	return false
 
 func _register_interior_portals():
-	_register_lot_portal("tianxiang_ge")   # 平康坊·天香阁（M4 标杆一层）
-	# 宫城承天门内 → 太极殿（M4 标杆宫院）
+	# M5 全量：stage0 坊 lots（宅邸/寺观/官署/场所/小宅）逐一门前景格挂传送门
+	for b in blocks:
+		if String(b["type"]) != "ward" or _in_palace(int(b["col"]), int(b["row"])) or _in_market(int(b["col"]), int(b["row"])):
+			continue
+		if int(b["stage_unlock"]) != 0:
+			continue
+		for lot in b.get("lots", []):
+			_register_lot_portal(String(lot["ref"]))
+	# 宫城：承天门内→太极殿（标杆），东门内→两仪殿，西门内→东宫
 	var pcx := col_x(5) - zq_s + zq_s / 2
 	interior_portals["taiji_dian"] = Vector2i(pcx, row_y(palace_rows.y) + bh - 2)
+	var ppin := row_y(palace_rows.x) + (bh * 2 + main_s) / 2
+	var pgx0 := col_x(palace_cols.x)
+	var pgx1 := col_x(palace_cols.y) + bw - 1
+	interior_portals["liangyi_dian"] = Vector2i(pgx1 - 2, ppin)
+	interior_portals["donggong"] = Vector2i(pgx0 + 2, ppin)
 	if tile_map == null:
 		return
-	for ref in interior_portals:
-		var front: Vector2i = interior_portals[ref]
-		var area := Area2D.new()
-		area.name = "InteriorPortal_%s" % ref
-		area.position = cell_to_px(front)
-		area.collision_layer = 0
-		area.collision_mask = 2
-		area.set_meta("interior_ref", ref)
-		var cs := CollisionShape2D.new()
-		var shape := RectangleShape2D.new()
-		shape.size = Vector2(14, 14)
-		cs.shape = shape
-		area.add_child(cs)
-		area.body_entered.connect(_on_interior_portal_body_entered.bind(ref))
-		portals_node.add_child(area)
+	for ref in interior_portals.keys():
+		if String(ref).begins_with("area:"):
+			continue
+		_build_interior_portal_area(String(ref))
+
+func _build_interior_portal_area(ref: String):
+	if portals_node == null or interior_portals.has("area:" + ref):
+		return
+	var front: Vector2i = interior_portals[ref]
+	var area := Area2D.new()
+	area.name = "InteriorPortal_%s" % ref
+	area.position = cell_to_px(front)
+	area.collision_layer = 0
+	area.collision_mask = 2
+	area.set_meta("interior_ref", ref)
+	var cs := CollisionShape2D.new()
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(14, 14)
+	cs.shape = shape
+	area.add_child(cs)
+	area.body_entered.connect(_on_interior_portal_body_entered.bind(ref))
+	portals_node.add_child(area)
+	interior_portals["area:" + ref] = true   # 已挂 Area2D 标记
+
+# M5 门面→内景元数据：ref -> {kind, grade, name}（changan_interior 按 kind 出模板）
+func get_interior_meta(ref: String) -> Dictionary:
+	for b in blocks:
+		for lot in b.get("lots", []):
+			if String(lot["ref"]) == ref:
+				return {"kind": String(lot["kind"]), "grade": String(lot["grade"]),
+						"name": String(lot.get("name", ref))}
+	for mk in markets:
+		for shop in mk.get("shops", []):
+			if String(shop["ref"]) == ref:
+				return {"kind": "shop", "skin": String(shop.get("skin", "book")),
+						"name": String(shop.get("name", ref))}
+	for p in grid_palace_interiors:
+		if String(p["ref"]) == ref:
+			return {"kind": "palace", "grade": "A", "name": String(p["name"])}
+	return {}
 
 func _on_interior_portal_body_entered(body: Node2D, ref: String):
 	if body.is_in_group("player"):
@@ -775,6 +814,7 @@ func unlock_stage(stage: int):
 		push_warning("[ChangAn] unlock_stage 需在生成完成后调用")
 		return
 	var unlocked: Array = []
+	var unlocked_lot_refs: Array = []
 	for b in blocks:
 		if String(b["type"]) != "ward" or _in_palace(int(b["col"]), int(b["row"])):
 			continue
@@ -782,6 +822,8 @@ func unlock_stage(stage: int):
 		if su == 0 or su > stage:
 			continue
 		unlocked.append(String(b["name"]))
+		for lot in b.get("lots", []):
+			unlocked_lot_refs.append(String(lot["ref"]))
 		var ward_id := String(b["id"])
 		# 程序化院落填充（hash 种子确定，与解锁时机无关）
 		_fill_ward_generic(b)
@@ -804,4 +846,8 @@ func unlock_stage(stage: int):
 					tile_map.set_cell(1, cp, di, Vector2i(0, 0))
 				else:
 					tile_map.erase_cell(1, cp)
+	for lot_pending in unlocked_lot_refs:
+		if not interior_portals.has(lot_pending):
+			_register_lot_portal(lot_pending)
+			_build_interior_portal_area(lot_pending)
 	print("[ChangAn-M3] unlock_stage(%d)：解锁坊=%s" % [stage, unlocked])

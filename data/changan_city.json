@@ -21,18 +21,115 @@
    "rows": [
     0,
     1
+   ],
+   "interiors": [
+    {
+     "ref": "liangyi_dian",
+     "name": "两仪殿",
+     "gate": "E"
+    },
+    {
+     "ref": "donggong",
+     "name": "东宫",
+     "gate": "W"
+    }
    ]
   },
   "markets": [
    {
     "col": 3,
     "row": 2,
-    "name": "西市"
+    "name": "西市",
+    "shops": [
+     {
+      "ref": "sizhuang_w",
+      "name": "西市绸缎庄",
+      "skin": "silk",
+      "at": [
+       3,
+       17
+      ]
+     },
+     {
+      "ref": "yaoshi_w",
+      "name": "西市药铺",
+      "skin": "herb",
+      "at": [
+       3,
+       10
+      ]
+     },
+     {
+      "ref": "shushi_w",
+      "name": "西市书肆",
+      "skin": "book",
+      "at": [
+       14,
+       10
+      ]
+     },
+     {
+      "ref": "huguguang",
+      "name": "琥珀光",
+      "skin": "wine",
+      "at": [
+       14,
+       17
+      ]
+     },
+     {
+      "ref": "dangpu_w",
+      "name": "西市当铺",
+      "skin": "pawn",
+      "at": [
+       3,
+       3
+      ]
+     }
+    ]
    },
    {
     "col": 8,
     "row": 2,
-    "name": "东市"
+    "name": "东市",
+    "shops": [
+     {
+      "ref": "sizhuang_e",
+      "name": "东市绸缎庄",
+      "skin": "silk",
+      "at": [
+       3,
+       17
+      ]
+     },
+     {
+      "ref": "yaoshi_e",
+      "name": "东市药铺",
+      "skin": "herb",
+      "at": [
+       3,
+       10
+      ]
+     },
+     {
+      "ref": "shushi_e",
+      "name": "东市书肆",
+      "skin": "book",
+      "at": [
+       14,
+       17
+      ]
+     },
+     {
+      "ref": "jiushi_e",
+      "name": "东市酒肆",
+      "skin": "wine",
+      "at": [
+       14,
+       10
+      ]
+     }
+    ]
    }
   ]
  },
@@ -55,6 +152,7 @@
      "kind": "temple",
      "ref": "hongfu_si",
      "grade": "B",
+     "name": "弘福寺",
      "at": [
       15,
       2
@@ -96,7 +194,7 @@
    "id": "ward_2_0",
    "col": 2,
    "row": 0,
-   "name": "通济坊",
+   "name": "颁政坊",
    "type": "ward",
    "gates": [
     "N",
@@ -104,17 +202,36 @@
    ],
    "stage_unlock": 0,
    "fill": "residential_high",
-   "lots": [],
-   "interiors": [],
+   "lots": [
+    {
+     "kind": "office",
+     "ref": "jingzhao_fu",
+     "grade": "C",
+     "name": "京兆府",
+     "at": [
+      15,
+      2
+     ],
+     "size": [
+      9,
+      21
+     ],
+     "gate": "W"
+    }
+   ],
+   "interiors": [
+    "jingzhao_fu"
+   ],
    "npc_config": "",
    "canals": false,
-   "trees": "locust"
+   "trees": "locust",
+   "landmark": "京兆府"
   },
   {
    "id": "ward_3_0",
    "col": 3,
    "row": 0,
-   "name": "丰安坊",
+   "name": "通济坊",
    "type": "ward",
    "gates": [
     "N",
@@ -132,7 +249,7 @@
    "id": "ward_4_0",
    "col": 4,
    "row": 0,
-   "name": "安化坊",
+   "name": "丰安坊",
    "type": "ward",
    "gates": [
     "N",
@@ -151,7 +268,7 @@
    "id": "ward_5_0",
    "col": 5,
    "row": 0,
-   "name": "崇德坊",
+   "name": "安化坊",
    "type": "ward",
    "gates": [
     "N",
@@ -170,7 +287,7 @@
    "id": "ward_6_0",
    "col": 6,
    "row": 0,
-   "name": "怀远坊",
+   "name": "崇德坊",
    "type": "ward",
    "gates": [
     "N",
@@ -188,7 +305,7 @@
    "id": "ward_7_0",
    "col": 7,
    "row": 0,
-   "name": "长兴坊",
+   "name": "怀远坊",
    "type": "ward",
    "gates": [
     "N",
@@ -219,6 +336,7 @@
      "kind": "mansion",
      "ref": "zhangsun_fu",
      "grade": "A",
+     "name": "长孙府",
      "at": [
       15,
       2
@@ -233,6 +351,7 @@
      "kind": "office",
      "ref": "lihui_yuan",
      "grade": "C",
+     "name": "礼会院",
      "at": [
       2,
       16
@@ -270,6 +389,7 @@
      "kind": "mansion",
      "ref": "wu_wangfu",
      "grade": "A",
+     "name": "吴王府",
      "at": [
       2,
       2
@@ -293,7 +413,7 @@
    "id": "ward_10_0",
    "col": 10,
    "row": 0,
-   "name": "太平坊",
+   "name": "来庭坊",
    "type": "ward",
    "gates": [
     "N",
@@ -301,17 +421,36 @@
    ],
    "stage_unlock": 0,
    "fill": "residential_high",
-   "lots": [],
-   "interiors": [],
+   "lots": [
+    {
+     "kind": "office",
+     "ref": "yushi_tai",
+     "grade": "C",
+     "name": "御史台",
+     "at": [
+      15,
+      2
+     ],
+     "size": [
+      9,
+      21
+     ],
+     "gate": "W"
+    }
+   ],
+   "interiors": [
+    "yushi_tai"
+   ],
    "npc_config": "",
    "canals": false,
-   "trees": "locust"
+   "trees": "locust",
+   "landmark": "御史台"
   },
   {
    "id": "ward_11_0",
    "col": 11,
    "row": 0,
-   "name": "永平坊",
+   "name": "长兴坊",
    "type": "ward",
    "gates": [
     "N",
@@ -329,7 +468,7 @@
    "id": "ward_0_1",
    "col": 0,
    "row": 1,
-   "name": "通轨坊",
+   "name": "太平坊",
    "type": "ward",
    "gates": [
     "N",
@@ -347,7 +486,7 @@
    "id": "ward_1_1",
    "col": 1,
    "row": 1,
-   "name": "大安坊",
+   "name": "永平坊",
    "type": "ward",
    "gates": [
     "N",
@@ -365,7 +504,7 @@
    "id": "ward_2_1",
    "col": 2,
    "row": 1,
-   "name": "义宁坊",
+   "name": "辅兴坊",
    "type": "ward",
    "gates": [
     "N",
@@ -373,17 +512,36 @@
    ],
    "stage_unlock": 0,
    "fill": "residential_high",
-   "lots": [],
-   "interiors": [],
+   "lots": [
+    {
+     "kind": "office",
+     "ref": "honglu_si",
+     "grade": "C",
+     "name": "鸿胪寺",
+     "at": [
+      15,
+      2
+     ],
+     "size": [
+      9,
+      21
+     ],
+     "gate": "W"
+    }
+   ],
+   "interiors": [
+    "honglu_si"
+   ],
    "npc_config": "",
    "canals": false,
-   "trees": "locust"
+   "trees": "locust",
+   "landmark": "鸿胪寺"
   },
   {
    "id": "ward_3_1",
    "col": 3,
    "row": 1,
-   "name": "普宁坊",
+   "name": "通轨坊",
    "type": "ward",
    "gates": [
     "N",
@@ -401,7 +559,7 @@
    "id": "ward_4_1",
    "col": 4,
    "row": 1,
-   "name": "辅兴坊",
+   "name": "大安坊",
    "type": "ward",
    "gates": [
     "N",
@@ -420,7 +578,7 @@
    "id": "ward_5_1",
    "col": 5,
    "row": 1,
-   "name": "颁政坊",
+   "name": "义宁坊",
    "type": "ward",
    "gates": [
     "N",
@@ -439,7 +597,7 @@
    "id": "ward_6_1",
    "col": 6,
    "row": 1,
-   "name": "布政坊",
+   "name": "普宁坊",
    "type": "ward",
    "gates": [
     "N",
@@ -457,7 +615,7 @@
    "id": "ward_7_1",
    "col": 7,
    "row": 1,
-   "name": "延寿坊",
+   "name": "辅兴坊",
    "type": "ward",
    "gates": [
     "N",
@@ -488,6 +646,7 @@
      "kind": "mansion",
      "ref": "changle_gongzhu_fu",
      "grade": "A",
+     "name": "长乐公主府",
      "at": [
       15,
       2
@@ -511,7 +670,7 @@
    "id": "ward_9_1",
    "col": 9,
    "row": 1,
-   "name": "光行坊",
+   "name": "颁政坊",
    "type": "ward",
    "gates": [
     "N",
@@ -529,7 +688,7 @@
    "id": "ward_10_1",
    "col": 10,
    "row": 1,
-   "name": "延祚坊",
+   "name": "光宅坊",
    "type": "ward",
    "gates": [
     "N",
@@ -537,17 +696,36 @@
    ],
    "stage_unlock": 0,
    "fill": "residential_high",
-   "lots": [],
-   "interiors": [],
+   "lots": [
+    {
+     "kind": "office",
+     "ref": "dali_si",
+     "grade": "C",
+     "name": "大理寺",
+     "at": [
+      2,
+      2
+     ],
+     "size": [
+      9,
+      21
+     ],
+     "gate": "E"
+    }
+   ],
+   "interiors": [
+    "dali_si"
+   ],
    "npc_config": "",
    "canals": false,
-   "trees": "locust"
+   "trees": "locust",
+   "landmark": "大理寺"
   },
   {
    "id": "ward_11_1",
    "col": 11,
    "row": 1,
-   "name": "丰乐坊",
+   "name": "布政坊",
    "type": "ward",
    "gates": [
     "N",
@@ -565,7 +743,7 @@
    "id": "ward_0_2",
    "col": 0,
    "row": 2,
-   "name": "安业坊",
+   "name": "延寿坊",
    "type": "ward",
    "gates": [
     "N",
@@ -583,7 +761,7 @@
    "id": "ward_1_2",
    "col": 1,
    "row": 2,
-   "name": "修道坊",
+   "name": "光行坊",
    "type": "ward",
    "gates": [
     "N",
@@ -601,7 +779,7 @@
    "id": "ward_2_2",
    "col": 2,
    "row": 2,
-   "name": "敦义坊",
+   "name": "布政坊",
    "type": "ward",
    "gates": [
     "N",
@@ -609,17 +787,36 @@
    ],
    "stage_unlock": 0,
    "fill": "residential_high",
-   "lots": [],
-   "interiors": [],
+   "lots": [
+    {
+     "kind": "office",
+     "ref": "sinong_si",
+     "grade": "C",
+     "name": "司农寺",
+     "at": [
+      2,
+      2
+     ],
+     "size": [
+      9,
+      21
+     ],
+     "gate": "E"
+    }
+   ],
+   "interiors": [
+    "sinong_si"
+   ],
    "npc_config": "",
    "canals": true,
-   "trees": "locust"
+   "trees": "locust",
+   "landmark": "司农寺"
   },
   {
    "id": "ward_3_2",
    "col": 3,
    "row": 2,
-   "name": "大通坊",
+   "name": "延祚坊",
    "type": "ward",
    "gates": [
     "N",
@@ -651,6 +848,7 @@
      "kind": "mansion",
      "ref": "fang_fu",
      "grade": "B",
+     "name": "房玄龄府",
      "at": [
       15,
       2
@@ -665,6 +863,7 @@
      "kind": "office",
      "ref": "guozijian",
      "grade": "C",
+     "name": "国子监",
      "at": [
       2,
       2
@@ -689,7 +888,7 @@
    "id": "ward_5_2",
    "col": 5,
    "row": 2,
-   "name": "昌明坊",
+   "name": "丰乐坊",
    "type": "ward",
    "gates": [
     "N",
@@ -708,7 +907,7 @@
    "id": "ward_6_2",
    "col": 6,
    "row": 2,
-   "name": "丰邑坊",
+   "name": "安业坊",
    "type": "ward",
    "gates": [
     "N",
@@ -726,7 +925,7 @@
    "id": "ward_7_2",
    "col": 7,
    "row": 2,
-   "name": "群贤坊",
+   "name": "修道坊",
    "type": "ward",
    "gates": [
     "N",
@@ -744,7 +943,7 @@
    "id": "ward_8_2",
    "col": 8,
    "row": 2,
-   "name": "怀贞坊",
+   "name": "敦义坊",
    "type": "ward",
    "gates": [
     "N",
@@ -762,7 +961,7 @@
    "id": "ward_9_2",
    "col": 9,
    "row": 2,
-   "name": "宣风坊",
+   "name": "大通坊",
    "type": "ward",
    "gates": [
     "N",
@@ -780,7 +979,7 @@
    "id": "ward_10_2",
    "col": 10,
    "row": 2,
-   "name": "昭行坊",
+   "name": "安兴坊",
    "type": "ward",
    "gates": [
     "N",
@@ -788,17 +987,36 @@
    ],
    "stage_unlock": 0,
    "fill": "residential_high",
-   "lots": [],
-   "interiors": [],
+   "lots": [
+    {
+     "kind": "office",
+     "ref": "libu_yuan",
+     "grade": "C",
+     "name": "礼部院",
+     "at": [
+      2,
+      2
+     ],
+     "size": [
+      9,
+      21
+     ],
+     "gate": "E"
+    }
+   ],
+   "interiors": [
+    "libu_yuan"
+   ],
    "npc_config": "",
    "canals": true,
-   "trees": "locust"
+   "trees": "locust",
+   "landmark": "礼部院"
   },
   {
    "id": "ward_11_2",
    "col": 11,
    "row": 2,
-   "name": "永兴坊",
+   "name": "昌明坊",
    "type": "ward",
    "gates": [
     "N",
@@ -816,7 +1034,7 @@
    "id": "ward_0_3",
    "col": 0,
    "row": 3,
-   "name": "永昌坊",
+   "name": "丰邑坊",
    "type": "ward",
    "gates": [
     "N",
@@ -834,7 +1052,7 @@
    "id": "ward_1_3",
    "col": 1,
    "row": 3,
-   "name": "翊善坊",
+   "name": "群贤坊",
    "type": "ward",
    "gates": [
     "N",
@@ -852,7 +1070,7 @@
    "id": "ward_2_3",
    "col": 2,
    "row": 3,
-   "name": "光宅坊",
+   "name": "怀贞坊",
    "type": "ward",
    "gates": [
     "N",
@@ -883,6 +1101,7 @@
      "kind": "mansion",
      "ref": "huaihua_junwang_fu",
      "grade": "B",
+     "name": "怀化郡王府",
      "at": [
       15,
       2
@@ -920,6 +1139,7 @@
      "kind": "mansion",
      "ref": "wei_wangfu",
      "grade": "A",
+     "name": "魏王府",
      "at": [
       15,
       2
@@ -943,7 +1163,7 @@
    "id": "ward_5_3",
    "col": 5,
    "row": 3,
-   "name": "来庭坊",
+   "name": "宣风坊",
    "type": "ward",
    "gates": [
     "N",
@@ -962,7 +1182,7 @@
    "id": "ward_6_3",
    "col": 6,
    "row": 3,
-   "name": "安兴坊",
+   "name": "昭行坊",
    "type": "ward",
    "gates": [
     "N",
@@ -980,7 +1200,7 @@
    "id": "ward_7_3",
    "col": 7,
    "row": 3,
-   "name": "长乐坊",
+   "name": "永兴坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1011,6 +1231,7 @@
      "kind": "venue",
      "ref": "tianxiang_ge",
      "grade": "A",
+     "name": "天香阁",
      "at": [
       15,
       2
@@ -1025,6 +1246,7 @@
      "kind": "house",
      "ref": "pingkang_zhai_1",
      "grade": "C",
+     "name": "平康小宅一",
      "at": [
       2,
       16
@@ -1039,6 +1261,7 @@
      "kind": "house",
      "ref": "pingkang_zhai_2",
      "grade": "C",
+     "name": "平康小宅二",
      "at": [
       2,
       2
@@ -1077,6 +1300,7 @@
      "kind": "mansion",
      "ref": "gongchen_fu_1",
      "grade": "B",
+     "name": "功臣府一",
      "at": [
       15,
       2
@@ -1091,6 +1315,7 @@
      "kind": "mansion",
      "ref": "gongchen_fu_2",
      "grade": "B",
+     "name": "功臣府二",
      "at": [
       2,
       2
@@ -1105,6 +1330,7 @@
      "kind": "mansion",
      "ref": "gongchen_fu_3",
      "grade": "C",
+     "name": "功臣府三",
      "at": [
       15,
       16
@@ -1130,7 +1356,7 @@
    "id": "ward_10_3",
    "col": 10,
    "row": 3,
-   "name": "大宁坊",
+   "name": "永昌坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1148,7 +1374,7 @@
    "id": "ward_11_3",
    "col": 11,
    "row": 3,
-   "name": "兴宁坊",
+   "name": "翊善坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1166,7 +1392,7 @@
    "id": "ward_0_4",
    "col": 0,
    "row": 4,
-   "name": "新昌坊",
+   "name": "光宅坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1184,7 +1410,7 @@
    "id": "ward_1_4",
    "col": 1,
    "row": 4,
-   "name": "升道坊",
+   "name": "来庭坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1202,7 +1428,7 @@
    "id": "ward_2_4",
    "col": 2,
    "row": 4,
-   "name": "广德坊",
+   "name": "安兴坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1233,6 +1459,7 @@
      "kind": "mansion",
      "ref": "fanyang_lu_fu",
      "grade": "B",
+     "name": "范阳卢府",
      "at": [
       15,
       2
@@ -1256,7 +1483,7 @@
    "id": "ward_4_4",
    "col": 4,
    "row": 4,
-   "name": "立政坊",
+   "name": "长乐坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1275,7 +1502,7 @@
    "id": "ward_5_4",
    "col": 5,
    "row": 4,
-   "name": "敦化坊",
+   "name": "大宁坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1307,6 +1534,7 @@
      "kind": "mansion",
      "ref": "boling_cui_fu",
      "grade": "B",
+     "name": "博陵崔府",
      "at": [
       15,
       2
@@ -1330,7 +1558,7 @@
    "id": "ward_7_4",
    "col": 7,
    "row": 4,
-   "name": "青龙坊",
+   "name": "兴宁坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1348,7 +1576,7 @@
    "id": "ward_8_4",
    "col": 8,
    "row": 4,
-   "name": "曲江坊",
+   "name": "新昌坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1366,7 +1594,7 @@
    "id": "ward_9_4",
    "col": 9,
    "row": 4,
-   "name": "通善坊",
+   "name": "升道坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1384,7 +1612,7 @@
    "id": "ward_10_4",
    "col": 10,
    "row": 4,
-   "name": "通济北坊",
+   "name": "广德坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1402,7 +1630,7 @@
    "id": "ward_11_4",
    "col": 11,
    "row": 4,
-   "name": "乐游原坊",
+   "name": "立政坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1420,7 +1648,7 @@
    "id": "ward_0_5",
    "col": 0,
    "row": 5,
-   "name": "升平坊",
+   "name": "敦化坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1438,7 +1666,7 @@
    "id": "ward_1_5",
    "col": 1,
    "row": 5,
-   "name": "修政坊",
+   "name": "青龙坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1469,6 +1697,7 @@
      "kind": "mansion",
      "ref": "lanling_xiao_fu",
      "grade": "B",
+     "name": "兰陵萧府",
      "at": [
       15,
       2
@@ -1492,7 +1721,7 @@
    "id": "ward_3_5",
    "col": 3,
    "row": 5,
-   "name": "保宁坊",
+   "name": "曲江坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1510,7 +1739,7 @@
    "id": "ward_4_5",
    "col": 4,
    "row": 5,
-   "name": "安义东坊",
+   "name": "通善坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1529,7 +1758,7 @@
    "id": "ward_5_5",
    "col": 5,
    "row": 5,
-   "name": "兰陵坊",
+   "name": "通济北坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1548,7 +1777,7 @@
    "id": "ward_6_5",
    "col": 6,
    "row": 5,
-   "name": "开化坊",
+   "name": "乐游原坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1566,7 +1795,7 @@
    "id": "ward_7_5",
    "col": 7,
    "row": 5,
-   "name": "光福坊",
+   "name": "升平坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1584,7 +1813,7 @@
    "id": "ward_8_5",
    "col": 8,
    "row": 5,
-   "name": "安宁坊",
+   "name": "修政坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1602,7 +1831,7 @@
    "id": "ward_9_5",
    "col": 9,
    "row": 5,
-   "name": "道德坊",
+   "name": "保宁坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1620,7 +1849,7 @@
    "id": "ward_10_5",
    "col": 10,
    "row": 5,
-   "name": "敦厚坊",
+   "name": "安义东坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1638,7 +1867,7 @@
    "id": "ward_11_5",
    "col": 11,
    "row": 5,
-   "name": "惠和坊",
+   "name": "兰陵坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1656,7 +1885,7 @@
    "id": "ward_0_6",
    "col": 0,
    "row": 6,
-   "name": "永崇坊",
+   "name": "开化坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1674,7 +1903,7 @@
    "id": "ward_1_6",
    "col": 1,
    "row": 6,
-   "name": "兴化坊",
+   "name": "光福坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1692,7 +1921,7 @@
    "id": "ward_2_6",
    "col": 2,
    "row": 6,
-   "name": "昭国坊",
+   "name": "安宁坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1723,6 +1952,7 @@
      "kind": "mansion",
      "ref": "qinghe_cui_fu",
      "grade": "B",
+     "name": "清河崔府",
      "at": [
       15,
       2
@@ -1746,7 +1976,7 @@
    "id": "ward_4_6",
    "col": 4,
    "row": 6,
-   "name": "新宁坊",
+   "name": "道德坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1765,7 +1995,7 @@
    "id": "ward_5_6",
    "col": 5,
    "row": 6,
-   "name": "化度坊",
+   "name": "敦厚坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1784,7 +2014,7 @@
    "id": "ward_6_6",
    "col": 6,
    "row": 6,
-   "name": "丰泉坊",
+   "name": "惠和坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1802,7 +2032,7 @@
    "id": "ward_7_6",
    "col": 7,
    "row": 6,
-   "name": "福祥坊",
+   "name": "永崇坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1820,7 +2050,7 @@
    "id": "ward_8_6",
    "col": 8,
    "row": 6,
-   "name": "嘉会坊",
+   "name": "兴化坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1838,7 +2068,7 @@
    "id": "ward_9_6",
    "col": 9,
    "row": 6,
-   "name": "永达坊",
+   "name": "昭国坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1856,7 +2086,7 @@
    "id": "ward_10_6",
    "col": 10,
    "row": 6,
-   "name": "延福坊",
+   "name": "新宁坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1874,7 +2104,7 @@
    "id": "ward_11_6",
    "col": 11,
    "row": 6,
-   "name": "宗仁坊",
+   "name": "化度坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1892,7 +2122,7 @@
    "id": "ward_0_7",
    "col": 0,
    "row": 7,
-   "name": "保义坊",
+   "name": "丰泉坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1910,7 +2140,7 @@
    "id": "ward_1_7",
    "col": 1,
    "row": 7,
-   "name": "宣平坊",
+   "name": "福祥坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1928,7 +2158,7 @@
    "id": "ward_2_7",
    "col": 2,
    "row": 7,
-   "name": "丰宜坊",
+   "name": "嘉会坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1946,7 +2176,7 @@
    "id": "ward_3_7",
    "col": 3,
    "row": 7,
-   "name": "安昌坊",
+   "name": "永达坊",
    "type": "ward",
    "gates": [
     "N",
@@ -1978,6 +2208,7 @@
      "kind": "temple",
      "ref": "daxingshan_si",
      "grade": "A",
+     "name": "大兴善寺",
      "at": [
       2,
       2
@@ -2001,7 +2232,7 @@
    "id": "ward_5_7",
    "col": 5,
    "row": 7,
-   "name": "昌明东坊",
+   "name": "延福坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2020,7 +2251,7 @@
    "id": "ward_6_7",
    "col": 6,
    "row": 7,
-   "name": "归义坊",
+   "name": "宗仁坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2038,7 +2269,7 @@
    "id": "ward_7_7",
    "col": 7,
    "row": 7,
-   "name": "通闰坊",
+   "name": "保义坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2056,7 +2287,7 @@
    "id": "ward_8_7",
    "col": 8,
    "row": 7,
-   "name": "常乐坊",
+   "name": "宣平坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2074,7 +2305,7 @@
    "id": "ward_9_7",
    "col": 9,
    "row": 7,
-   "name": "崇业坊",
+   "name": "丰宜坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2092,7 +2323,7 @@
    "id": "ward_10_7",
    "col": 10,
    "row": 7,
-   "name": "恭安坊",
+   "name": "安昌坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2110,7 +2341,7 @@
    "id": "ward_11_7",
    "col": 11,
    "row": 7,
-   "name": "兴宁西坊",
+   "name": "昌明东坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2128,7 +2359,7 @@
    "id": "ward_0_8",
    "col": 0,
    "row": 8,
-   "name": "资敬坊",
+   "name": "归义坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2146,7 +2377,7 @@
    "id": "ward_1_8",
    "col": 1,
    "row": 8,
-   "name": "长庆坊",
+   "name": "通闰坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2164,7 +2395,7 @@
    "id": "ward_2_8",
    "col": 2,
    "row": 8,
-   "name": "履信坊",
+   "name": "常乐坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2182,7 +2413,7 @@
    "id": "ward_3_8",
    "col": 3,
    "row": 8,
-   "name": "永丰坊",
+   "name": "崇业坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2214,6 +2445,7 @@
      "kind": "mansion",
      "ref": "jin_wangfu",
      "grade": "A",
+     "name": "晋王府",
      "at": [
       15,
       2
@@ -2237,7 +2469,7 @@
    "id": "ward_5_8",
    "col": 5,
    "row": 8,
-   "name": "安平坊",
+   "name": "恭安坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2256,7 +2488,7 @@
    "id": "ward_6_8",
    "col": 6,
    "row": 8,
-   "name": "敦化北坊",
+   "name": "兴宁西坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2274,7 +2506,7 @@
    "id": "ward_7_8",
    "col": 7,
    "row": 8,
-   "name": "别坊89",
+   "name": "资敬坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2292,7 +2524,7 @@
    "id": "ward_8_8",
    "col": 8,
    "row": 8,
-   "name": "别坊90",
+   "name": "长庆坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2310,7 +2542,7 @@
    "id": "ward_9_8",
    "col": 9,
    "row": 8,
-   "name": "别坊91",
+   "name": "履信坊",
    "type": "ward",
    "gates": [
     "N",
@@ -2341,6 +2573,7 @@
      "kind": "temple",
      "ref": "daciensi",
      "grade": "A",
+     "name": "大慈恩寺",
      "at": [
       2,
       2
@@ -2364,7 +2597,7 @@
    "id": "ward_11_8",
    "col": 11,
    "row": 8,
-   "name": "别坊92",
+   "name": "永丰坊",
    "type": "ward",
    "gates": [
     "N",

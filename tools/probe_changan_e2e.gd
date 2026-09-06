@@ -135,6 +135,36 @@ func _ready() -> void:
 		var back_ok: bool = dx_back <= 24.0 and dy_back <= 24.0
 		_check(back_ok, "内景返回门面前原位（±1.5格）")
 		await _shot("changan_m4_back_city.png")
+	# 3.9) M5 批量内景：魏王府（mansion 模板族生成路径）往返
+	var wcell: Vector2i = ch.interior_portals["wei_wangfu"]
+	_tp(p, cv.CITY_OFFSET + ch.cell_to_px(wcell))
+	var t_in2 := Time.get_ticks_msec()
+	while cv.interior == null and Time.get_ticks_msec() - t_in2 < 8000:
+		if DialogManager.is_dialog_open():
+			DialogManager.close_dialog()
+		await get_tree().process_frame
+	_check(cv.interior != null and cv.interior.interior_id == "wei_wangfu", "进内景·魏王府（批量模板）")
+	if cv.interior != null:
+		var it2 = cv.interior
+		var exit2_px: Vector2 = cv.INTERIOR_OFFSET + it2.cell_to_px(it2.exit_cell)   # 先存（退出后实例已释放）
+		var t_r2 := Time.get_ticks_msec()
+		while cv._busy and Time.get_ticks_msec() - t_r2 < 3000:
+			await get_tree().process_frame
+		_tp(p, cv.INTERIOR_OFFSET + it2.cell_to_px(it2.spawn_cell + Vector2i(0, -3)))   # 前院内站位（避开出口垫）
+		await _settle(8)
+		_check(_in_city_space(p, cv), "魏王府前院内可站立")
+		await _shot("changan_m5_wei_wangfu.png")
+		_tp(p, exit2_px)
+		var t_out2 := Time.get_ticks_msec()
+		while cv.interior != null and Time.get_ticks_msec() - t_out2 < 8000:
+			await get_tree().process_frame
+		var t_b2 := Time.get_ticks_msec()
+		while (cv._busy or cv.interior != null) and Time.get_ticks_msec() - t_b2 < 5000:
+			await get_tree().process_frame
+		_check(cv.interior == null, "魏王府踩出口垫返回")
+		var dx2: float = absf(p.global_position.x - (cv.CITY_OFFSET.x + ch.cell_to_px(wcell).x))
+		var dy2: float = absf(p.global_position.y - (cv.CITY_OFFSET.y + ch.cell_to_px(wcell).y))
+		_check(dx2 <= 24.0 and dy2 <= 24.0, "魏王府返回门面前原位")
 	# 4) 走到春明门豁口（城内侧坐标）→ 出城
 	var egap_in: Vector2i = ch.gate_info["E"]["gap_cells"][1]
 	p.global_position = cv.CITY_OFFSET + ch.cell_to_px(egap_in)

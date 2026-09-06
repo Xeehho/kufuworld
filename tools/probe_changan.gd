@@ -165,27 +165,57 @@ func _ready() -> void:
 	for ref in ["tianxiang_ge", "huguguang", "taiji_dian"]:
 		if not changan.interior_portals.has(ref):
 			m4_fails.append("内景传送门%s未注册" % ref)
-	# 三标杆内景：构建成功+底面无草洞+BFS全通+出生点3×3可通行
+	# M5 全量内景：每个传送门 ref 元数据齐备+构建成功+底面无草洞+BFS全通+出生点3×3可通行
 	var InteriorScript = load("res://scripts/changan_interior.gd")
-	for ref in ["huguguang", "tianxiang_ge", "taiji_dian"]:
+	var built_cnt := 0
+	var built_ids := {}
+	changan.unlock_stage(2)   # 全解锁后传送门注册齐（stage1/2 坊 lots 在 unlock 时补挂）
+	for ref in changan.interior_portals:
+		if String(ref).begins_with("area:"):
+			continue
+		var meta: Dictionary = changan.get_interior_meta(String(ref))
+		var is_benchmark: bool = InteriorScript.TEMPLATES.has(String(ref))
+		if meta.is_empty() and not is_benchmark:
+			m4_fails.append("内景%s元数据缺失" % ref)
+			continue
 		var node := Node2D.new()
 		node.set_script(InteriorScript)
-		if not node.build(ref):
+		if not node.build(String(ref), meta):
 			m4_fails.append("内景%s构建失败" % ref)
-		else:
-			var hole := false
-			for y in range(node.H):
-				for x in range(node.W):
-					if int(node.ground[y * node.W + x]) == 0:
-						hole = true
-						break
-			if hole:
-				m4_fails.append("内景%s地面有草洞（底未满铺）" % ref)
-			if node.bfs_failures.size() != 0:
-				m4_fails.append("内景%s BFS未达=%s" % [ref, node.bfs_failures])
-			if not node.is_spawn_clear(node.spawn_cell):
-				m4_fails.append("内景%s出生点3×3受阻" % ref)
+			continue
+		built_cnt += 1
+		built_ids[String(ref)] = true
+		var hole := false
+		for y in range(node.H):
+			for x in range(node.W):
+				if int(node.ground[y * node.W + x]) == 0:
+					hole = true
+					break
+		if hole:
+			m4_fails.append("内景%s地面有草洞（底未满铺）" % ref)
+		if node.bfs_failures.size() != 0:
+			m4_fails.append("内景%s BFS未达=%s" % [ref, node.bfs_failures])
+		if not node.is_spawn_clear(node.spawn_cell):
+			m4_fails.append("内景%s出生点3×3受阻" % ref)
 		node.free()
+	# unlock 后补挂的 stage1/2 lot 内景也要构建通过
+	var late_cnt := 0
+	for ref in changan.interior_portals:
+		var rid := String(ref)
+		if rid.begins_with("area:") or built_ids.has(rid):
+			continue
+		var meta2: Dictionary = changan.get_interior_meta(rid)
+		if meta2.is_empty():
+			continue
+		var node2 := Node2D.new()
+		node2.set_script(InteriorScript)
+		if node2.build(rid, meta2):
+			late_cnt += 1
+		node2.free()
+	built_cnt += late_cnt
+	if built_cnt < 40:
+		m4_fails.append("批量内景构建数=%d(<36)" % built_cnt)
+	print("[probe][M5] 内景构建=%d 传送门=%d" % [built_cnt, changan.interior_portals.size()])
 	if not m4_fails.is_empty():
 		fails.append_array(m4_fails)
 	if not m1_fails.is_empty():

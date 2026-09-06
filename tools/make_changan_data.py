@@ -12,8 +12,25 @@ GRID = {
     "cols": 12, "rows": 9, "block": [26, 26],
     "street": {"zhunque": 9, "main": 5, "ring": 4},
     "wall": 1, "margin": 10,                      # 外郭城墙厚1；城外荒地带10
-    "palace_zone": {"cols": [4, 7], "rows": [0, 1]},
-    "markets": [{"col": 3, "row": 2, "name": "西市"}, {"col": 8, "row": 2, "name": "东市"}],
+    "palace_zone": {"cols": [4, 7], "rows": [0, 1], "interiors": [
+        {"ref": "liangyi_dian", "name": "两仪殿", "gate": "E"},
+        {"ref": "donggong", "name": "东宫", "gate": "W"},
+    ]},
+    "markets": [
+        {"col": 3, "row": 2, "name": "西市", "shops": [
+            {"ref": "sizhuang_w", "name": "西市绸缎庄", "skin": "silk", "at": [3, 17]},
+            {"ref": "yaoshi_w", "name": "西市药铺", "skin": "herb", "at": [3, 10]},
+            {"ref": "shushi_w", "name": "西市书肆", "skin": "book", "at": [14, 10]},
+            {"ref": "huguguang", "name": "琥珀光", "skin": "wine", "at": [14, 17]},
+            {"ref": "dangpu_w", "name": "西市当铺", "skin": "pawn", "at": [3, 3]},
+        ]},
+        {"col": 8, "row": 2, "name": "东市", "shops": [
+            {"ref": "sizhuang_e", "name": "东市绸缎庄", "skin": "silk", "at": [3, 17]},
+            {"ref": "yaoshi_e", "name": "东市药铺", "skin": "herb", "at": [3, 10]},
+            {"ref": "shushi_e", "name": "东市书肆", "skin": "book", "at": [14, 17]},
+            {"ref": "jiushi_e", "name": "东市酒肆", "skin": "wine", "at": [14, 10]},
+        ]},
+    ],
 }
 
 # 剧情坊（14+2）：史实方位近似，M2 对照 docs/参考图-长安城/01 古今叠合图校正
@@ -35,6 +52,13 @@ STORY_WARDS = {
     (4, 8): ("安义坊", "晋王府"),
     (10, 8): ("晋昌坊", "大慈恩寺"),      # 极盛期
     (0, 0): ("修德坊", "弘福寺"),
+    # M5 官署坊（皇城外围）
+    (2, 0): ("颁政坊", "京兆府"),
+    (2, 1): ("辅兴坊", "鸿胪寺"),
+    (10, 1): ("光宅坊", "大理寺"),
+    (10, 2): ("安兴坊", "礼部院"),
+    (10, 0): ("来庭坊", "御史台"),
+    (2, 2): ("布政坊", "司农寺"),
 }
 
 # ---- M2 剧情坊 lots（§4.1 Schema：kind/ref/grade + 象限→at/size/gate 换算）----
@@ -46,30 +70,36 @@ QUAD_BOX = {
 }
 # grade→宅门瓦片：A=75 朱门金钉(亲王/公主/国寺) B=76 朱门铜钉(国公/郡王/士族) C=77 黑漆门(官署/曲坊)
 STORY_LOTS = {
-    "崇仁坊": [("mansion", "zhangsun_fu", "A", "NE"), ("office", "lihui_yuan", "C", "SW")],
-    "胜业坊": [("mansion", "wu_wangfu", "A", "NW")],
-    "宣阳坊": [("mansion", "changle_gongzhu_fu", "A", "NE")],
-    "务本坊": [("mansion", "fang_fu", "B", "NE"), ("office", "guozijian", "C", "NW")],
-    "延康坊": [("mansion", "wei_wangfu", "A", "NE")],
-    "平康坊": [("venue", "tianxiang_ge", "A", "NE"), ("house", "pingkang_zhai_1", "C", "SW"), ("house", "pingkang_zhai_2", "C", "NW")],
-    "亲仁坊": [("mansion", "gongchen_fu_1", "B", "NE"), ("mansion", "gongchen_fu_2", "B", "NW"), ("mansion", "gongchen_fu_3", "C", "SE")],
-    "长寿坊": [("mansion", "huaihua_junwang_fu", "B", "NE")],
-    "宣义坊": [("mansion", "fanyang_lu_fu", "B", "NE")],
-    "昌乐坊": [("mansion", "boling_cui_fu", "B", "NE")],
-    "崇贤坊": [("mansion", "lanling_xiao_fu", "B", "NE")],
-    "崇义坊": [("mansion", "qinghe_cui_fu", "B", "NE")],
-    "靖善坊": [("temple", "daxingshan_si", "A", "W")],
-    "安义坊": [("mansion", "jin_wangfu", "A", "NE")],
-    "晋昌坊": [("temple", "daciensi", "A", "W")],
-    "修德坊": [("temple", "hongfu_si", "B", "NE")],
+    "崇仁坊": [("mansion", "zhangsun_fu", "A", "NE", "长孙府"), ("office", "lihui_yuan", "C", "SW", "礼会院")],
+    "胜业坊": [("mansion", "wu_wangfu", "A", "NW", "吴王府")],
+    "宣阳坊": [("mansion", "changle_gongzhu_fu", "A", "NE", "长乐公主府")],
+    "务本坊": [("mansion", "fang_fu", "B", "NE", "房玄龄府"), ("office", "guozijian", "C", "NW", "国子监")],
+    "延康坊": [("mansion", "wei_wangfu", "A", "NE", "魏王府")],
+    "平康坊": [("venue", "tianxiang_ge", "A", "NE", "天香阁"), ("house", "pingkang_zhai_1", "C", "SW", "平康小宅一"), ("house", "pingkang_zhai_2", "C", "NW", "平康小宅二")],
+    "亲仁坊": [("mansion", "gongchen_fu_1", "B", "NE", "功臣府一"), ("mansion", "gongchen_fu_2", "B", "NW", "功臣府二"), ("mansion", "gongchen_fu_3", "C", "SE", "功臣府三")],
+    "长寿坊": [("mansion", "huaihua_junwang_fu", "B", "NE", "怀化郡王府")],
+    "宣义坊": [("mansion", "fanyang_lu_fu", "B", "NE", "范阳卢府")],
+    "昌乐坊": [("mansion", "boling_cui_fu", "B", "NE", "博陵崔府")],
+    "崇贤坊": [("mansion", "lanling_xiao_fu", "B", "NE", "兰陵萧府")],
+    "崇义坊": [("mansion", "qinghe_cui_fu", "B", "NE", "清河崔府")],
+    "靖善坊": [("temple", "daxingshan_si", "A", "W", "大兴善寺")],
+    "安义坊": [("mansion", "jin_wangfu", "A", "NE", "晋王府")],
+    "晋昌坊": [("temple", "daciensi", "A", "W", "大慈恩寺")],
+    "修德坊": [("temple", "hongfu_si", "B", "NE", "弘福寺")],
+    # M5 官署四座（§8.1 衙署：堂+廊二段式，C档黑漆门，皇城外围史实近似）
+    "颁政坊": [("office", "jingzhao_fu", "C", "E", "京兆府")],
+    "辅兴坊": [("office", "honglu_si", "C", "E", "鸿胪寺")],
+    "光宅坊": [("office", "dali_si", "C", "W", "大理寺")],
+    "安兴坊": [("office", "libu_yuan", "C", "W", "礼部院")],
+    "来庭坊": [("office", "yushi_tai", "C", "E", "御史台")],
+    "布政坊": [("office", "sinong_si", "C", "W", "司农寺")],
 }
-
 
 def build_lots(ward_name: str):
     lots, interiors = [], []
-    for kind, ref, grade, q in STORY_LOTS.get(ward_name, []):
+    for kind, ref, grade, q, disp in STORY_LOTS.get(ward_name, []):
         at, size, gate = QUAD_BOX[q]
-        lots.append({"kind": kind, "ref": ref, "grade": grade,
+        lots.append({"kind": kind, "ref": ref, "grade": grade, "name": disp,
                      "at": at, "size": size, "gate": gate})
         interiors.append(ref)   # M4 传送门登记：门面 ref 与 interiors 一致（M2 验收断言）
     return lots, interiors

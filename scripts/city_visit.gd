@@ -24,7 +24,7 @@ var player: CharacterBody2D = null
 var changan: Node2D = null               # 城内场景实例（null=不在城内）
 var interior: Node2D = null              # M4 当前内景实例（null=不在内景）
 var interior_return_cell := Vector2i.ZERO   # 进内景前的城内格坐标（返回原位）
-var _portal_unlock_ms := 0               # 出内景后短暂忽略门面触发（防落点重进死循环）
+var _portal_unlock_ms := 0               # 出内景后短暂忽略触发（仅限原触发格，离开即解锁）
 var in_city := false
 var footprint_origin := Vector2i.ZERO
 var gate_cells := {}                     # side -> {gap: Vector2i, outside: Vector2i}（footprint 格坐标）
@@ -241,7 +241,11 @@ func enter_interior(ref: String) -> void:
 	if _busy or interior != null or changan == null:
 		return
 	if Time.get_ticks_msec() < _portal_unlock_ms:
-		return   # 刚出内景落在门前景格，忽略重触发
+		# 刚出内景落在门前景格，忽略重触发；玩家离开该格即解锁（不误伤其它传送门/瞬移）
+		var pcell_now := Vector2i(int((player.global_position.x - CITY_OFFSET.x) / 16), int((player.global_position.y - CITY_OFFSET.y) / 16))
+		if pcell_now == interior_return_cell:
+			return
+		_portal_unlock_ms = 0
 	if DialogManager.is_dialog_open():
 		return
 	_busy = true
@@ -249,7 +253,8 @@ func enter_interior(ref: String) -> void:
 	interior_return_cell = Vector2i(int((player.global_position.x - CITY_OFFSET.x) / 16), int((player.global_position.y - CITY_OFFSET.y) / 16))
 	var node := Node2D.new()
 	node.set_script(INTERIOR_SCRIPT)
-	if not node.build(ref):
+	var meta: Dictionary = changan.get_interior_meta(ref)   # M5：门面元数据决定内景模板族
+	if not node.build(ref, meta):
 		node.free()
 		_busy = false
 		return
