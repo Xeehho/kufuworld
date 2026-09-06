@@ -25,10 +25,22 @@ JC = "jingcheng/tile-B-01.png"
 JC3 = "jingcheng/tile-B-03.png"
 JC2 = "jingcheng/tile-B-02.png"
 JC6 = "jingcheng/tile-B-06.png"
+JC7 = "jingcheng/tile-B-07.png"
+JC4 = "jingcheng/tile-B-04.png"
+JC5 = "jingcheng/tile-B-05.png"
 JN = "jiangnan/tile-B-04.png"
 JN5 = "jiangnan/tile-B-05.png"
 JN2 = "jiangnan/tile-B-02.png"
 WA5 = "jingcheng/Auto-tile-A4-walls-5.png"
+# ---- 内景换皮（2026-09-06）：wuxia_interior_dlc 内景包 + wuxia/wuxia_dlc 补充（同捆同源）----
+WI1 = "wuxia_interior_dlc/tile-B-01.png"   # 挂轴/官帽椅/文案桌/条案/雕花屏/架子床
+WI2 = "wuxia_interior_dlc/tile-B-02.png"   # 灶台/蒸笼/酒坛/厨柜/火盆/灯
+WI4 = "wuxia_interior_dlc/tile-B-04.png"   # 墙画/红龙柜/药罐架/兵器架
+WI5 = "wuxia_interior_dlc/tile-B-05.png"   # 内景墙板/金柱/灯笼/方砖地/书柜墙
+WIA5 = "wuxia_interior_dlc/Auto-tile-A4-walls-5.png"  # 木板墙（内墙 83 源）
+WD1 = "wuxia_dlc/tile-B-01.png"            # 柜台/仪仗幡
+WD3 = "wuxia_dlc/tile-B-03.png"            # 折屏/妆台/酒架/药柜/书架/衣柜
+WX3 = "wuxia/tile-B-03.png"                # 丹陛/横卷轴/蒲团垫/兵器架
 
 # ---- prop 清单：大件（Sprite2D 用，自动修边）----
 PROPS = [
@@ -137,6 +149,106 @@ PROPS = [
     ("lantern_stone_s",  JN5, (384, 288, 432, 336)),  # 石灯·小
     ("bonsai_b",         JN5, (432, 288, 480, 336)),  # 盆景·乙
     ("stall_awn_bluew",  JN5, (480, 480, 576, 576)),  # 大棚摊·蓝白条
+    # ---- 内景换皮（2026-09-06）：家具陈设族（坐标=measure_windows.py 连通分量实测）----
+    # 挂轴墙画/屏风（WI1 屏画族 + WI4 墙画 + WD3 折屏 + WX3 横卷）
+    ("scroll_pair_a",    WI1, (580, 386, 668, 478)),  # 挂画对·花鸟（中堂）
+    ("scroll_pair_b",    WI1, (676, 386, 764, 478)),  # 挂画对·山水（中堂）
+    ("scroll_h_a",       WX3, (0, 672, 128, 768)),    # 横卷轴·书法
+    ("scroll_h_long",    WX3, (128, 672, 256, 768)),  # 横卷轴·长卷
+    ("mural_scholar",    WI4, (192, 0, 288, 96)),     # 墙画·文士
+    ("mural_elder",      WI4, (288, 0, 384, 96)),     # 墙画·长者
+    ("mural_landscape",  WI4, (0, 192, 96, 288)),     # 墙画·山水
+    ("mural_landscape_b", WI4, (96, 192, 192, 288)),  # 墙画·山水乙
+    ("screen_carved_a",  WI1, (0, 288, 96, 384)),     # 雕花屏·龙纹
+    ("screen_carved_b",  WI1, (96, 288, 192, 384)),   # 雕花屏·云纹
+    ("screen_fold_land", WD3, (289, 392, 479, 479)),  # 折屏·山水四扇
+    ("screen_fold_plum", WD3, (2, 488, 287, 575)),    # 折屏·花鸟宽扇
+    # 桌案椅凳
+    ("table_square",     JC7, (15, 17, 81, 96)),      # 方桌·原木
+    ("table_square_red", JC7, (111, 17, 177, 96)),    # 方桌·朱漆
+    ("tea_table_set",    WI1, (387, 192, 480, 288)),  # 茶桌连凳（带茶具）
+    ("tea_table_a",      JC4, (98, 405, 190, 480)),   # 茶几·壶盏
+    ("tea_table_b",      JC4, (195, 486, 285, 576)),  # 茶几·提壶
+    ("altar_table",      WI1, (438, 396, 528, 480)),  # 条案·盆景烛台（供案/中堂）
+    ("altar_table_b",    WI1, (480, 396, 570, 480)),  # 条案·乙
+    ("sideboard",        JC7, (481, 192, 574, 288)),  # 抽屉条案
+    ("chair_arm_a",      WI1, (384, 0, 432, 96)),     # 官帽椅·甲
+    ("chair_arm_b",      WI1, (384, 96, 432, 192)),   # 官帽椅·乙
+    ("stool_round_a",    JC4, (204, 597, 228, 624)),  # 圆凳·甲（单只，597~624；644~672 是第二只曾误连切）
+    ("stool_round_b",    JC4, (252, 594, 276, 621)),  # 圆凳·乙（单只）
+    ("desk_ink",         WI1, (480, 99, 576, 192)),   # 文案桌·文房
+    ("desk_scroll",      WI1, (480, 290, 576, 384)),  # 文案桌·卷轴
+    ("desk_open",        WI1, (576, 306, 672, 384)),  # 文案桌·摊卷
+    ("stand_vase",       WI1, (681, 6, 711, 96)),      # 花几·瓶（wi1_scroll5 实测内容）
+    ("stand_plant",      WI1, (726, 2, 763, 96)),      # 花几·盆景（wi1_scroll6 实测内容）
+    ("dresser",          WD3, (194, 386, 286, 479)),  # 妆台·圆镜
+    # 柜架
+    ("cabinet_lattice",  JC7, (482, 0, 574, 96)),     # 顶箱柜·格扇
+    ("cabinet_arch",     JC7, (578, 0, 670, 96)),     # 翘头柜·龛
+    ("cabinet_tall",     JC7, (482, 96, 574, 192)),   # 高柜·抽屉
+    ("cabinet_pair",     JC7, (488, 386, 570, 480)),  # 双门矮柜
+    ("cabinet_red",      WI4, (390, 1, 474, 96)),     # 朱漆柜·素面
+    ("cabinet_red_b",    WI4, (485, 0, 571, 96)),     # 朱漆柜·龙纹（御座背柜）
+    ("shelf_curio",      JC7, (674, 0, 766, 96)),     # 多宝阁
+    ("bookshelf_cab",    JC7, (385, 192, 479, 288)),  # 书柜·门扇
+    ("bookshelf_books",  WD3, (295, 194, 377, 287)),  # 书架·卷册
+    ("bookshelf_wall",   WI5, (288, 96, 384, 192)),   # 书柜墙（靠墙 96px）
+    ("wall_screen_panel", WI5, (96, 96, 192, 192)),   # 花窗墙板（靠墙 96px）
+    ("wardrobe",         WD3, (10, 194, 86, 287)),    # 衣柜
+    ("counter_long",     JC7, (0, 431, 96, 480)),     # 长柜台·甲
+    ("counter_long_b",   JC7, (96, 431, 192, 480)),   # 长柜台·乙
+    ("counter_kitchen",  WI2, (481, 434, 575, 528)),  # 厨柜·碗碟
+    ("counter_herb",     WD1, (480, 192, 576, 287)),  # 医馆柜台·药柜连体
+    ("counter_doc",      WD1, (288, 288, 384, 384)),  # 柜台·文书
+    # 店铺五皮肤专项
+    ("shelf_cloth",      JC4, (0, 0, 95, 96)),        # 布架·彩帛
+    ("shelf_cloth_b",    JC4, (97, 0, 191, 96)),       # 布架·悬帛
+    ("shelf_cloth_tall", JC4, (1, 192, 95, 286)),      # 高布架·甲
+    ("table_set_small",  JC4, (98, 192, 190, 287)),    # 小桌凳组（(98,192)实测为桌凳非货架）
+    ("herb_drawer",      JC4, (192, 0, 288, 96)),      # 药柜·屉罐
+    ("herb_drawer_b",    JC4, (290, 0, 382, 94)),      # 药柜·大屉
+    ("herb_cabinet_a",   WD3, (386, 192, 478, 287)),   # 药柜·红罐葫芦
+    ("herb_cabinet_b",   WD3, (482, 192, 574, 287)),   # 药柜·红罐乙
+    ("jar_shelf",        WI4, (482, 290, 574, 384)),   # 药罐架·白青
+    ("jar_shelf_b",      WI4, (578, 290, 670, 384)),   # 药罐架·朱封
+    ("wine_rack",        WD3, (386, 290, 478, 383)),   # 菱格酒架
+    ("wine_jars",        JC7, (386, 35, 478, 90)),     # 酒坛×2
+    ("jars_cluster",     JC7, (193, 392, 285, 480)),   # 酒坛堆×4（酒封）
+    ("jars_cluster_b",   JC7, (290, 396, 383, 480)),   # 酒坛堆·乙
+    ("jar_white",        WI2, (6, 483, 43, 527)),      # 白酒坛
+    # 床（架子床带幔）
+    ("bed_canopy_red",   JC7, (482, 481, 574, 576)),   # 架子床·红幔
+    ("bed_canopy_navy",  JC7, (578, 481, 670, 576)),   # 架子床·蓝幔
+    ("bed_canopy_green", JC7, (674, 481, 766, 576)),   # 架子床·绿幔
+    ("bed_canopy_blue",  WI1, (289, 0, 383, 96)),      # 架子床·青幔
+    ("bed_canopy_tan",   WI1, (193, 0, 287, 96)),      # 架子床·素幔
+    # 灯烛光源
+    ("lantern_stand_a",  JC7, (582, 112, 618, 192)),   # 灯笼架·挑杆
+    ("lantern_stand_b",  JC7, (634, 100, 662, 174)),   # 灯笼架·纸罩
+    ("lantern_pole_pair", JC7, (580, 197, 668, 288)),  # 双灯宫灯架
+    ("lantern_red_stand", JC7, (582, 387, 618, 450)),  # 红灯笼矮架
+    ("lantern_std_red",  WI5, (600, 483, 648, 576)),   # 红灯笼高杆
+    ("screen_panel_lacquer", WI5, (552, 480, 600, 576)), # 漆器屏板（(552,480)实测为青瓷屏板非灯，选窗误判已纠）
+    ("lamp_small",       WI2, (730, 96, 768, 190)),    # 小灯檠
+    ("firepit",          WI2, (656, 672, 704, 766)),   # 火盆
+    # 厨房
+    ("stove_brick",      WI2, (3, 9, 96, 96)),         # 灶·双眼砖
+    ("stove_stone",      WI2, (192, 0, 285, 96)),      # 灶·石双锅
+    ("stove_fire",       WI2, (0, 192, 96, 288)),      # 灶·蒸笼旺火
+    ("steamer",          WI2, (480, 96, 523, 190)),    # 蒸笼·叠屉
+    ("steamer_b",        WI2, (530, 96, 574, 185)),    # 蒸笼·单屉
+    # 宫院/官署
+    ("danbi_medallion",  WX3, (0, 384, 192, 528)),     # 丹陛·团龙浮雕方台
+    ("danbi_platform",   WX3, (192, 384, 384, 528)),   # 丹陛·平台
+    ("pillar_gold",      WI5, (384, 96, 432, 192)),    # 金柱·斗拱（(432,96)实为花窗板已改名）
+    ("yizhang_fan_a",    WD1, (576, 0, 640, 96)),      # 仪仗幡·金红
+    ("yizhang_fan_b",    WD1, (576, 576, 640, 672)),   # 仪仗幡·赤
+    ("rack_spear",       WX3, (0, 320, 96, 384)),      # 兵器架·长兵
+    ("rack_sword",       WX3, (192, 528, 288, 608)),   # 兵器架·剑
+    ("rack_sword_b",     WX3, (288, 528, 384, 608)),   # 兵器架·矛
+    ("rack_halberd",     WI4, (579, 577, 669, 672)),   # 兵器架·戟
+    ("rack_sword_c",     WI4, (387, 597, 477, 672)),   # 兵器架·剑乙
+    ("mat_cushion",      WX3, (384, 576, 480, 672)),   # 蒲团垫
 ]
 
 # ---- tile 清单：16×16 整窗（TileMap 图集源，不修边）----
@@ -153,6 +265,17 @@ TILES = [
     # ---- v3 水系（江南 B05）：渠水蓝+岸石顶面 ----
     ("water_canal",   JN5, (240, 352, 256, 368)), # 112 渠水/护城河·江南蓝（(96,344)波浪纹平铺成块状，改纯水平铺窗）
     ("quay_stone",    JN5, (200, 260, 216, 276)), # 111 岸石·渠岸顶面（浅灰石板，(304,344)曾误切木栈道）
+    # ---- 内景换皮（2026-09-06）：80~89 地面/墙体暖化替换 + 113 花砖 + 84~89 家具 16px 代表窗 ----
+    ("interior_floor_wood", JN5, (400, 120, 416, 136)),   # 80 厅堂暖木地板（码头木板窗，150,118,93）
+    ("interior_floor_brick", WI5, (48, 336, 64, 352)),    # 81 过道方砖（内景包砖+暖化，冷灰 147,147,157→暖褐）
+    ("interior_wall_wood", WIA5, (400, 184, 416, 200)),   # 83 内墙·暖木板墙（压暗与地板区分）
+    ("floor_medal",   WI5, (432, 336, 448, 352)),         # 113 厅心花砖（暖化，毯心点缀）
+    ("interior_screen", WD3, (300, 400, 316, 416)),       # 84 屏风 16px 代表窗（M6 换肤/回退用）
+    ("interior_lamp", JC7, (590, 396, 606, 412)),         # 85 灯烛 16px
+    ("interior_desk", WI1, (500, 150, 516, 166)),         # 86 案面 16px
+    ("interior_couch", JC7, (36, 436, 52, 452)),          # 87 榻 16px
+    ("interior_cabinet", JC7, (520, 40, 536, 56)),        # 88 柜 16px
+    ("interior_shelf", JC7, (710, 36, 726, 52)),          # 89 架 16px
 ]
 
 # 足印瓦（ID 102）：16×16 全透明带碰撞（TileMap 物理管建筑占格，prop 只做视觉；
@@ -295,6 +418,30 @@ def main():
                     r, g, b, a = pxs[xx, yy]
                     if a > 0:
                         pxs[xx, yy] = (min(255, int(r * 1.10)), int(g * 0.84), int(b * 0.92), a)
+        if name == "interior_floor_brick":
+            # 内景方砖暖化：内景包原砖冷灰紫(147,147,157)→暖褐方砖（禁整屏冷灰纪律）
+            pxs = im.load()
+            for yy in range(16):
+                for xx in range(16):
+                    r, g, b, a = pxs[xx, yy]
+                    if a > 0:
+                        pxs[xx, yy] = (min(255, int(r * 1.14)), int(g * 0.94), int(b * 0.82), a)
+        if name == "interior_wall_wood":
+            # 内墙木板压暗：与暖木地板(80)拉开明度差，墙环读作实心墙裙（消"细线感"）
+            pxs = im.load()
+            for yy in range(16):
+                for xx in range(16):
+                    r, g, b, a = pxs[xx, yy]
+                    if a > 0:
+                        pxs[xx, yy] = (int(r * 0.88), int(g * 0.86), int(b * 0.88), a)
+        if name == "floor_medal":
+            # 花砖暖化（青瓷砖心提暖，与绛红毯同场不突兀）
+            pxs = im.load()
+            for yy in range(16):
+                for xx in range(16):
+                    r, g, b, a = pxs[xx, yy]
+                    if a > 0:
+                        pxs[xx, yy] = (min(255, int(r * 1.15)), int(g * 0.95), int(b * 0.85), a)
         if name == "street_lane":
             # 人字纹石间勾缝在源图为透明，直接铺会漏草——焙一层深灰蓝底色
             px = im.load()
@@ -432,6 +579,11 @@ def main():
             ("plant", ("tree_", "willow_", "bonsai_")),
             ("street_furniture", ("lamp_", "lantern_", "banner_", "sign_", "board_")),
             ("decor", ("lion_", "paifang_", "pillar_", "shrine_", "incense_", "bench_", "donkey_", "bridge_")),
+            # 内景陈设族（2026-09-06）——放在末尾，不抢既有分类前缀
+            ("interior", ("bed_", "table_", "chair_", "desk_", "stool_", "dresser", "wardrobe",
+                          "screen_", "scroll_", "mural_", "altar_", "stand_", "sideboard",
+                          "bookshelf_", "herb_", "wine_", "jars_", "jar_white", "firepit",
+                          "stove_", "steamer", "danbi_", "rack_", "mat_", "yizhang_", "floor_medal")),
         ]
 
         def cat_of(name: str) -> str:

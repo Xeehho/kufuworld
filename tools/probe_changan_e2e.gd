@@ -205,6 +205,18 @@ func _ready() -> void:
 		var dx2: float = absf(p.global_position.x - (cv.CITY_OFFSET.x + ch.cell_to_px(wcell).x))
 		var dy2: float = absf(p.global_position.y - (cv.CITY_OFFSET.y + ch.cell_to_px(wcell).y))
 		_check(dx2 <= 24.0 and dy2 <= 24.0, "魏王府返回门面前原位")
+	# 3.9b) 内景换皮样张×6（宅邸/寺观/酒肆/绸缎/宫院/琥珀光）——SCKR 陈设目检（2026-09-06）
+	ch.unlock_stage(2)   # 靖善坊(stage2)寺观传送门需全解锁（unlocked_wards 去重，幂等）
+	var shot_list := [
+		["wei_wangfu", "正厅", "interior_mansion_weiwangfu.png", -2],
+		["daxingshan_si", "大殿", "interior_temple_daxingshan.png", 0],
+		["jiushi_e", "铺面", "interior_shop_wine_jiushi.png", 0],
+		["sizhuang_w", "铺面", "interior_shop_silk_sizhuang.png", 0],
+		["taiji_dian", "大殿", "interior_palace_taiji.png", -14],
+		["huguguang", "前堂", "interior_huguguang.png", -8],
+	]
+	for shot in shot_list:
+		await _visit_interior_shot(p, cv, ch, String(shot[0]), String(shot[1]), String(shot[2]), int(shot[3]))
 	# 3.5) 视觉重构样张：宫城太极殿 + 晋昌坊大雁塔（unlock_stage(1) 后立塔）
 	ch.unlock_stage(1)
 	var ppal: Vector2 = cv.CITY_OFFSET + ch.cell_to_px(ch.interior_portals["taiji_dian"])
@@ -239,6 +251,57 @@ func _ready() -> void:
 
 func _in_city_space(p, cv) -> bool:
 	return p.global_position.y > cv.CITY_OFFSET.y
+
+# 内景样张访问器：进内景 → 指定房间南中站位（家具占格向上兜底）→ 截图 → 踩出口垫返回
+func _visit_interior_shot(p, cv, ch, ref: String, room_label: String, fname: String, dy: int = 0) -> void:
+	var t0 := Time.get_ticks_msec()
+	while (cv._busy or cv.interior != null) and Time.get_ticks_msec() - t0 < 5000:
+		await get_tree().process_frame
+	if not ch.interior_portals.has(ref):
+		_fail("样张传送门缺失 " + ref)
+		return
+	var pcell: Vector2i = ch.interior_portals[ref]
+	# 刚从同一门面出来：玩家仍站门前景格（防重进作用域锁+无重入事件）——先挪开，等 800ms 锁过期再踩回
+	if p.global_position.distance_to(cv.CITY_OFFSET + ch.cell_to_px(pcell)) < 8.0:
+		_tp(p, cv.CITY_OFFSET + ch.cell_to_px(pcell + Vector2i(0, 2)))
+		await _wait(0.9)
+	_tp(p, cv.CITY_OFFSET + ch.cell_to_px(pcell))
+	var t_in := Time.get_ticks_msec()
+	while cv.interior == null and Time.get_ticks_msec() - t_in < 8000:
+		if DialogManager.is_dialog_open():
+			DialogManager.close_dialog()
+		await get_tree().process_frame
+	if cv.interior == null:
+		_fail("样张进内景失败 " + ref)
+		return
+	var it = cv.interior
+	var t_r := Time.get_ticks_msec()
+	while cv._busy and Time.get_ticks_msec() - t_r < 3000:
+		await get_tree().process_frame   # 等淡入完成（遮罩未退拍出暗帧）
+	var stand := Vector2i(-1, -1)
+	for room in it.spec_rooms:
+		if String(room.get("label", "")) == room_label:
+			var r: Array = room["rect"]
+			stand = Vector2i(int(r[0]) + int(r[2]) / 2, int(r[1]) + int(r[3]) - 2 + dy)
+			break
+	if stand.x < 0:
+		stand = it.spawn_cell
+	for up in range(7):
+		if it.is_spawn_clear(stand + Vector2i(0, -up)):
+			stand = stand + Vector2i(0, -up)
+			break
+	_tp(p, cv.INTERIOR_OFFSET + it.cell_to_px(stand))
+	await _settle(8)
+	await _shot(fname)
+	var exit_px: Vector2 = cv.INTERIOR_OFFSET + it.cell_to_px(it.exit_cell)   # 先缓存（退出后实例已释放）
+	_tp(p, exit_px)
+	var t_out := Time.get_ticks_msec()
+	while cv.interior != null and Time.get_ticks_msec() - t_out < 8000:
+		await get_tree().process_frame
+	var t_b := Time.get_ticks_msec()
+	while (cv._busy or cv.interior != null) and Time.get_ticks_msec() - t_b < 5000:
+		await get_tree().process_frame
+	_log("[probe] 内景样张 " + ref + " -> docs/shots/" + fname)
 
 func _tp(p, pos: Vector2):
 	p.global_position = pos

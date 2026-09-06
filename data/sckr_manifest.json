@@ -770,7 +770,7 @@
    "box": [
     0,
     0,
-    144,
+    192,
     96
    ]
   },
@@ -782,7 +782,7 @@
    "box": [
     192,
     0,
-    336,
+    360,
     96
    ]
   },
@@ -794,7 +794,7 @@
    "box": [
     384,
     0,
-    528,
+    544,
     96
    ]
   },
@@ -806,7 +806,7 @@
    "box": [
     576,
     96,
-    672,
+    686,
     192
    ]
   },
@@ -818,7 +818,7 @@
    "box": [
     384,
     192,
-    528,
+    544,
     288
    ]
   },
@@ -879,7 +879,7 @@
     480,
     384,
     576,
-    480
+    486
    ]
   },
   {
@@ -938,8 +938,8 @@
    "box": [
     384,
     216,
-    432,
-    288
+    480,
+    290
    ]
   },
   {
@@ -950,8 +950,8 @@
    "box": [
     576,
     216,
-    624,
-    288
+    675,
+    292
    ]
   },
   {
@@ -974,8 +974,8 @@
    "box": [
     240,
     576,
-    288,
-    672
+    302,
+    682
    ]
   },
   {
@@ -996,10 +996,10 @@
    "category": "street_furniture",
    "sheet": "jingcheng/tile-B-06.png",
    "box": [
-    668,
-    576,
-    720,
-    672
+    676,
+    572,
+    724,
+    768
    ]
   },
   {
@@ -1008,9 +1008,9 @@
    "category": "water",
    "sheet": "jiangnan/tile-B-05.png",
    "box": [
-    384,
-    0,
-    480,
+    382,
+    4,
+    532,
     48
    ]
   },
@@ -1020,10 +1020,10 @@
    "category": "water",
    "sheet": "jiangnan/tile-B-05.png",
    "box": [
-    384,
-    48,
-    480,
-    96
+    382,
+    50,
+    514,
+    98
    ]
   },
   {
@@ -1032,10 +1032,10 @@
    "category": "water",
    "sheet": "jiangnan/tile-B-05.png",
    "box": [
-    384,
-    192,
-    480,
-    240
+    382,
+    194,
+    482,
+    238
    ]
   },
   {
@@ -1044,10 +1044,10 @@
    "category": "water",
    "sheet": "jiangnan/tile-B-05.png",
    "box": [
-    384,
-    240,
-    480,
-    288
+    382,
+    238,
+    502,
+    280
    ]
   },
   {
@@ -1123,9 +1123,9 @@
    ]
   },
   {
-   "name": "bonsai_a",
+   "name": "lantern_stone_s",
    "kind": "prop",
-   "category": "plant",
+   "category": "street_furniture",
    "sheet": "jiangnan/tile-B-05.png",
    "box": [
     384,
@@ -1156,6 +1156,1098 @@
     480,
     576,
     576
+   ]
+  },
+  {
+   "name": "scroll_pair_a",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    580,
+    386,
+    668,
+    478
+   ]
+  },
+  {
+   "name": "scroll_pair_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    676,
+    386,
+    764,
+    478
+   ]
+  },
+  {
+   "name": "scroll_h_a",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia/tile-B-03.png",
+   "box": [
+    0,
+    672,
+    128,
+    768
+   ]
+  },
+  {
+   "name": "scroll_h_long",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia/tile-B-03.png",
+   "box": [
+    128,
+    672,
+    256,
+    768
+   ]
+  },
+  {
+   "name": "mural_scholar",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    192,
+    0,
+    288,
+    96
+   ]
+  },
+  {
+   "name": "mural_elder",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    288,
+    0,
+    384,
+    96
+   ]
+  },
+  {
+   "name": "mural_landscape",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    0,
+    192,
+    96,
+    288
+   ]
+  },
+  {
+   "name": "mural_landscape_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    96,
+    192,
+    192,
+    288
+   ]
+  },
+  {
+   "name": "screen_carved_a",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    0,
+    288,
+    96,
+    384
+   ]
+  },
+  {
+   "name": "screen_carved_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    96,
+    288,
+    192,
+    384
+   ]
+  },
+  {
+   "name": "screen_fold_land",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    289,
+    392,
+    479,
+    479
+   ]
+  },
+  {
+   "name": "screen_fold_plum",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    2,
+    488,
+    287,
+    575
+   ]
+  },
+  {
+   "name": "table_square",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    15,
+    17,
+    81,
+    96
+   ]
+  },
+  {
+   "name": "table_square_red",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    111,
+    17,
+    177,
+    96
+   ]
+  },
+  {
+   "name": "tea_table_set",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    387,
+    192,
+    480,
+    288
+   ]
+  },
+  {
+   "name": "tea_table_a",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    98,
+    405,
+    190,
+    480
+   ]
+  },
+  {
+   "name": "tea_table_b",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    195,
+    486,
+    285,
+    576
+   ]
+  },
+  {
+   "name": "altar_table",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    438,
+    396,
+    528,
+    480
+   ]
+  },
+  {
+   "name": "altar_table_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    480,
+    396,
+    570,
+    480
+   ]
+  },
+  {
+   "name": "sideboard",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    481,
+    192,
+    574,
+    288
+   ]
+  },
+  {
+   "name": "chair_arm_a",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    384,
+    0,
+    432,
+    96
+   ]
+  },
+  {
+   "name": "chair_arm_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    384,
+    96,
+    432,
+    192
+   ]
+  },
+  {
+   "name": "stool_round_a",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    204,
+    597,
+    228,
+    624
+   ]
+  },
+  {
+   "name": "stool_round_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    252,
+    594,
+    276,
+    621
+   ]
+  },
+  {
+   "name": "desk_ink",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    480,
+    99,
+    576,
+    192
+   ]
+  },
+  {
+   "name": "desk_scroll",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    480,
+    290,
+    576,
+    384
+   ]
+  },
+  {
+   "name": "desk_open",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    576,
+    306,
+    672,
+    384
+   ]
+  },
+  {
+   "name": "stand_vase",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    681,
+    6,
+    711,
+    96
+   ]
+  },
+  {
+   "name": "stand_plant",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    726,
+    2,
+    763,
+    96
+   ]
+  },
+  {
+   "name": "dresser",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    194,
+    386,
+    286,
+    479
+   ]
+  },
+  {
+   "name": "cabinet_lattice",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    482,
+    0,
+    574,
+    96
+   ]
+  },
+  {
+   "name": "cabinet_arch",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    578,
+    0,
+    670,
+    96
+   ]
+  },
+  {
+   "name": "cabinet_tall",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    482,
+    96,
+    574,
+    192
+   ]
+  },
+  {
+   "name": "cabinet_pair",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    488,
+    386,
+    570,
+    480
+   ]
+  },
+  {
+   "name": "cabinet_red",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    390,
+    1,
+    474,
+    96
+   ]
+  },
+  {
+   "name": "cabinet_red_b",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    485,
+    0,
+    571,
+    96
+   ]
+  },
+  {
+   "name": "shelf_curio",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    674,
+    0,
+    766,
+    96
+   ]
+  },
+  {
+   "name": "bookshelf_cab",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    385,
+    192,
+    479,
+    288
+   ]
+  },
+  {
+   "name": "bookshelf_books",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    295,
+    194,
+    377,
+    287
+   ]
+  },
+  {
+   "name": "bookshelf_wall",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-05.png",
+   "box": [
+    288,
+    96,
+    384,
+    192
+   ]
+  },
+  {
+   "name": "wall_screen_panel",
+   "kind": "prop",
+   "category": "wall",
+   "sheet": "wuxia_interior_dlc/tile-B-05.png",
+   "box": [
+    96,
+    96,
+    192,
+    192
+   ]
+  },
+  {
+   "name": "wardrobe",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    10,
+    194,
+    86,
+    287
+   ]
+  },
+  {
+   "name": "counter_long",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    0,
+    431,
+    96,
+    480
+   ]
+  },
+  {
+   "name": "counter_long_b",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    96,
+    431,
+    192,
+    480
+   ]
+  },
+  {
+   "name": "counter_kitchen",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    481,
+    434,
+    575,
+    528
+   ]
+  },
+  {
+   "name": "counter_herb",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "wuxia_dlc/tile-B-01.png",
+   "box": [
+    480,
+    192,
+    576,
+    287
+   ]
+  },
+  {
+   "name": "counter_doc",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "wuxia_dlc/tile-B-01.png",
+   "box": [
+    288,
+    288,
+    384,
+    384
+   ]
+  },
+  {
+   "name": "shelf_cloth",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    0,
+    0,
+    95,
+    96
+   ]
+  },
+  {
+   "name": "shelf_cloth_b",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    97,
+    0,
+    191,
+    96
+   ]
+  },
+  {
+   "name": "shelf_cloth_tall",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    1,
+    192,
+    95,
+    286
+   ]
+  },
+  {
+   "name": "table_set_small",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    98,
+    192,
+    190,
+    287
+   ]
+  },
+  {
+   "name": "herb_drawer",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    192,
+    0,
+    288,
+    96
+   ]
+  },
+  {
+   "name": "herb_drawer_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-04.png",
+   "box": [
+    290,
+    0,
+    382,
+    94
+   ]
+  },
+  {
+   "name": "herb_cabinet_a",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    386,
+    192,
+    478,
+    287
+   ]
+  },
+  {
+   "name": "herb_cabinet_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    482,
+    192,
+    574,
+    287
+   ]
+  },
+  {
+   "name": "jar_shelf",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    482,
+    290,
+    574,
+    384
+   ]
+  },
+  {
+   "name": "jar_shelf_b",
+   "kind": "prop",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    578,
+    290,
+    670,
+    384
+   ]
+  },
+  {
+   "name": "wine_rack",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    386,
+    290,
+    478,
+    383
+   ]
+  },
+  {
+   "name": "wine_jars",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    386,
+    35,
+    478,
+    90
+   ]
+  },
+  {
+   "name": "jars_cluster",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    193,
+    392,
+    285,
+    480
+   ]
+  },
+  {
+   "name": "jars_cluster_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    290,
+    396,
+    383,
+    480
+   ]
+  },
+  {
+   "name": "jar_white",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    6,
+    483,
+    43,
+    527
+   ]
+  },
+  {
+   "name": "bed_canopy_red",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    482,
+    481,
+    574,
+    576
+   ]
+  },
+  {
+   "name": "bed_canopy_navy",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    578,
+    481,
+    670,
+    576
+   ]
+  },
+  {
+   "name": "bed_canopy_green",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    674,
+    481,
+    766,
+    576
+   ]
+  },
+  {
+   "name": "bed_canopy_blue",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    289,
+    0,
+    383,
+    96
+   ]
+  },
+  {
+   "name": "bed_canopy_tan",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    193,
+    0,
+    287,
+    96
+   ]
+  },
+  {
+   "name": "lantern_stand_a",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    582,
+    112,
+    618,
+    192
+   ]
+  },
+  {
+   "name": "lantern_stand_b",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    634,
+    100,
+    662,
+    174
+   ]
+  },
+  {
+   "name": "lantern_pole_pair",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    580,
+    197,
+    668,
+    288
+   ]
+  },
+  {
+   "name": "lantern_red_stand",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    582,
+    387,
+    618,
+    450
+   ]
+  },
+  {
+   "name": "lantern_std_red",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "wuxia_interior_dlc/tile-B-05.png",
+   "box": [
+    600,
+    483,
+    648,
+    576
+   ]
+  },
+  {
+   "name": "screen_panel_lacquer",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-05.png",
+   "box": [
+    552,
+    480,
+    600,
+    576
+   ]
+  },
+  {
+   "name": "lamp_small",
+   "kind": "prop",
+   "category": "street_furniture",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    730,
+    96,
+    768,
+    190
+   ]
+  },
+  {
+   "name": "firepit",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    656,
+    672,
+    704,
+    766
+   ]
+  },
+  {
+   "name": "stove_brick",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    3,
+    9,
+    96,
+    96
+   ]
+  },
+  {
+   "name": "stove_stone",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    192,
+    0,
+    285,
+    96
+   ]
+  },
+  {
+   "name": "stove_fire",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    0,
+    192,
+    96,
+    288
+   ]
+  },
+  {
+   "name": "steamer",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    480,
+    96,
+    523,
+    190
+   ]
+  },
+  {
+   "name": "steamer_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-02.png",
+   "box": [
+    530,
+    96,
+    574,
+    185
+   ]
+  },
+  {
+   "name": "danbi_medallion",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia/tile-B-03.png",
+   "box": [
+    0,
+    384,
+    192,
+    528
+   ]
+  },
+  {
+   "name": "danbi_platform",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia/tile-B-03.png",
+   "box": [
+    192,
+    384,
+    384,
+    528
+   ]
+  },
+  {
+   "name": "pillar_gold",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "wuxia_interior_dlc/tile-B-05.png",
+   "box": [
+    384,
+    96,
+    432,
+    192
+   ]
+  },
+  {
+   "name": "yizhang_fan_a",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-01.png",
+   "box": [
+    576,
+    0,
+    640,
+    96
+   ]
+  },
+  {
+   "name": "yizhang_fan_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_dlc/tile-B-01.png",
+   "box": [
+    576,
+    576,
+    640,
+    672
+   ]
+  },
+  {
+   "name": "rack_spear",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia/tile-B-03.png",
+   "box": [
+    0,
+    320,
+    96,
+    384
+   ]
+  },
+  {
+   "name": "rack_sword",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia/tile-B-03.png",
+   "box": [
+    192,
+    528,
+    288,
+    608
+   ]
+  },
+  {
+   "name": "rack_sword_b",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia/tile-B-03.png",
+   "box": [
+    288,
+    528,
+    384,
+    608
+   ]
+  },
+  {
+   "name": "rack_halberd",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    579,
+    577,
+    669,
+    672
+   ]
+  },
+  {
+   "name": "rack_sword_c",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-04.png",
+   "box": [
+    387,
+    597,
+    477,
+    672
+   ]
+  },
+  {
+   "name": "mat_cushion",
+   "kind": "prop",
+   "category": "interior",
+   "sheet": "wuxia/tile-B-03.png",
+   "box": [
+    384,
+    576,
+    480,
+    672
    ]
   },
   {
@@ -1248,10 +2340,10 @@
    "category": "ground",
    "sheet": "jiangnan/tile-B-05.png",
    "box": [
-    96,
-    344,
-    112,
-    360
+    240,
+    352,
+    256,
+    368
    ]
   },
   {
@@ -1260,10 +2352,130 @@
    "category": "ground",
    "sheet": "jiangnan/tile-B-05.png",
    "box": [
-    304,
-    344,
-    320,
-    360
+    200,
+    260,
+    216,
+    276
+   ]
+  },
+  {
+   "name": "interior_floor_wood",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    400,
+    120,
+    416,
+    136
+   ]
+  },
+  {
+   "name": "interior_floor_brick",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/tile-B-05.png",
+   "box": [
+    48,
+    336,
+    64,
+    352
+   ]
+  },
+  {
+   "name": "interior_wall_wood",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/Auto-tile-A4-walls-5.png",
+   "box": [
+    400,
+    184,
+    416,
+    200
+   ]
+  },
+  {
+   "name": "floor_medal",
+   "kind": "tile",
+   "category": "interior",
+   "sheet": "wuxia_interior_dlc/tile-B-05.png",
+   "box": [
+    432,
+    336,
+    448,
+    352
+   ]
+  },
+  {
+   "name": "interior_screen",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "wuxia_dlc/tile-B-03.png",
+   "box": [
+    300,
+    400,
+    316,
+    416
+   ]
+  },
+  {
+   "name": "interior_lamp",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    590,
+    396,
+    606,
+    412
+   ]
+  },
+  {
+   "name": "interior_desk",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "wuxia_interior_dlc/tile-B-01.png",
+   "box": [
+    500,
+    150,
+    516,
+    166
+   ]
+  },
+  {
+   "name": "interior_couch",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    36,
+    436,
+    52,
+    452
+   ]
+  },
+  {
+   "name": "interior_cabinet",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    520,
+    40,
+    536,
+    56
+   ]
+  },
+  {
+   "name": "interior_shelf",
+   "kind": "tile",
+   "category": "misc",
+   "sheet": "jingcheng/tile-B-07.png",
+   "box": [
+    710,
+    36,
+    726,
+    52
    ]
   },
   {

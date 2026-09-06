@@ -304,7 +304,7 @@ func _set_interior_camera_limits(in_interior: bool):
 		return
 	if in_interior:
 		cam.limit_left = int(INTERIOR_OFFSET.x)
-		cam.limit_top = int(INTERIOR_OFFSET.y)
+		cam.limit_top = int(INTERIOR_OFFSET.y) - 96   # 内景换皮：北墙高家具/挂画 sprite 上探出图，上沿留 96px 头部空间
 		cam.limit_right = int(INTERIOR_OFFSET.x + interior.W * 16)
 		cam.limit_bottom = int(INTERIOR_OFFSET.y + interior.H * 16)
 	else:

@@ -97,16 +97,19 @@ static func build_tileset() -> TileSet:
 		111: ["res://sprites/tiles_changan_sckr/quay_stone.png", "res://sprites/tiles_mw22/stone.png"],   # 岸石·渠岸顶面（范式v3）
 		112: ["res://sprites/tiles_changan_sckr/water_canal.png", "res://sprites/tiles/water.png"],       # 渠水/护城河·江南蓝（碰撞，范式v3）
 			# ---- 长安城 M4 内景瓦片族 80~89（§5.3 interior_tiles，独立小场景复用；M6 现代场景换皮肤）----
-		80: "res://sprites/tiles/interior_floor_wood.png",   # 木地板
-		81: "res://sprites/tiles/interior_floor_brick.png",  # 砖地板
-		82: "res://sprites/tiles/interior_carpet.png",       # 毯
-		83: "res://sprites/tiles/interior_wall.png",         # 内墙（碰撞）
-		84: "res://sprites/tiles/interior_screen.png",       # 屏风（碰撞）
-		85: "res://sprites/tiles/interior_lamp.png",         # 灯烛
-		86: "res://sprites/tiles/interior_desk.png",         # 案（碰撞）
-		87: "res://sprites/tiles/interior_couch.png",        # 榻
-		88: "res://sprites/tiles/interior_cabinet.png",      # 柜（碰撞）
-		89: "res://sprites/tiles/interior_shelf.png",        # 架（碰撞）
+		# 内景换皮（2026-09-06）：SCKR 内景包切片首选（tools/import_sckr_changan.py 内景族），程序化 gen_changan_tiles 回退。
+		# 碰撞/y_sort 语义不变：83/84/86/88/89 碰撞，84/86/87/88/89 y_sort（探针基准）。
+		80: ["res://sprites/tiles_changan_sckr/interior_floor_wood.png", "res://sprites/tiles/interior_floor_wood.png"],   # 厅堂暖木地板
+		81: ["res://sprites/tiles_changan_sckr/interior_floor_brick.png", "res://sprites/tiles/interior_floor_brick.png"], # 过道暖方砖（冷灰砖已废）
+		82: "res://sprites/tiles/interior_carpet.png",       # 毯（程序化绛红保留，规格允许）
+		83: ["res://sprites/tiles_changan_sckr/interior_wall_wood.png", "res://sprites/tiles/interior_wall.png"],         # 内墙·暖木板墙（碰撞）
+		84: ["res://sprites/tiles_changan_sckr/interior_screen.png", "res://sprites/tiles/interior_screen.png"],       # 屏风（碰撞）
+		85: ["res://sprites/tiles_changan_sckr/interior_lamp.png", "res://sprites/tiles/interior_lamp.png"],           # 灯烛
+		86: ["res://sprites/tiles_changan_sckr/interior_desk.png", "res://sprites/tiles/interior_desk.png"],           # 案（碰撞）
+		87: ["res://sprites/tiles_changan_sckr/interior_couch.png", "res://sprites/tiles/interior_couch.png"],         # 榻
+		88: ["res://sprites/tiles_changan_sckr/interior_cabinet.png", "res://sprites/tiles/interior_cabinet.png"],     # 柜（碰撞）
+		89: ["res://sprites/tiles_changan_sckr/interior_shelf.png", "res://sprites/tiles/interior_shelf.png"],         # 架（碰撞）
+		113: ["res://sprites/tiles_changan_sckr/floor_medal.png", "res://sprites/tiles/interior_carpet.png"],          # 厅心花砖（无碰撞，毯心/甬道点缀）
 	}
 
 	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙, 100=长安坊墙, 102=建筑足印（透明碰撞）；75~77=宅门（M4起无碰撞接传送门）；83/84/86/88/89=内景墙/屏风/案/柜/架

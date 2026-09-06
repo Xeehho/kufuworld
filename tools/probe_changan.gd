@@ -332,6 +332,14 @@ func _ready() -> void:
 			m4_fails.append("内景%s BFS未达=%s" % [ref, node.bfs_failures])
 		if not node.is_spawn_clear(node.spawn_cell):
 			m4_fails.append("内景%s出生点3×3受阻" % ref)
+		# 内景换皮（2026-09-06）：SCKR 家具 sprite 断言（切片缺失=陈设没铺=视觉验收一票否决）
+		var furn_cnt := 0
+		for c4 in node.get_children():
+			if c4 is Sprite2D and c4.is_in_group("changan_prop"):
+				furn_cnt += 1
+		var furn_min := 8 if is_benchmark else 4
+		if furn_cnt < furn_min:
+			m4_fails.append("内景%s陈设sprite=%d(<%d，切片缺失?) " % [ref, furn_cnt, furn_min])
 		node.free()
 	# unlock 后补挂的 stage1/2 lot 内景也要构建通过
 	var late_cnt := 0
