@@ -52,3 +52,7 @@ docs/shots/mw*.png.import
 # MW 派生 NPC 帧（import_mw22_npc.py 本地生成；克隆缺失时 npc_character 回退占位色块）
 sprites/npc/
 docs/shots/bamboo_mw_specimen.png.import
+
+# Cute SCKR 中式材质包（itch Tileset bundle，license 禁独立转卖；克隆后用户自购重下）
+downloaded_assets/comshadow_bundle/
+docs/shots/pack_*_overview.png
