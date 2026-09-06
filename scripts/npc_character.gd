@@ -157,8 +157,10 @@ func _setup_sprite_frames():
 				has_any_frame = true
 
 	anim.sprite_frames = sf
-	# 素材包NPC 32x32帧人物脚线在y≈31，帧中心16 → 上移15使脚底=节点原点
-	anim.offset = Vector2(0, -15)
+	# MW换血 Slice C：帧画布仍32x32但人物21px(MW底模)——scale=1.5 与玩家同体型(31.5px)；
+	# 脚线在画布y31，帧中心16 → offset=-15×scale 使脚底=节点原点
+	anim.scale = Vector2(1.5, 1.5)
+	anim.offset = Vector2(0, -22.5)
 	# 如果没有任何帧，创建一个占位可见色块
 	if not has_any_frame:
 		_create_fallback_visual()
