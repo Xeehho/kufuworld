@@ -1,34 +1,18 @@
-[Probe] autoload alive
-[PASS] systems_ready
-[PASS] audio_controller_exists
-[PASS] sfx_loaded_all
-[PASS] bgm_stream_set
-[PASS] bgm_playing
-[PASS] play_sfx_known
-[PASS] play_sfx_unknown_rejected
-[PASS] noon_luminance_high
-[PASS] is_daytime_noon
-[PASS] night_darker_than_noon
-[PASS] is_night_flag
-[PASS] rain_dimmer_than_clear
-[PASS] shadow_noon_full
-[PASS] shadow_night_faint
-[PASS] real_shadow_meta_present
-[PASS] hurt_timer_set
-[PASS] hurt_red_flash
-[PASS] hurt_anim_playing
-[PASS] flash_decays_to_white
-[PASS] death_system_engaged
-[PASS] player_is_dead_flag
-[PASS] player_state_dead
-[PASS] death_anim_playing
-[PASS] mob_reads_is_dead_flag
-[PASS] respawn_completed
-[PASS] player_alive_again
-[PASS] health_restored_rescued
-[PASS] state_back_idle
-[PASS] idle_anim_back
-[PASS] regress_tillable_found
-[PASS] regress_till_ok
-[PASS] till_sfx_wired
-[Probe] DONE passes=32 fails=0
+Godot Engine v4.6.2.stable.official.71f334935 - https://godotengine.org
+
+[Meditation] 默认心法已装备: 青木长生功
+[godot_ai game_helper] registered mcp capture (debugger active=false, logger=true)
+[ChangAn-M0] 401x304 生成 233ms 地面=121904 装饰=14536 BFS未达=0 城门=4
+[ChangAn-M3] 渠={ "清明渠": 234, "龙首渠": 182, "永安渠": 234 } 桥=135 宵禁门=92 夜BFS未达=0 城内NPC=8
+[probe] 含实例化总耗时=591ms
+[probe] 灰盒图已导出 docs/shots/changan_m0_graybox.png
+[ChangAn-M3] unlock_stage(1)：解锁坊=["光宅坊", "来庭坊", "安兴坊", "宣义坊", "长乐坊", "大宁坊", "昌乐坊", "兴宁坊", "新昌坊", "升道坊", "广德坊", "立政坊", "敦化坊", "青龙坊", "崇贤坊", "曲江坊", "通善坊", "通济北坊", "乐游原坊", "升平坊", "修政坊", "保宁坊", "安义东坊", "兰陵坊", "开化坊", "光福坊", "安宁坊", "崇义坊", "道德坊", "敦厚坊", "惠和坊", "永崇坊", "兴化坊", "昭国坊", "新宁坊", "化度坊", "晋昌坊"]
+[probe][M4-DBG] huguguang portal=(126, 100) clear=false
+[probe][M4-DBG]   35/0 35/0 35/0 35/0 35/0 
+[probe][M4-DBG]   35/43 35/76 35/76 35/43 35/43 
+[probe][M4-DBG]   35/0 35/0 35/0 35/0 35/0 
+[probe][M4-DBG]   35/0 35/0 35/0 35/0 35/0 
+[probe][M4-DBG]   35/43 35/43 35/43 35/43 35/43 
+[ChangAn-M3] unlock_stage(2)：解锁坊=["光宅坊", "来庭坊", "安兴坊", "宣义坊", "长乐坊", "大宁坊", "昌乐坊", "兴宁坊", "新昌坊", "升道坊", "广德坊", "立政坊", "敦化坊", "青龙坊", "崇贤坊", "曲江坊", "通善坊", "通济北坊", "乐游原坊", "升平坊", "修政坊", "保宁坊", "安义东坊", "兰陵坊", "开化坊", "光福坊", "安宁坊", "崇义坊", "道德坊", "敦厚坊", "惠和坊", "永崇坊", "兴化坊", "昭国坊", "新宁坊", "化度坊", "丰泉坊", "福祥坊", "嘉会坊", "永达坊", "靖善坊", "延福坊", "宗仁坊", "保义坊", "宣平坊", "丰宜坊", "安昌坊", "昌明东坊", "归义坊", "通闰坊", "常乐坊", "崇业坊", "安义坊", "恭安坊", "兴宁西坊", "资敬坊", "长庆坊", "履信坊", "晋昌坊", "永丰坊"]
+[probe][M5] 内景构建=40 传送门=80
+[ChangAn-M1][PASS] { "size": "401x304", "ms": 233, "ground_cells": 121904, "decor_cells": 14536, "bfs_fail": 0, "bfs_night_fail": 0, "canals": { "清明渠": 234, "龙首渠": 182, "永安渠": 234 }, "bridges": 135, "curfew": false, "npcs": 8 }

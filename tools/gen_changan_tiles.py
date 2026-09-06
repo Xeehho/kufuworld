@@ -307,6 +307,70 @@ def draw_shelf():
     rect(t, 11, 6, 12, 9, (150, 96, 60))
     return [t[y*TS*4:(y+1)*TS*4] for y in range(TS)]
 
+
+# ---- Slice F 宅门楼（24x36 prop）：檐口青瓦+门楣+品级门扇+砖垛——视觉尺寸与人物(31.5px)相当 ----
+# 注意：模块级 px/rect/brick_rect 均为 TS=16 硬编码，本函数自带 24x36 画笔（曾误用致写入越界丢弃+错位）
+TS_TOWER_W, TS_TOWER_H = 32, 36   # 32宽=完整盖住2格门面（24宽曾露底层门瓦成双门错觉）
+
+def draw_gate_tower(grade: str):
+    W, H = TS_TOWER_W, TS_TOWER_H
+    t = bytearray(W * H * 4)
+    TILE_G, TILE_GD = (86, 92, 114), (62, 66, 88)
+    def pxl(x, y, c):
+        if 0 <= x < W and 0 <= y < H:
+            o = (y * W + x) * 4
+            t[o:o+4] = bytes(c) + bytes([255])
+    def r(x0, y0, x1, y1, c):
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                pxl(x, y, c)
+    def brick(x0, y0, x1, y1):
+        r(x0, y0, x1, y1, BRICK)
+        for y in range(y0, y1 + 1, 4):
+            r(x0, min(y1, y + 3), x1, min(y1, y + 3), BRICK_DARK)
+        for band, y in enumerate(range(y0, y1 + 1, 4)):
+            jx = x0 + (2 if band % 2 == 0 else 1)
+            if jx <= x1:
+                for yy in range(y, min(y1, y + 3) + 1):
+                    pxl(jx, yy, BRICK_DARK)
+    # 檐口：出挑青瓦（顶缘暗+瓦垄竖线+檐下阴影）
+    r(0, 0, W - 1, 0, TILE_GD)
+    r(0, 1, W - 1, 2, TILE_G)
+    for x in (6, 12, 19, 25):
+        r(x, 1, x, 2, TILE_GD)
+    r(0, 3, W - 1, 3, (52, 56, 72))
+    # 墙垛（坊墙同款砌法，左右各4px）
+    brick(0, 4, 3, H - 1)
+    brick(W - 4, 4, W - 1, H - 1)
+    # 门楣
+    r(4, 4, W - 5, 7, WOOD_D)
+    r(5, 5, W - 6, 6, WOOD_M)
+    if grade == "A":
+        for xx in (10, 20):
+            r(xx, 4, xx + 1, 4, GOLD)          # 金色门簪
+    # 门扇 y8..31
+    if grade == "C":
+        r(5, 8, W - 6, 31, (48, 40, 36))
+        r(15, 8, 16, 31, (34, 28, 26))
+        r(5, 30, W - 6, 30, (34, 28, 26))
+    else:
+        r(5, 8, W - 6, 31, RED_M)
+        r(15, 8, 16, 31, RED_D)
+        r(5, 8, 5, 31, RED_D)
+        r(W - 6, 8, W - 6, 31, RED_D)
+        if grade == "A":                       # 五路门钉
+            for yy in (10, 15, 20, 25, 29):
+                for xx in (8, 11, 17, 20):
+                    pxl(xx, yy, GOLD)
+            r(9, 18, 22, 18, GOLD)             # 门环横钹
+        else:                                  # 素铜钉四角
+            for xx, yy in ((8, 10), (21, 10), (8, 29), (21, 29)):
+                r(xx, yy, xx + 1, yy + 1, (176, 148, 96))
+        r(5, 31, W - 6, 31, RED_D)             # 下横枨
+    r(4, 32, W - 5, 33, BRICK_DARK)            # 门槛石
+    r(4, 34, W - 5, 35, BRICK)                 # 门枕
+    return [t[y * W * 4:(y + 1) * W * 4] for y in range(H)]
+
 if __name__ == "__main__":
     save_png(os.path.join(TILES, "ward_gate_closed.png"), TS, TS, draw_gate(False))
     save_png(os.path.join(TILES, "ward_gate_open.png"), TS, TS, draw_gate(True))
@@ -326,5 +390,8 @@ if __name__ == "__main__":
     save_png(os.path.join(TILES, "interior_couch.png"), TS, TS, draw_couch())
     save_png(os.path.join(TILES, "interior_cabinet.png"), TS, TS, draw_cabinet())
     save_png(os.path.join(TILES, "interior_shelf.png"), TS, TS, draw_shelf())
+    save_png(os.path.join(TILES, "changan_gate_tower_a.png"), TS_TOWER_W, TS_TOWER_H, draw_gate_tower("A"))
+    save_png(os.path.join(TILES, "changan_gate_tower_b.png"), TS_TOWER_W, TS_TOWER_H, draw_gate_tower("B"))
+    save_png(os.path.join(TILES, "changan_gate_tower_c.png"), TS_TOWER_W, TS_TOWER_H, draw_gate_tower("C"))
     print("[changan-tiles] BRICK=", BRICK, "DARK=", BRICK_DARK,
           "wrote ward_gate×2 + mansion_gate a/b/c + palace/outer wall + zhuque + interior×10")

@@ -90,6 +90,22 @@ func _ready() -> void:
 				m1_fails.append("%s·%s 门面tile期望%d实铺%d" % [b["name"], lot["ref"], expect, got])
 	if lot_wards < 8:
 		m1_fails.append("stage0剧情坊带lots数=%d(<8)" % lot_wards)
+	# ---- Slice F 断言：宅门楼 prop（与人物体型相当，视觉增高；tile 门面仍是断言基准） ----
+	# 期望=门面瓦(75/76/77)实铺数/2（每座门楼盖 2 格门面）——从铺设真值推导，不依赖 JSON 结构
+	var gate_tiles := 0
+	for v in changan.decor:
+		var tid := int(v)
+		if tid == 75 or tid == 76 or tid == 77:
+			gate_tiles += 1
+	var towers: Array = changan.get_children().filter(func(n): return n.is_in_group("gate_tower"))
+	if towers.size() != gate_tiles / 2:
+		m1_fails.append("门楼prop=%d≠门面瓦%d/2（克隆缺PNG会全跳过）" % [towers.size(), gate_tiles])
+	var bad_tex := 0
+	for t2 in towers:
+		if t2.texture == null or t2.offset != Vector2(0, -18):
+			bad_tex += 1
+	if bad_tex > 0:
+		m1_fails.append("门楼prop纹理/锚点异常=%d" % bad_tex)
 	# ---- M3 断言：三渠/宵禁/夜行BFS/锚点/城内NPC/阶段解锁 ----
 	var m3_fails: Array = []
 	# 三渠：每渠水格充足，桥格跨路

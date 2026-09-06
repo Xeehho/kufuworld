@@ -192,6 +192,34 @@ func _paint_layout():
 
 # ---- M2 宅门品级瓦片（§5.1）----
 const GATE_TILE_BY_GRADE := {"A": 75, "B": 76, "C": 77}
+
+# ---- Slice F 宅门楼 prop（24x36，与人物体型相当；瓦片门面保留=传送垫+探针断言基準，prop 只做视觉增高）----
+const TextureGen = preload("res://scripts/texture_generator.gd")
+const TOWER_TEX_BY_GRADE := {
+	"A": "res://sprites/tiles/changan_gate_tower_a.png",
+	"B": "res://sprites/tiles/changan_gate_tower_b.png",
+	"C": "res://sprites/tiles/changan_gate_tower_c.png",
+}
+var _tower_tex := {}
+
+func _gate_tower_tex(grade: String) -> Texture2D:
+	if _tower_tex.has(grade):
+		return _tower_tex[grade]
+	var tex: Texture2D = TextureGen.load_png_texture(str(TOWER_TEX_BY_GRADE[grade]))
+	_tower_tex[grade] = tex   # 克隆仓库缺 PNG（未跑 gen_changan_tiles.py）时为 null→跳过生成
+	return tex
+
+func _spawn_gate_tower(center_x: float, bottom_y: float, grade: String):
+	var tex := _gate_tower_tex(grade)
+	if tex == null:
+		return
+	var prop := Sprite2D.new()
+	prop.texture = tex
+	prop.position = Vector2(center_x, bottom_y)
+	prop.offset = Vector2(0, -18.0)   # 24x36 锚底：原点=门枕底缘，y-sort 与玩家自然遮挡
+	prop.z_index = 2                  # 实体层（同玩家），压 TileMap 墙体
+	prop.add_to_group("gate_tower")
+	add_child(prop)
 # M4 内景家具瓦（与 changan_interior.gd 一致；门面店铺陈设用）
 const T_SHELF = 89
 const T_CABINET = 88
@@ -256,19 +284,24 @@ func _paint_lot(x0: int, y0: int, lot: Dictionary):
 	# 院门（门侧墙正中2格，品级瓦）+ 门前石板甬道
 	var gcx := lx + w / 2
 	var gcy := ly + h / 2
+	var tower_grade := String(lot["grade"])
 	match String(lot.get("gate", "S")):
 		"S":
 			_set_rect(decor, gcx - 1, y1, 2, 1, gate_id)
 			_set_rect(ground, gcx - 1, ly + 2, 2, y1 - (ly + 2) + 1, T_STONE)
+			_spawn_gate_tower(gcx * 16.0, (y1 + 1) * 16.0, tower_grade)
 		"N":
 			_set_rect(decor, gcx - 1, ly, 2, 1, gate_id)
 			_set_rect(ground, gcx - 1, ly, 2, y1 - 2 - ly + 1, T_STONE)
+			_spawn_gate_tower(gcx * 16.0, (ly + 1) * 16.0, tower_grade)
 		"E":
 			_set_rect(decor, x1, gcy - 1, 1, 2, gate_id)
 			_set_rect(ground, lx + 2, gcy - 1, x1 - (lx + 2) + 1, 2, T_STONE)
+			_spawn_gate_tower(x1 * 16.0 + 8.0, (gcy + 1) * 16.0, tower_grade)
 		"W":
 			_set_rect(decor, lx, gcy - 1, 1, 2, gate_id)
 			_set_rect(ground, lx, gcy - 1, x1 - 2 - lx + 1, 2, T_STONE)
+			_spawn_gate_tower(lx * 16.0 + 8.0, (gcy + 1) * 16.0, tower_grade)
 	# 正屋：门对侧内墙处（寺观/场所3连屋，宅邸1屋）
 	var house_w := 3 if (kind == "temple" or kind == "venue") else 1
 	match String(lot.get("gate", "S")):
@@ -572,6 +605,7 @@ func _paint_shop_front(sx: int, sy: int, sw: int, sh: int, shop: Dictionary):
 	var gx := sx + sw / 2
 	var gy := sy + sh - 1
 	_set_rect(decor, gx - 1, gy, 2, 1, 76)
+	_spawn_gate_tower(gx * 16.0, (gy + 1) * 16.0, "B")
 	for prop in [[T_SHELF, sx + 2, sy + 1], [T_SHELF, sx + 4, sy + 1], [T_CABINET, sx + 5, sy + 1],
 			[T_DESK, sx + 2, sy + 3], [T_DESK, sx + 4, sy + 3]]:
 		_set_rect(decor, int(prop[1]), int(prop[2]), 1, 1, int(prop[0]))

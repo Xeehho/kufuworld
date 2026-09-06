@@ -80,6 +80,25 @@ func _ready() -> void:
 		await _settle(8)
 		_check(_in_city_space(p, cv), "%s坊内可站立" % wb[1])
 		await _shot("changan_m2_%s.png" % wb[0])
+	# 3.5b) Slice F：宅门楼 prop 门前采样（站门外2格正对门楼；传送垫在门瓦上，门外不触发）
+	var tower_shot := false
+	for b in ch.blocks:
+		if tower_shot:
+			break
+		for lot in b.get("lots", []):
+			if String(lot.get("gate", "S")) != "S" or tower_shot:
+				continue
+			var lx: int = ch.col_x(int(b["col"])) + int(lot["at"][0])
+			var ly: int = ch.row_y(int(b["row"])) + int(lot["at"][1])
+			var lw: int = int(lot["size"][0])
+			var lh: int = int(lot["size"][1])
+			var gtx: int = lx + lw / 2
+			var gty: int = ly + lh - 1
+			_tp(p, cv.CITY_OFFSET + ch.cell_to_px(Vector2i(gtx, gty + 2)))
+			await _settle(8)
+			await _shot("changan_m2_gate_tower.png")
+			_log("[probe] 门楼采样 grade=%s gate=(%d,%d)" % [String(lot["grade"]), gtx, gty])
+			tower_shot = true
 	# 3.6) M3 宵禁/夜色/时辰：城内时辰流动（Weather 未冻结）+ 暮鼓闭坊门 + 晨鼓复开
 	var weather = main.get_node_or_null("World/WeatherController")
 	_check(weather != null and weather.process_mode != Node.PROCESS_MODE_DISABLED,
