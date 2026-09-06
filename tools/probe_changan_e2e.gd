@@ -49,6 +49,27 @@ func _ready() -> void:
 		_quit()
 		return
 	_check(cv.in_city and cv.changan != null, "入城成功且城内场景挂载")
+	# 定点截图模式分叉：CHANGAN_SHOT="gx,gy" 城内格坐标——传送截图即退（材质排查用）
+	var shot_env := OS.get_environment("CHANGAN_SHOT")
+	if shot_env != "":
+		var sp := shot_env.split(",")
+		var scell := Vector2i(int(sp[0]), int(sp[1]))
+		p.global_position = cv.CITY_OFFSET + cv.changan.cell_to_px(scell)
+		p.velocity = Vector2.ZERO
+		if p.has_node("Camera2D"):
+			p.get_node("Camera2D").reset_smoothing()
+		await _settle(10)
+		await _shot("changan_v_spot.png")
+		# dump 游戏进程内 tileset 71/105 实际纹理（定位"磁盘A渲染B"类问题）
+		var ts_d: TileSet = cv.changan.tile_map.tile_set
+		for tid in [71, 105]:
+			if ts_d.has_source(tid):
+				var sd := ts_d.get_source(tid) as TileSetAtlasSource
+				sd.texture.get_image().save_png("res://docs/shots/dump_tile_%d.png" % tid)
+				_log("[spot] dump tile %d -> docs/shots/dump_tile_%d.png" % [tid, tid])
+		_log("[spot] done %s" % scell)
+		_quit()
+		return
 	await _shot("changan_m1_city_mingde.png")   # 明德门内落点画面
 	# 2) 城内落点 3×3 可通行（明德门内）
 	var ch = cv.changan

@@ -106,7 +106,7 @@ TILES = [
     ("street_main",   JC, (32, 48, 48, 64)),      # 72 主干街：顺砖
     ("street_ward",   JC, (32, 416, 48, 432)),    # 73 坊内街：竖砖
     ("street_lane",   JC, (480, 64, 496, 80)),    # 74 巷路：人字纹
-    ("street_zhuque", JC, (208, 500, 224, 516)),  # 71 御道：大石板
+    ("street_zhuque", JC, (112, 560, 128, 576)),  # 71 御道：宽石板（208,500实为回字纹砖，选窗误判已纠）
     ("pave_market",   JC, (96, 544, 112, 560)),   # 市内/宫内地面：宽版石板
     # 城墙（垛口+墙身同窗）
     ("wall_city",     JC, (568, 122, 584, 138)),  # 70 外郭城墙·垛口行（城齿+箭窗压顶）
@@ -127,13 +127,17 @@ COMPOSITES = [
     ("wall_palace", JC3, [(0, 142, 16, 150), (0, 151, 16, 164), (0, 166, 16, 175)],
      [5, 9, 2]),   # 69 宫墙（金瓦顶+红身+石基）
     # 竖向墙段=侧立面（无檐无垛口，纯墙面+左右描边，檐口只落在转角/墙段北端）
-    # 竖立面 = "solid" 程序素面（源段平均色+轻噪点，零重复图案；长条压缩/源凸起连排都会成"横档梯"，双重实测踩坑）
-    ("wall_ward_v",   JN,  [(496, 232, 512, 246)],
-     [16, "vedge", "solid"]),   # 105 坊墙·竖立面（暖白灰素面）
+    # 竖立面终案（夜色调制下素面会成"棕色光柱"）：低对比砖纹（±6% 缝，白天有材质、夜里不成光柱）
+    ("wall_ward_v",   JN,  [(204, 36, 220, 52)],
+     [16, "vedge", "solid", "brick"]),   # 105 坊墙·竖立面（白墙纯段solid平均=暖白灰；496,232实为木门框区，选窗误判已纠）
     ("wall_palace_v", JC3, [(0, 152, 16, 162)],
-     [16, "vedge", "solid"]),   # 104 宫墙·竖立面（朱红素面）
+     [16, "vedge", "solid", "brick"]),   # 104 宫墙·竖立面（朱红纯段）
     ("wall_city_face_v", JC, [(568, 138, 584, 154)],
-     [16, "vedge", "solid"]),   # 103 外郭墙·竖立面（青灰素面，双列成厚墙）
+     [16, "vedge", "solid", "brick"]),   # 103 外郭墙·竖立面·内列（青灰低对比砖纹）
+    ("wall_city_cap_w", JC, [(568, 122, 584, 138)],
+     [16, "caprot", -90]),   # 108 外郭墙·垛口齿·西列（齿朝西，与横墙垛口转角衔接）
+    ("wall_city_cap_e", JC, [(568, 122, 584, 138)],
+     [16, "caprot", 90]),    # 109 外郭墙·垛口齿·东列（齿朝东）
 ]
 
 def trim_alpha(im, pad=1):
@@ -195,6 +199,13 @@ def main():
             im.paste(p, (0, y))
             y += hpx
         solid = "solid" in weights
+        if "caprot" in weights:
+            # 垛口齿侧转：横墙垛口行整体旋转±90°（齿朝东西外侧，俯视正确），转角与横墙垛口自然衔接
+            rot = [w for w in weights if w != "caprot"][0]
+            im = src.crop(strips[0]).rotate(rot, expand=True)
+            im.save(os.path.join(OUT_TILES, name + ".png"))
+            made.append((name, im, "tile"))
+            continue
         if solid:
             # 素面墙：源段平均色 + ±6% 行噪点（极轻，防绝对纯色）——竖排永不产生重复图案
             src_strip = src.crop(strips[0])
@@ -215,6 +226,16 @@ def main():
                 f = 1.0 + _rnd.uniform(-0.06, 0.06)
                 for xx in range(16):
                     px[xx, yy] = (min(255, int(base[0] * f)), min(255, int(base[1] * f)), min(255, int(base[2] * f)), 255)
+            if "brick" in weights:
+                # 低对比错缝砖纹（±7%）：给材质但不产生横档（高对比缝在夜色调制下成"梯"的教训）
+                for row_i, yy in enumerate(range(0, 16, 5)):
+                    for xx in range(16):
+                        r, g, b, a = px[xx, yy]
+                        px[xx, yy] = (int(r * 0.93), int(g * 0.93), int(b * 0.93), a)
+                    jx = (3, 9, 14)[row_i % 3]
+                    for yy2 in range(yy, min(16, yy + 5)):
+                        r, g, b, a = px[jx, yy2]
+                        px[jx, yy2] = (int(r * 0.93), int(g * 0.93), int(b * 0.93), a)
         if vedge:
             # 生成式描边（覆盖式，非乘法——源图残亮乘不没）：左3px 深影、2px 过渡、右2px 受光
             px = im.load()

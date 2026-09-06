@@ -24,7 +24,8 @@ def main():
         # 陷阱#34：stdout 落文件句柄，勿用 PIPE；加 windowed 参数跑窗口模式出截图样张
         gf = open(gp, "wb")
         args = [exe] + ([] if "windowed" in sys.argv else ["--headless"]) + ["--path", proj]
-        proc = subprocess.Popen(args, cwd=proj, stdout=gf, stderr=subprocess.STDOUT)
+        env = dict(os.environ)  # CHANGAN_SHOT 透传给定点截图模式
+        proc = subprocess.Popen(args, cwd=proj, stdout=gf, stderr=subprocess.STDOUT, env=env)
         timed_out = False
         try:
             proc.communicate(timeout=180)
