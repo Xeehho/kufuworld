@@ -123,6 +123,7 @@ PROPS = [
     ("banner_wine2",     JC6, (192, 576, 240, 672)),  # 酒旗·竖
     ("lamp_yellow",      JC6, (668, 576, 720, 672)),  # 黄灯柱
     # ---- v3：水乡族（江南 B05 船/码头/月洞门/拱桥/神龛/盆景）----
+    # 船四条带烤入水底色，放置时与场景水瓦必出"色块矩形"——切片后统一 chroma-key 抠透明（BOAT_KEY）
     ("boat_row",         JN5, (384, 0, 480, 48)),     # 小船·row
     ("boat_cover",       JN5, (384, 48, 480, 96)),    # 客船·篷
     ("boat_small",       JN5, (384, 192, 480, 240)),  # 小船·乙
@@ -150,7 +151,7 @@ TILES = [
     ("wall_city",     JC, (568, 122, 584, 138)),  # 70 外郭城墙·垛口行（城齿+箭窗压顶）
     ("wall_city_body", JC, (568, 138, 584, 154)), # 106 外郭城墙·砖身行（横缝，N/S 走向段）
     # ---- v3 水系（江南 B05）：渠水蓝+岸石顶面 ----
-    ("water_canal",   JN5, (96, 344, 112, 360)),  # 112 渠水/护城河·江南蓝（带微波纹）
+    ("water_canal",   JN5, (240, 352, 256, 368)), # 112 渠水/护城河·江南蓝（(96,344)波浪纹平铺成块状，改纯水平铺窗）
     ("quay_stone",    JN5, (200, 260, 216, 276)), # 111 岸石·渠岸顶面（浅灰石板，(304,344)曾误切木栈道）
 ]
 
@@ -191,6 +192,46 @@ def trim_alpha(im, pad=1):
     r = min(im.width, r + pad); b = min(im.height, b + pad)
     return im.crop((l, t, r, b))
 
+# 船类切片背景抠透明：源图水面为平色底，从四边界泛洪键出与边缘连通的水域（boat_cover 篷顶色近水色，
+# 全图色键会吃掉篷内像素——泛洪只吃 hull 外水域，闭环区内同色不动）；再两轮邻接去晕
+BOAT_KEY = {"boat_row", "boat_cover", "boat_small", "boat_sampan"}
+
+def key_water_bg(im):
+    px = im.load()
+    kr, kg, kb = px[2, 2][:3]
+    def dist(c):
+        return abs(c[0] - kr) + abs(c[1] - kg) + abs(c[2] - kb)
+    w, h = im.size
+    seen = [[False] * w for _ in range(h)]
+    stack = []
+    for x in range(w):
+        stack.append((x, 0)); stack.append((x, h - 1))
+    for y in range(h):
+        stack.append((0, y)); stack.append((w - 1, y))
+    while stack:
+        x, y = stack.pop()
+        if x < 0 or y < 0 or x >= w or y >= h or seen[y][x]:
+            continue
+        seen[y][x] = True
+        if dist(px[x, y]) >= 90:
+            continue
+        px[x, y] = (0, 0, 0, 0)
+        stack.extend(((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)))
+    for _ in range(2):   # 去晕：紧邻透明的水色残边逐轮外扩
+        halo = []
+        for yy in range(h):
+            for xx in range(w):
+                c = px[xx, yy]
+                if c[3] == 0:
+                    continue
+                if dist(c) < 150 and any(
+                        0 <= nx < w and 0 <= ny < h and px[nx, ny][3] == 0
+                        for nx, ny in ((xx + 1, yy), (xx - 1, yy), (xx, yy + 1), (xx, yy - 1))):
+                    halo.append((xx, yy))
+        for xx, yy in halo:
+            px[xx, yy] = (0, 0, 0, 0)
+    return trim_alpha(im)
+
 def main():
     only = set(sys.argv[1:])
     os.makedirs(OUT_PROPS, exist_ok=True)
@@ -205,6 +246,8 @@ def main():
         if only and name not in only:
             continue
         im = trim_alpha(sheet(rel).crop(box))
+        if name in BOAT_KEY:
+            im = key_water_bg(im)
         im.save(os.path.join(OUT_PROPS, name + ".png"))
         made.append((name, im, "prop"))
     for name, rel, box in TILES:

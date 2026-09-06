@@ -398,17 +398,17 @@ func _paint_moat():
 			bridge_count += 1
 	# 石拱桥 prop（侧视，跨 5 桥格；可穿行：y-sort 形成桥洞遮挡）
 	_spawn_prop("bridge_arch_stone", (cx + 0.5) * 16.0, (wy1 + 2) * 16.0)
-	# 停船：水带内避桥轴 ±6 格，四型船循环；木码头/渠柳/石灯点北岸
+	# 停船：切片已抠透明底（BOAT_KEY），锚点全压进 3 行水带内（底边=水带下缘-2px，防"船嵌陆地"）；
+	# 距桥轴 ≥10 格（拱桥 prop 半宽 48px+船半宽 48px+余量，防"船身被桥截半"）
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 20260906
 	var boats := ["boat_cover", "boat_small", "boat_sampan", "boat_row"]
 	var spots := [8, 26, 47, 68, 89, 110, 131, 152, 173, 194, 215, 236, 257, 278, 299, 320, 341, 362, 383]
 	for i in range(spots.size()):
 		var bx: int = margin + spots[i]
-		if abs(bx - cx) < 7 or bx + 5 >= W - margin:
+		if abs(bx - cx) < 10 or bx + 5 >= W - margin:
 			continue
-		var by := wy0 + 1 + (i % 3)
-		_spawn_prop(boats[i % boats.size()], (bx + 2) * 16.0, (by + 1) * 16.0)
+		_spawn_prop(boats[i % boats.size()], (bx + 2) * 16.0, (wy0 + 4) * 16.0 - 2.0)
 		moat_boat_count += 1
 	for px in [cx - 14, cx + 16, margin + 30, W - margin - 36]:
 		# pier_wood 平台实测读作"木板墙"，弃用（范式v3 目检修框结论）；北岸只留柳+石灯
@@ -727,15 +727,13 @@ func _paint_street_dressing():
 			var iy := row_y(j) - main_s + 1 if (i + j) % 2 == 0 else row_y(j) - 2
 			if _dressing_cell_free(ix, iy):
 				_spawn_prop("lamp_red" if (i + j) % 3 != 0 else "board_notice", ix * 16.0 + 8.0, (iy + 1) * 16.0)
-	# 城门/市门拴驴+黄灯柱（门外街基侧）
+	# 城门内侧单侧黄灯柱（v3.1：去拴驴——驴/石狮/门楼同格堆叠观感混乱，拴驴只保留在坊内院缝）
 	for side in gate_info:
 		var g: Dictionary = gate_info[side]
 		var inside: Vector2i = g["inside"]
-		var dxs := [[-2, 0], [2, 0]] if side == "S" or side == "N" else [[0, -2], [0, 2]]
-		for off in dxs:
-			var dx: Vector2i = Vector2i(off[0], off[1])
-			if _dressing_cell_free(inside.x + dx.x, inside.y + dx.y):
-				_spawn_prop("donkey_post" if dx.x + dx.y < 0 else "lamp_yellow", (inside.x + dx.x) * 16.0 + 8.0, (inside.y + dx.y + 1) * 16.0)
+		var off := Vector2i(3, 0) if side == "S" or side == "N" else Vector2i(0, 3)
+		if _dressing_cell_free(inside.x + off.x, inside.y + off.y):
+			_spawn_prop("lamp_yellow", (inside.x + off.x) * 16.0 + 8.0, (inside.y + off.y + 1) * 16.0)
 	# 承天门外金轿仪仗（朝房意象）
 	var palace_south_y := row_y(palace_rows.y) + bh
 	if _dressing_cell_free(pcx - 5, palace_south_y + 1):
