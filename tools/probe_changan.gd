@@ -168,8 +168,8 @@ func _ready() -> void:
 	var ts_mv: TileSet = changan.tile_map.tile_set
 	var sckr_paths := {69: "wall_palace.png", 70: "wall_city.png", 71: "street_zhuque.png",
 			72: "street_main.png", 73: "street_ward.png", 74: "street_lane.png",
-			100: "wall_ward.png", 101: "pave_market.png", 104: "wall_palace_v.png",
-			105: "wall_ward_v.png", 106: "wall_city_body.png", 107: "wall_city_body_v.png"}
+			100: "wall_ward.png", 101: "pave_market.png", 103: "wall_city_face_v.png",
+			104: "wall_palace_v.png", 105: "wall_ward_v.png", 106: "wall_city_body.png"}
 	for tid in sckr_paths:
 		if not ts_mv.has_source(tid):
 			mv_fails.append("瓦片%d未注册" % tid)
@@ -238,6 +238,14 @@ func _ready() -> void:
 			" decor=", int(changan.decor[dcell.y * changan.W + dcell.x]))
 	var pcell := Vector2i(changan.col_x(5) - changan.zq_s + changan.zq_s / 2 + 2, changan.row_y(0) + 10)
 	print("[probe][V-DBG] palace pave(", pcell, ") ground=", int(changan.ground[pcell.y * changan.W + pcell.x]))
+	# [DEBUG-V2] 明德门内周边竖列真值（宽扫）
+	for xx in range(155, 172):
+		var col_txt := ""
+		for yy in range(280, 297):
+			col_txt += "%d" % int(changan.decor[yy * changan.W + xx])
+			if int(changan.decor[yy * changan.W + xx]) < 10:
+				col_txt += " "
+		print("[probe][V2] x=%d: %s" % [xx, col_txt])
 	if not mv_fails.is_empty():
 		fails.append_array(mv_fails)
 	if not m3_fails.is_empty():

@@ -126,11 +126,14 @@ COMPOSITES = [
      [5, 8, 3]),   # 100 坊墙（白灰+瓦顶+砖脚）
     ("wall_palace", JC3, [(0, 142, 16, 150), (0, 151, 16, 164), (0, 166, 16, 175)],
      [5, 9, 2]),   # 69 宫墙（金瓦顶+红身+石基）
-    ("wall_ward_v",   JN,  [(496, 194, 512, 200), (496, 208, 512, 266), (496, 272, 512, 290)],
-     [5, 8, 3, 90]),   # 105 坊墙·竖（墙身转90°）
-    ("wall_palace_v", JC3, [(0, 142, 16, 150), (0, 151, 16, 164), (0, 166, 16, 175)],
-     [5, 9, 2, 90]),   # 104 宫墙·竖
-    ("wall_city_body_v", JC, [(568, 138, 584, 154)], [16, 90]),   # 107 外郭墙·砖身行·竖（E/W 走向段）
+    # 竖向墙段=侧立面（无檐无垛口，纯墙面+左右描边，檐口只落在转角/墙段北端）
+    # 竖立面 = "solid" 程序素面（源段平均色+轻噪点，零重复图案；长条压缩/源凸起连排都会成"横档梯"，双重实测踩坑）
+    ("wall_ward_v",   JN,  [(496, 232, 512, 246)],
+     [16, "vedge", "solid"]),   # 105 坊墙·竖立面（暖白灰素面）
+    ("wall_palace_v", JC3, [(0, 152, 16, 162)],
+     [16, "vedge", "solid"]),   # 104 宫墙·竖立面（朱红素面）
+    ("wall_city_face_v", JC, [(568, 138, 584, 154)],
+     [16, "vedge", "solid"]),   # 103 外郭墙·竖立面（青灰素面，双列成厚墙）
 ]
 
 def trim_alpha(im, pad=1):
@@ -180,13 +183,71 @@ def main():
             continue
         src = sheet(rel)
         parts = []
-        for item in zip(strips, weights):
-            box, hpx = item[0], item[1]
-            rot = item[2] if len(item) > 2 else 0
+        # vedge 标记放在 weights 尾（zip 会因 strips 较短丢掉尾项，标记必须整表判断——踩坑：tag 永远读不到）
+        vedge = "vedge" in weights
+        hw = [w for w in weights if w != "vedge"]
+        for (box, hpx) in zip(strips, hw):
             s = src.crop(box)
-            if rot:
-                s = s.rotate(rot, expand=True)
             parts.append(s.resize((16, hpx), Image.NEAREST))
+        im = Image.new("RGBA", (16, 16))
+        y = 0
+        for p, hpx in zip(parts, hw):
+            im.paste(p, (0, y))
+            y += hpx
+        solid = "solid" in weights
+        if solid:
+            # 素面墙：源段平均色 + ±6% 行噪点（极轻，防绝对纯色）——竖排永不产生重复图案
+            src_strip = src.crop(strips[0])
+            px0 = src_strip.load()
+            n = 0
+            rs = gs = bs = 0
+            for yy in range(src_strip.height):
+                for xx in range(src_strip.width):
+                    r, g, b, a = px0[xx, yy]
+                    if a > 10:
+                        rs += r; gs += g; bs += b; n += 1
+            base = (rs // max(1, n), gs // max(1, n), bs // max(1, n))
+            im = Image.new("RGBA", (16, 16))
+            px = im.load()
+            import random as _rnd
+            _rnd.seed(hash(name) & 0xFFFF)
+            for yy in range(16):
+                f = 1.0 + _rnd.uniform(-0.06, 0.06)
+                for xx in range(16):
+                    px[xx, yy] = (min(255, int(base[0] * f)), min(255, int(base[1] * f)), min(255, int(base[2] * f)), 255)
+        if vedge:
+            # 生成式描边（覆盖式，非乘法——源图残亮乘不没）：左3px 深影、2px 过渡、右2px 受光
+            px = im.load()
+            for _ in range(16):
+                holes = [(x, y) for x in range(16) for y in range(16) if px[x, y][3] == 0]
+                if not holes:
+                    break
+                for x, y in holes:
+                    for nx, ny in ((x, y + 1), (x + 1, y), (x - 1, y), (x, y - 1)):
+                        if 0 <= nx < 16 and 0 <= ny < 16 and px[nx, ny][3] > 0:
+                            px[x, y] = px[nx, ny]
+                            break
+            # 竖立面加强（候选B实测最优）：左3px强阴影+2px过渡 → 受光面 → 右2px提亮，底部2px墙基线；
+            # 连排读作连续竖高墙（与横墙垛口+亮墙身构成同一堵墙的两个视角）
+            px = im.load()
+            for yy in range(16):
+                # 行基准色（当前行中位调）——覆盖式描边用它，避免源图残亮干扰
+                row = [px[xx, yy] for xx in range(16)]
+                med = sorted(row, key=lambda c: c[0] + c[1] + c[2])[8][:3]
+                for xx in range(16):
+                    f = 1.0
+                    if xx < 3:
+                        f = 0.58
+                    elif xx < 5:
+                        f = 0.76
+                    elif xx >= 14:
+                        f = 1.22
+                    elif xx >= 12:
+                        f = 1.1
+                    px[xx, yy] = (min(255, int(med[0] * f)), min(255, int(med[1] * f)), min(255, int(med[2] * f)), 255)
+        im.save(os.path.join(OUT_TILES, name + ".png"))
+        made.append((name, im, "tile"))
+        continue
         im = Image.new("RGBA", (16, 16))
         y = 0
         for p, hpx in zip(parts, weights):

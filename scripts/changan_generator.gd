@@ -19,8 +19,8 @@ const T_WARD_WALL = 100     # 长安坊墙（SCKR白灰墙+瓦顶，带碰撞；
 const T_PAVE = 101          # 长安方砖（两市地面/宫院丹墀）
 const T_WARD_WALL_V = 105   # 坊墙·竖（E/W 走向段，墙身竖缝）
 const T_PALACE_WALL_V = 104 # 宫墙·竖
-const T_WALL_BODY = 106     # 外郭城墙·砖身行（横缝，N/S 段）——两行制：垛口行70+砖身行106/107
-const T_WALL_BODY_V = 107   # 外郭城墙·砖身行·竖（E/W 段）
+const T_WALL_BODY = 106     # 外郭城墙·砖身行（横缝，N/S 段）——两行制：垛口行70+砖身行106
+const T_WALL_FACE_V = 103   # 外郭城墙·竖立面（E/W 段：描边侧立面双列厚墙，檐口只在转角）
 const T_GATE_OPEN = 67      # 坊门·开（无碰撞）
 const T_GATE_CLOSED = 68    # 坊门·闭（宵禁/未解锁，带碰撞）
 const T_PALACE_WALL = 69    # 宫墙
@@ -39,7 +39,7 @@ const CURFEW_END := 5.0
 # ---- M3 三渠（龙首/清明/永安）：街缝内1宽水带，跨路处铺桥 ----
 const CANALS := [{"name": "清明渠", "seam": 1}, {"name": "龙首渠", "seam": 7}, {"name": "永安渠", "seam": 10}]
 
-const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 100, 102, 104, 105, 106, 107, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89]   # 坊墙43→100、足印=T_FOOT(102)（透明碰撞）；宅门75~77已去碰撞（M4传送门）；83~89=内景瓦碰撞段
+const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 100, 102, 103, 104, 105, 106, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89]   # 坊墙43→100、足印=T_FOOT(102)（透明碰撞）；宅门75~77已去碰撞（M4传送门）；83~89=内景瓦碰撞段
 
 # ---- 网格参数（JSON 解析后类型化）----
 var bw := 26
@@ -159,12 +159,12 @@ func _paint_layout():
 	# 外郭城墙两行制：垛口行（70）在外 + 砖身行（106/107 按走向）在内——城墙视觉加高
 	_set_rect(decor, margin, margin, W - margin * 2, 1, T_OUTER_WALL)
 	_set_rect(decor, margin, H - margin - 1, W - margin * 2, 1, T_OUTER_WALL)
-	_set_rect(decor, margin, margin, 1, H - margin * 2, T_OUTER_WALL)
-	_set_rect(decor, W - margin - 1, margin, 1, H - margin * 2, T_OUTER_WALL)
 	_set_rect(decor, margin + 1, margin + 1, W - margin * 2 - 2, 1, T_WALL_BODY)
 	_set_rect(decor, margin + 1, H - margin - 2, W - margin * 2 - 2, 1, T_WALL_BODY)
-	_set_rect(decor, margin + 1, margin + 1, 1, H - margin * 2 - 2, T_WALL_BODY_V)
-	_set_rect(decor, W - margin - 2, margin + 1, 1, H - margin * 2 - 2, T_WALL_BODY_V)
+	_set_rect(decor, margin + 1, margin + 1, 1, H - margin * 2 - 2, T_WALL_FACE_V)
+	_set_rect(decor, W - margin - 2, margin + 1, 1, H - margin * 2 - 2, T_WALL_FACE_V)
+	_set_rect(decor, margin, margin + 1, 1, H - margin * 2 - 2, T_WALL_FACE_V)
+	_set_rect(decor, W - margin - 1, margin + 1, 1, H - margin * 2 - 2, T_WALL_FACE_V)
 	_set_rect(decor, margin + 2, margin + 2, W - margin * 2 - 4, H - margin * 2 - 4, 0)
 	# 环路（贴城墙内侧，4宽土路）
 	var m := margin + wall
@@ -611,11 +611,7 @@ func _paint_ward(b: Dictionary):
 	_set_rect(ground, x0, y0, bw, bh, T_GRASS)
 	_set_wall_ring(x0, y0, bw, bh, T_WARD_WALL, T_WARD_WALL_V)
 	_set_rect(decor, x0 + 1, y0 + 1, bw - 2, bh - 2, 0)
-	# 坊脚散水（墙外 1 圈竖砖路肩）：坊墙不再生硬接草/接街
-	_set_rect(ground, x0 - 1, y0 - 1, bw + 2, 1, T_LANE)
-	_set_rect(ground, x0 - 1, y1 + 1, bw + 2, 1, T_LANE)
-	_set_rect(ground, x0 - 1, y0, 1, bh, T_LANE)
-	_set_rect(ground, x1 + 1, y0, 1, bh, T_LANE)
+	# 散水圈已删除：人字纹竖排成"横档梯"（用户实拍反馈）；坊墙直接接街/草，横墙观感自然
 	# 门洞：宽2，坊墙正中；stage>0 未解锁=闭门
 	var gx0 := x0 + bw / 2 - 1
 	var gy0 := y0 + bh / 2 - 1
