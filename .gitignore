@@ -39,6 +39,8 @@ sprites/tiles_mw22/
 sprites/changan_props_sckr/
 sprites/tiles_changan_sckr/
 docs/shots/pack_jingcheng/
+docs/shots/*.import
+docs/shots/dump_tile_*.png
 
 # MW 派生样张/盘点图（样张工具本地重出；license 禁再分发）
 docs/shots/mw_graybox_original.png
