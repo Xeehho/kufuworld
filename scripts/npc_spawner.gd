@@ -21,57 +21,7 @@ var npc_configs = [
 	{"id":"npc_012","name":"雪山道姑","personality":"阴沉","npc_type":"mysterious","pos":Vector2(600,-800)},
 ]
 
-# 青石城NPC（非门派：商人/手工业者/衙役等）：pos由 world_generator.city_info 建筑锚点解析
-# legs=[state, ref, start_hour, end_hour, off]  ref=建筑key/gate:n·s·e·w/plaza  off=门格偏移(格)
-# 每人固定作息与岗位（不随机、不扎堆）；21-6及未覆盖时段自动回家睡觉
-var city_npc_configs = [
-	{"id":"npc_c01","name":"铁三娘","personality":"豪爽","npc_type":"matron_f",
-	 "home":["tavern",Vector2(3,1)],
-	 "legs":[["work","tavern",7,22,Vector2(0,1)]]},   # 酒楼老板娘：卯时开门营业至亥时
-	{"id":"npc_c02","name":"小翠","personality":"活泼","npc_type":"tavern_f",
-	 "home":["tavern",Vector2(3,0)],
-	 "legs":[["work","tavern",8,14,Vector2(1,1)],["leisure","well",14,16,Vector2(1,0)],["work","tavern",16,21,Vector2(0,1)]]},   # 跑堂：午后去井边取水
-	{"id":"npc_c03","name":"白芷","personality":"慈悲","npc_type":"herbalist_f",
-	 "home":["apothecary",Vector2(2,1)],
-	 "legs":[["work","apothecary",8,18,Vector2(0,1)],["leisure","plaza",18,20,Vector2(1,1)]]},   # 药坊大夫：酉时后广场散步
-	{"id":"npc_c04","name":"铁牛","personality":"刚正","npc_type":"warrior",
-	 "home":["smithy",Vector2(2,1)],
-	 "legs":[["work","smithy",7,18,Vector2(0,1)],["leisure","tavern",18,21,Vector2(-1,1)]]},   # 铁匠：收工后酒楼喝酒
-	{"id":"npc_c05","name":"云娘","personality":"儒雅","npc_type":"seamstress_f",
-	 "home":["cloth",Vector2(2,1)],
-	 "legs":[["work","cloth",8,18,Vector2(0,1)],["leisure","plaza",18,20,Vector2(2,2)]]},   # 布庄老板娘
-	{"id":"npc_c06","name":"赵捕头","personality":"刚正","npc_type":"guard",
-	 "home":["yamen",Vector2(2,1)],
-	 "legs":[["wander","gate:n",6,10,Vector2(1,0)],["wander","plaza",10,14,Vector2(0,0)],["wander","gate:e",14,18,Vector2(-1,0)],["wander","gate:s",18,22,Vector2(0,-1)]]},   # 捕头：四门轮巡
-	{"id":"npc_c07","name":"秦师爷","personality":"儒雅","npc_type":"scholar",
-	 "home":["yamen",Vector2(3,1)],
-	 "legs":[["work","yamen",8,18,Vector2(0,1)],["leisure","tavern",18,20,Vector2(0,1)]]},   # 府衙师爷
-	{"id":"npc_c08","name":"王婆婆","personality":"慈悲","npc_type":"matron_f",
-	 "home":["house_w",Vector2(1,1)],
-	 "legs":[["work","stall_w1",8,19,Vector2(0,1)],["leisure","plaza",19,21,Vector2(0,2)]]},   # 茶贩：西市摊位
-	{"id":"npc_c09","name":"小七","personality":"市侩","npc_type":"mysterious",
-	 "home":["gate:s",Vector2(2,-2)],
-	 "legs":[["idle","gate:s",7,21,Vector2(1,-1)]]},   # 乞丐：日日在南门内侧落脚
-	{"id":"npc_c10","name":"更夫老周","personality":"阴沉","npc_type":"elder",
-	 "home":["house_w",Vector2(2,1)],
-	 "legs":[["wander","plaza",18,24,Vector2(0,0)],["wander","gate:n",0,6,Vector2(0,0)]]},   # 更夫：夜巡白宿
-	{"id":"npc_c11","name":"江南沈万","personality":"精明","npc_type":"merchant",
-	 "home":["house_ne",Vector2(1,1)],
-	 "legs":[["work","stall_e1",8,12,Vector2(0,1)],["leisure","tavern",12,14,Vector2(-1,1)],["work","stall_e1",14,18,Vector2(0,1)],["leisure","tavern",18,21,Vector2(0,1)]]},   # 大商人：东市摆摊，午晚酒楼应酬
-	# ---- W4 四门守卫（驻留制：门前站岗；npc_static=false 时夜间回家） ----
-	{"id":"npc_c12","name":"拱辰卫","personality":"刚正","npc_type":"guard",
-	 "home":["gate:n",Vector2(1,0)],
-	 "legs":[["idle","gate:n",6,22,Vector2(1,0)]]},
-	{"id":"npc_c13","name":"明德卫","personality":"刚正","npc_type":"guard",
-	 "home":["gate:s",Vector2(-1,0)],
-	 "legs":[["idle","gate:s",6,22,Vector2(-1,0)]]},
-	{"id":"npc_c14","name":"西成卫","personality":"沉稳","npc_type":"guard",
-	 "home":["gate:w",Vector2(0,-1)],
-	 "legs":[["idle","gate:w",6,22,Vector2(0,-1)]]},
-	{"id":"npc_c15","name":"东作卫","personality":"沉稳","npc_type":"guard",
-	 "home":["gate:e",Vector2(0,1)],
-	 "legs":[["idle","gate:e",6,22,Vector2(0,1)]]},
-]
+# 2026-09-07：青石城NPC（city_npc_configs 15人）随城退役删除——城内人群由长安城场景自理
 
 # W4 村镇 NPC 名池（按岗位轮转取名，确定性）
 const TOWN_NPC_NAMES := {
@@ -86,7 +36,6 @@ const TOWN_NPC_MOODS := ["本分", "豪爽", "慈悲", "精明", "市侩", "沉�
 func _ready():
 	y_sort_enabled = true   # Phase G4：NPC并入World递归Y-sort
 	_spawn_npcs()
-	_spawn_city_npcs()
 	_spawn_town_npcs()
 	_spawn_sect_npcs()
 	_init_interaction_ui()
@@ -112,63 +61,6 @@ func _spawn_npcs():
 		npc.npc_data = _create_npc_data(cfg, pos, pos + Vector2(randi_range(-80, 80), randi_range(-50, 50)), [])
 		add_child(npc)
 		npc_list.append(npc)
-
-func _spawn_city_npcs():
-	"""青石城NPC：从world_generator.city_info解析建筑/城门/广场锚点，
-	按各自日程腿生成固定作息——商人守摊、大夫坐堂、捕头巡城、乞丐守门、更夫夜行"""
-	var wg = get_node_or_null("../WorldGenerator")
-	if wg == null or not wg.has_method("get_city_info"):
-		print("[NPCSpawner] WorldGenerator缺失，跳过城内NPC")
-		return
-	var info: Dictionary = wg.get_city_info()
-	if info.is_empty():
-		print("[NPCSpawner] 城池未生成，跳过城内NPC")
-		return
-	var blds: Dictionary = info.get("buildings", {})
-	var gates: Dictionary = info.get("gate_px", {})
-	var center_px: Vector2 = info.get("center_px", Vector2.ZERO)
-	var static_mode := _static_mode()
-	for cfg in city_npc_configs:
-		var home_ref: Array = cfg["home"]
-		var home_pos: Vector2 = _resolve_ref(home_ref[0], home_ref[1], blds, gates, center_px)
-		var legs: Array = []
-		var work_pos: Vector2 = home_pos
-		var cfg_legs: Array = cfg.get("legs", [])
-		if static_mode and not cfg_legs.is_empty():
-			# W4 NPC 驻留制：全天 idle 驻守首段岗位（原 legs 配置保留，开关切回即恢复巡游）
-			var first: Array = cfg_legs[0]
-			cfg_legs = [["idle", first[1], 0, 24, first[4]]]
-		for L in cfg_legs:
-			var p: Vector2 = _resolve_ref(str(L[1]), L[4], blds, gates, center_px)
-			if legs.is_empty():
-				work_pos = p
-			legs.append({"start": int(L[2]), "end": int(L[3]), "state": str(L[0]), "pos": p})
-		# 出生点可达性兜底（门前格理论必可达，防御性搬迁）
-		var spawn: Vector2 = work_pos
-		if wg.has_method("is_world_pos_reachable") and not wg.is_world_pos_reachable(spawn):
-			spawn = wg.find_nearest_reachable(spawn)
-		var npc = NPC_SCENE.instantiate()
-		npc.global_position = spawn
-		npc.name = cfg["name"]
-		npc.npc_type = cfg.get("npc_type", "warrior")
-		npc.npc_data = _create_npc_data(cfg, home_pos, work_pos, legs)
-		if static_mode:
-			npc.set_meta("anchor_px", work_pos)   # 回归探针：落位锚（door_px/gate_px 系）
-			npc.set_meta("anchor_ref", str(cfg_legs[0][1]) if not cfg_legs.is_empty() else str(home_ref[0]))
-		add_child(npc)
-		npc_list.append(npc)
-	print("[NPCSpawner] 城内NPC生成: " + str(city_npc_configs.size()) + " 人（青石城，static=%s）" % str(static_mode))
-
-func _resolve_ref(ref: String, off: Vector2, blds: Dictionary, gates: Dictionary, center_px: Vector2) -> Vector2:
-	"""日程锚点解析：建筑key→门前格，gate:x→城门口，plaza→广场中心；off为格偏移"""
-	var base := center_px
-	if blds.has(ref):
-		base = blds[ref]["door_px"]
-	elif gates.has(ref):
-		base = gates[ref]
-	elif ref.begins_with("gate:"):
-		base = gates.get(ref.substr(5), center_px)
-	return base + off * 16.0
 
 # ============ W4 NPC 驻留制：村镇 + 门派领地（door_px 落位，全天 idle 驻留） ============
 

@@ -3,35 +3,12 @@ class_name WorldData
 
 ## 江湖志·世界重构常量数据表（docs/武侠世界重构规划-2026-08-31.md §12）
 ## 原则：数据驱动——生成器只按表施工，不散落魔法数。各表随阶段启用：
-##   W2=CITY_V2 / W3=SECT_TERRITORIES / W4=TOWN_TEMPLATES_V2+NPC_JOBS / W6=WALKABILITY
-
-## ============ 唐制城池蓝图（W2，施工修订版） ============
-## 市坊分离、棋盘路网、中轴居北、四门官道。rect 为相对城心偏移（格），half=30。
-## 施工修订：西市/东市 y 从 24 改 22（原草案 24+8 越过南城墙）；坊门对齐主街/次街。
-const CITY_V2 := {
-	"half": 30,
-	"main_street_w": 4,       # 朱雀大街/东西大街（x,y ∈ [-2,1]，直通四门）
-	"wards": {
-		"官署坊": Rect2i(-28, -28, 25, 26),   # x -28..-4, y -28..-3（府衙+捕头厅，唐制官署居北）
-		"寺观坊": Rect2i(4, -28, 25, 26),     # 古刹分寺（金脊）
-		"西坊":   Rect2i(-28, 4, 25, 16),     # 民居 6（防火巷间距≥2）
-		"东坊":   Rect2i(17, 4, 12, 16),      # 民居 5
-	},
-	"markets": {
-		"西市": Rect2i(-16, 22, 14, 8),       # 铁匠/药铺/布庄+市摊（贴主街西侧）
-		"东市": Rect2i(2, 22, 12, 8),         # 杂货/民居+市摊（贴主街东侧）
-	},
-	"gates": {"n": "拱辰门", "s": "明德门", "w": "西成门", "e": "东作门"},
-}
-
-## 建筑样式系统（W2/W3）：_compose_big_building 只认 STYLE，不再散传参数
-const STYLE_CIVILIAN := {
-	"roof": Color(0.45, 0.30, 0.22), "wall": Color(0.90, 0.87, 0.80),
-	"ridge_gold": false, "banner": Color(0.55, 0.45, 0.35),
-}
+##   W3=SECT_TERRITORIES / W4=TOWN_TEMPLATES_V2+NPC_JOBS / W6=WALKABILITY
+## 2026-09-07：青石城整体退役（CITY_V2 蓝图/STYLE_CIVILIAN 删除——主城职责移交长安城
+## 独立场景 changan_generator.gd，开放世界不再生成玩法锚点城池）
 
 ## ============ 门派领地（W3） ============
-## 选址硬规则：对应气候位找 20x20 全可行区块；领地间≥45，距城≥40，距镇≥20。
+## 选址硬规则：对应气候位找 20x20 全可行区块；领地间≥45，距镇≥20（距城项随城退役）。
 const SECT_TERRITORIES := {
 	"青峰剑宗": {
 		"climate": "temperate_mountain", "radius": 28,

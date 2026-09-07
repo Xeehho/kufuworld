@@ -96,14 +96,7 @@ def main():
     check("water", "footprint_no_water", w["footprint_water"] == 0, f"cells={w['footprint_water']}")
     worst_town = min(w["min_dist_towns"].values()) if w["min_dist_towns"] else 999
     check("water", "river_not_through_town", worst_town >= 13.0, f"min={worst_town:.1f}")
-    # W1 起生效：河流改道（源高山终湖海+避城轨迹）后河水不再进入城圈。
-    # W0 现状为第三轮成果"穿城河+水门街桥"（规划 §3.2 保留语义），基线豁免。
-    # W2 起城 half=30（方形）：水距城心用切比雪夫距离 ≥32（欧氏会放过城角内的水）
-    # v4 M0：city_half 改读登记表（原硬编码 30 废除）；水组先于城组执行，直取 data["city"]
-    CITY_HALF = data["city"]["half"]
-    check("water", "river_not_through_city", w["min_dist_city"] >= CITY_HALF + 2.0,
-          f"min_dist_city(cheby)={w['min_dist_city']:.1f} (city_half+2={CITY_HALF + 2})", since="W2")
-    check("water", "city_interior_dry", w["city_water"] == 0, f"cells={w['city_water']}", since="W1")
+    # v5（2026-09-07）：青石城退役——river_not_through_city/city_interior_dry 断言随城删除
 
     # W1 新增：湖泊存在、河源在山、干流终湖/海（规划 §2.1/§5.1 自然规律）
     rivers = data.get("rivers", [])
@@ -132,31 +125,14 @@ def main():
             bad_end.append(rv["tail"])
     check("water", "river_end_lake_or_sea", len(bad_end) == 0, f"bad_tails={bad_end}", since="W1")
 
-    # ---------- 断言组：city ----------
-    c = data["city"]
-    for g, ok in c["gates"].items():
-        check("city", f"gate_{g}_reachable", ok, "")
-    bad_doors = [k for k, ok in c["doors"].items() if not ok]
-    check("city", "all_building_doors_reachable", len(bad_doors) == 0, f"failed={bad_doors}")
-    # W2 新增：唐制坊/市存在、坊内连通（中巷从广场可达=坊门有效）、同坊房间距≥2
-    check("city", "wards_exist", c.get("wards_n", 0) >= 4, f"wards={c.get('wards_n', 0)}", since="W2")
-    check("city", "markets_exist", c.get("markets_n", 0) >= 2, f"markets={c.get('markets_n', 0)}", since="W2")
-    for wname, ok in c.get("ward_reach", {}).items():
-        check("city", f"ward_{wname}_connected", ok, "", since="W2")
-    check("city", "room_spacing_ge2", c.get("room_spacing_ok", False),
-          f"detail={c.get('spacing_detail', {})}", since="W2")
+    # v5（2026-09-07）：city 断言组整组随青石城退役删除；sect 距城断言同删
+    c = None   # 历史组占位（下游不再引用）
 
     # ---------- 断言组：sect（W3 门派领地） ----------
     sects = data.get("sects", [])
     check("sect", "sect_count_5", len(sects) == 5, f"sects={len(sects)}", since="W3")
-    # v4 M0：城心/半边改读登记表 city_info（原硬编码 (75,0)/city_half=30 废除）
-    CCX, CCY = c["center"]
-    CITY_HALF = c["half"]
     for s in sects:
         n = s["name"]
-        dc = max(abs(s["center"][0] - CCX), abs(s["center"][1] - CCY))
-        check("sect", f"sect_{n}_dist_city", dc >= CITY_HALF + 4 + s["radius"],
-              f"cheby={dc} need>={CITY_HALF + 4 + s['radius']}", since="W3")
         check("sect", f"sect_{n}_hall_placed", s["hall_ok"], "", since="W3")
         check("sect", f"sect_{n}_stele_ring", s["stele_ok"],
               f"samples={s['stele_samples']}/8", since="W3")
@@ -201,19 +177,19 @@ def main():
 
     # ---------- 断言组：npc（W4 驻留制落位） ----------
     npc = data.get("npc", {})
-    check("npc", "npc_total_in_budget", 40 <= npc.get("total", 0) <= 90,
-          f"total={npc.get('total', 0)}（城15+村镇+领地15，规划≤45为笔误见进度日志deviation）", since="W4")
-    check("npc", "npc_static_populated", npc.get("static_n", 0) >= 40,
+    check("npc", "npc_total_in_budget", 25 <= npc.get("total", 0) <= 90,
+          f"total={npc.get('total', 0)}（v5：青石城15人退役，=野外10+村镇+领地15；城内人群归长安场景）", since="W4")
+    check("npc", "npc_static_populated", npc.get("static_n", 0) >= 25,
           f"static={npc.get('static_n', 0)}", since="W4")
     check("npc", "npc_anchor_dist_le3", len(npc.get("bad_anchors", [])) == 0,
           f"bad={npc.get('bad_anchors', [])}", since="W4")
 
-    # ---------- 断言组：quest（W8 任务重启，规则 v2：告示板恢复+主线自动启动+玩家未接取） ----------
+    # ---------- 断言组：quest（v5 2026-09-07 长安体验模式回冻结：主线不启动+告示板零发布） ----------
     q = data.get("quest", {})
-    check("quest", "quest_available_positive", q.get("available", -1) >= 1,
-          f"available={q.get('available', -1)}（W8 规则v2：告示板恢复发布，冻结期零发布语义终止）", since="W8")
-    check("quest", "story_started", bool(q.get("story_started", False)),
-          f"started={q.get('story_started', False)}（主线 _start_when_ready 恢复，主1已启动）", since="W8")
+    check("quest", "quest_available_zero", q.get("available", -1) == 0,
+          f"available={q.get('available', -1)}（quests_disabled=true 零发布；恢复任务时改回 positive 语义）", since="v5")
+    check("quest", "story_not_started", not bool(q.get("story_started", False)),
+          f"started={q.get('story_started', False)}（主线 _start_when_ready 冻结）", since="v5")
     check("quest", "quest_active_zero", q.get("active", -1) == 0,
           f"active={q.get('active', -1)}（玩家未接取）", since="W4")
     check("quest", "quest_pending_story_zero", q.get("pending_story", -1) == 0,
@@ -221,10 +197,12 @@ def main():
     check("quest", "quest_completed_zero", q.get("completed", -1) == 0,
           f"completed={q.get('completed', -1)}", since="W4")
 
-    # ---------- 断言组：mob（营地避城回归） ----------
+    # ---------- 断言组：mob（v5：mobs_disabled 营地零生成；历史避城断言随空营地自然通过） ----------
     m = data.get("mob", {})
     check("mob", "story_camps_zero", m.get("story_camps", -1) == 0,
           f"story_camps={m.get('story_camps', -1)}", since="W4")
+    check("mob", "camps_zero", len(m.get("camps", [])) == 0,
+          f"camps={len(m.get('camps', []))}（mobs_disabled=true；恢复野怪时改回非零语义）", since="v5")
     for c in m.get("camps", []):
         check("mob", f"camp_{c['name']}_wild", c["in_settlement"] is False,
               f"in_settlement={c['in_settlement']}", since="W4")
@@ -238,15 +216,8 @@ def main():
           f"(single={b.get('t17_single', 0)} 豁免)", since="W5")
     bad_water = [p["run"] for p in props if not p["water_side"]]
     check("bridge", "bridge_side_water", len(bad_water) == 0, f"bad={bad_water[:3]}", since="W5")
-    roads = b.get("roads", [])
-    ok_roads = [r for r in roads if r["len"] >= 20]
-    check("bridge", "official_roads_exist", len(ok_roads) == 4,
-          f"roads={[(r['gate'], r['len']) for r in roads]}", since="W5")
-    crossed = [r["gate"] for r in roads if r["bridge_cells"] > 0]
-    # 规则 v3：语义改为条件审计——"官道×河交叉处必有桥"由 bridge_side_water（∀17 贴水）保证；
-    # 四门官道是否临河属布局特性（河平滑化后可能离城四门皆远），无交叉时不判 FAIL
-    check("bridge", "official_road_river_bridged", True,
-          f"crossed_gates={crossed}（无交叉=河离城远，17 贴水已由 bridge_side_water 保证）", since="W5")
+    # v5（2026-09-07）：青石城四门官道退役——official_roads_exist/official_road_river_bridged 断言删；
+    # 桥源回归河流 _bridge_along + 连通性修补的 17 段（t17_all_proped/bridge_side_water 仍全量审计）
 
     # ---------- 断言组：walk6（W6 可行域政策） ----------
     w6 = data.get("walk6", {})
@@ -284,7 +255,7 @@ def main():
 
     # ---------- 报告 ----------
     STAGE_ORDER = ["W0", "W1", "W2", "W3", "W4", "W5", "W6", "W7", "W8",
-                   "M0", "M1", "M2", "M3", "M4", "M5"]   # v4 全量重构里程碑（立项书 §四）
+                   "M0", "M1", "M2", "M3", "M4", "M5", "v5"]   # v4 里程碑；v5=2026-09-07 长安体验模式规则
     cur_i = STAGE_ORDER.index(CURRENT_STAGE)
 
     def verdict(r):
@@ -297,7 +268,7 @@ def main():
 
     fails = [r for r in results if verdict(r) == "FAIL"]
     print("=" * 62)
-    print("REGRESS WORLD REPORT  (rules v4, stage %s)" % CURRENT_STAGE)
+    print("REGRESS WORLD REPORT  (rules v5, stage %s)" % CURRENT_STAGE)
     print("=" * 62)
     groups_seen = []
     for g, n, ok, d, s in results:

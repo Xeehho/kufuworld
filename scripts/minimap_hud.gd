@@ -23,7 +23,7 @@ const TILE_COLORS := {
 	15: Color(0.62, 0.48, 0.31), 16: Color(0.52, 0.38, 0.23), 17: Color(0.68, 0.51, 0.31),
 	18: Color(0.27, 0.43, 0.20), 33: Color(0.42, 0.31, 0.19), 34: Color(0.90, 0.92, 0.95),
 	35: Color(0.58, 0.58, 0.56), 36: Color(0.72, 0.53, 0.30), 37: Color(0.82, 0.77, 0.58),
-	39: Color(0.66, 0.42, 0.26), 40: Color(0.60, 0.58, 0.56),   # 40=青石城城墙
+	39: Color(0.66, 0.42, 0.26), 40: Color(0.60, 0.58, 0.56),   # 40=长安外郭城墙（青石城退役）
 	41: Color(0.82, 0.86, 0.88), 42: Color(0.78, 0.82, 0.85),   # 41=雪覆农田 42=雪径
 	43: Color(0.74, 0.71, 0.66),                                 # 43=唐制坊墙（W2）
 	44: Color(0.72, 0.71, 0.68),                                 # 44=界碑（W3）
@@ -205,10 +205,6 @@ func _refresh():
 	for tc in wg.town_centers:
 		var tv := Vector2(tc.x * 16.0 + 8.0, tc.y * 16.0 + 8.0)
 		_dot_on(_big_view, _to_big(tv), 2, Color(0.35, 0.85, 0.55))
-	# 青石城地标（金色菱形）
-	var city_info: Dictionary = wg.get("city_info") if wg.get("city_info") != null else {}
-	if not city_info.is_empty() and city_info.has("center_px"):
-		_diamond_on(_big_view, _to_big(city_info["center_px"]), Color(1.0, 0.92, 0.5))
 	_draw_camps(_big_view)
 	for mob in get_tree().get_nodes_in_group("mobs"):
 		_dot_on(_big_view, _to_big(mob.global_position), 1, Color(0.90, 0.25, 0.20))

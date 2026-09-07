@@ -1,6 +1,7 @@
 extends Node
 
 ## 世界回归采样探针（W0 基线，tools/regress_world.py 临时注入 autoload 运行）
+## 2026-09-07 规则 v5：青石城退役（城组/官道采样删）；quest 组回冻结语义；mob 组营地零生成
 ## 职责：只采样原始数据写 JSON（tools/regress_world_data.json），断言判定在 python 侧。
 ## 陷阱备忘 §五33：跑完由 runner 还原 project.godot，本文件不注册进工程。
 const OUT := "C:/Learn/my-godot-project/tools/regress_world_data.json"
@@ -96,9 +97,7 @@ func _ready():
 		prev_row = row
 	data["biome_adj"] = adj
 
-	# ---- 3) 水文组：非边界水格距城/镇心最小距离；建筑矩形压水；城内水格 ----
-	var city_c: Vector2i = wg.CITY_POS
-	var min_city := 1e9
+	# ---- 3) 水文组：非边界水格距镇心最小距离；建筑矩形压水（v5：青石城退役，城组采样删） ----
 	var water_min_town := {}
 	var footprint_water := 0
 	for cell in wg.override_cells:
@@ -106,23 +105,13 @@ func _ready():
 			continue
 		if Vector2(cell.x, cell.y).length() > R - 8:
 			continue   # 边界深水不计
-		# 方形城用切比雪夫距离（欧氏会放过城角内的水：城角距城心可达 30√2）
-		var dc: float = float(maxi(absi(cell.x - city_c.x), absi(cell.y - city_c.y)))
-		if dc < min_city:
-			min_city = dc
 		for tc in wg.town_centers:
 			var dt: float = Vector2(cell.x - tc.x, cell.y - tc.y).length()
 			var key := str(tc)
 			if not water_min_town.has(key) or dt < float(water_min_town[key]):
 				water_min_town[key] = dt
-	# 建筑矩形内不得有水（城+镇所有登记建筑）
+	# 建筑矩形内不得有水（镇所有登记建筑）
 	var rects: Array = []
-	var binfo: Dictionary = wg.city_info.get("buildings", {})
-	for key in binfo:
-		var b: Dictionary = binfo[key]
-		var a: Vector2i = b["anchor"]
-		var fp: Vector2i = b["fp"]
-		rects.append(Rect2i(a, fp))
 	for tc in wg.town_centers:
 		# town_info 键为 Vector2i，town_centers 存 Vector2——取键需显式转换
 		var tci := Vector2i(int(tc.x), int(tc.y))
@@ -137,85 +126,8 @@ func _ready():
 			for dy in range(r.size.y):
 				if wg.get_tile_id(r.position.x + dx, r.position.y + dy) == 5:
 					footprint_water += 1
-	var city_water := 0
-	var city_water_cells := []
-	var ch: int = wg.city_half
-	for dx in range(-ch + 1, ch):
-		for dy in range(-ch + 1, ch):
-			if wg.get_tile_id(city_c.x + dx, city_c.y + dy) == 5:
-				city_water += 1
-				if city_water_cells.size() < 20:
-					var ov = wg.override_cells.get(Vector2i(city_c.x + dx, city_c.y + dy), "none")
-					city_water_cells.append([dx, dy, str(ov)])
-	data["water"] = {"min_dist_city": min_city, "min_dist_towns": water_min_town,
-		"footprint_water": footprint_water, "city_water": city_water,
-		"city_water_cells": city_water_cells}
-
-	# ---- 4) 城池组：从广场 BFS，四门与全部 door_px 可达性 ----
-	var reach := {}
-	var q: Array = [city_c]
-	reach[city_c] = true
-	var head := 0
+	data["water"] = {"min_dist_towns": water_min_town, "footprint_water": footprint_water}
 	var dirs := [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
-	var bound: int = ch + 12
-	while head < q.size():
-		var cur: Vector2i = q[head]
-		head += 1
-		for d in dirs:
-			var n: Vector2i = cur + d
-			if reach.has(n):
-				continue
-			if absi(n.x - city_c.x) > bound or absi(n.y - city_c.y) > bound:
-				continue
-			if wg.get_tile_id(n.x, n.y) in wg.collision_tiles:
-				continue
-			reach[n] = true
-			q.append(n)
-	var gates := {
-		"n": Vector2i(city_c.x, city_c.y - ch), "s": Vector2i(city_c.x, city_c.y + ch),
-		"w": Vector2i(city_c.x - ch, city_c.y), "e": Vector2i(city_c.x + ch, city_c.y),
-	}
-	var gates_ok := {}
-	for g in gates:
-		gates_ok[g] = reach.has(gates[g])
-	var doors_ok := {}
-	for key in binfo:
-		var dp: Vector2 = binfo[key]["door_px"]
-		var dt2 := Vector2i(int(floor(dp.x / 16.0)), int(floor(dp.y / 16.0)))
-		doors_ok[key] = reach.has(dt2)
-	data["city"] = {"gates": gates_ok, "doors": doors_ok,
-		"center": [city_c.x, city_c.y], "half": ch}   # v4 M0：城心/半边登记制输出（废 python 硬编码）
-
-	# ---- 4b) W2 唐制城：坊/市存在性 + 坊内连通（中巷格可达）+ 坊内房间距≥2 ----
-	var wards: Array = wg.city_info.get("wards", [])
-	var markets: Array = wg.city_info.get("markets", [])
-	data["city"]["wards_n"] = wards.size()
-	data["city"]["markets_n"] = markets.size()
-	var ward_reach := {}
-	var spacing_ok := true
-	var spacing_detail := {}
-	for w in wards:
-		var wr: Rect2i = w["rect"]
-		var ar := Rect2i(wr.position + city_c, wr.size)
-		# 坊内中横巷中点（坊门连通则从广场 BFS 可达）
-		var mid := Vector2i(ar.position.x + ar.size.x / 2, ar.position.y + ar.size.y / 2)
-		ward_reach[w["name"]] = reach.has(mid)
-		# 同坊建筑 footprint 各膨胀 1 格后两两不相交 = 间隙 ≥2 格（防火巷）
-		var rms: Array = []
-		for key in binfo:
-			var b: Dictionary = binfo[key]
-			var ba: Vector2i = b["anchor"]
-			var bf: Vector2i = b["fp"]
-			var br := Rect2i(ba, bf).grow(1)
-			if ar.intersects(Rect2i(ba, bf)):
-				for other in rms:
-					if br.intersects(other):
-						spacing_ok = false
-						spacing_detail[key] = str(other)
-				rms.append(br)
-	data["city"]["ward_reach"] = ward_reach
-	data["city"]["room_spacing_ok"] = spacing_ok
-	data["city"]["spacing_detail"] = spacing_detail
 
 	# ---- 4c) W3 门派领地：在位/主殿/界碑环闭合（8 采样点=四角+四边中点）----
 	var sects: Array = []
@@ -453,13 +365,8 @@ func _ready():
 			if water_side:
 				break
 		bridges_out.append({"axis": str(bp["axis"]), "run": bp["run_rect"], "water_side": water_side})
-	var roads_out: Array = []
-	var roads_raw: Array = wg.get("official_roads") if wg.get("official_roads") != null else []
-	for rd in roads_raw:
-		roads_out.append({"gate": str(rd["gate"]), "len": rd["cells"].size(),
-			"bridge_cells": rd["bridge_cells"].size()})
 	data["bridge"] = {"props": bridges_out, "t17_total": b17_total, "t17_covered": b17_covered,
-		"t17_single": b17_single, "roads": roads_out}
+		"t17_single": b17_single}   # v5：官道随青石城退役，roads 输出删
 
 	# ---- 11) W6 可行域：分区零碰撞 / 岩石聚簇 / 2×2 走廊 ----
 	# 11a) SETTLEMENT/ROAD 分区采样：城圈/每镇圈/领地圈(除禁地矩形)/官道 cells——
@@ -468,15 +375,6 @@ func _ready():
 	var zone_bad: Array = []
 	var zone_checked := 0
 	var data_water_sect := 0
-	var city_c2: Vector2i = wg.CITY_POS
-	var ch2: int = wg.city_half
-	for dx in range(-ch2 + 1, ch2):
-		for dy in range(-ch2 + 1, ch2):
-			var c := city_c2 + Vector2i(dx, dy)
-			zone_checked += 1
-			var t := str(wg.get_tile_id(c.x, c.y))
-			if wg.collision_tiles.has(wg.get_tile_id(c.x, c.y)) and not exempt.has(t):
-				zone_bad.append(["city", c.x, c.y, t])
 	for tc in wg.town_centers:
 		# v4 M0：镇采样圆参数化 r=max(13, half+4)——镇 half 扩大后仍全覆盖（W6 硬编码 13 废除）
 		var tk: Vector2i = Vector2i(int(tc.x), int(tc.y))
@@ -509,14 +407,8 @@ func _ready():
 					continue
 				if wg.collision_tiles.has(tid3) and not exempt.has(str(tid3)):
 					zone_bad.append(["sect", c3.x, c3.y, str(tid3)])
-	for rd in roads_raw:
-		for c4 in rd["cells"]:
-			zone_checked += 1
-			var t4 := str(wg.get_tile_id(c4.x, c4.y))
-			if wg.collision_tiles.has(wg.get_tile_id(c4.x, c4.y)) and not exempt.has(t4):
-				zone_bad.append(["road", c4.x, c4.y, t4])
 	data["walk6"] = {"zone_checked": zone_checked, "zone_bad": zone_bad.slice(0, 12),
-		"zone_bad_n": zone_bad.size(), "sect_water_n": data_water_sect}
+		"zone_bad_n": zone_bad.size(), "sect_water_n": data_water_sect}   # v5：官道采样删
 
 	# 11b) 岩石聚簇：desert/snow WILD 散石 step2 采样——贴山率/孤立率/总量
 	var rock_total := 0

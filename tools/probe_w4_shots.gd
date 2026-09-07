@@ -7,9 +7,8 @@ const LOG := "C:/Learn/my-godot-project/tools/probe_w4_shots_log.txt"
 const OUT := "C:/Learn/my-godot-project/tools/"
 
 ## [机位名, 瓦片坐标]
+## v5（2026-09-07）：青石城机位随城退役删除；长安城走 run_changan_e2e.py 独立样张
 const SPOTS := [
-	["0_city_plaza", Vector2i(75, 0)],        # 青石城中央广场（酒楼/摊贩/广场）
-	["1_city_market_w", Vector2i(64, 24)],    # 西市（铁匠/药师/布庄/市摊）
 	["2_ferry_village", Vector2i(-51, 44)],   # 渡口村（渡亭+渡夫+村正）
 	["3_farm_village", Vector2i(-130, 85)],   # 农耕村（祠堂+农带+农人）
 	["4_market_town", Vector2i(110, 102)],    # 市镇（行肆+骡马店+广场）

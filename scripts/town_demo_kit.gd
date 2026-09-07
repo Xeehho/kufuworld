@@ -50,7 +50,9 @@ func setup(world_gen) -> bool:
 	"""程序化选址：以出生点为锚的网格扫描（步长6、半径150），按距离从近到远取首个
 	"净地+官道可接入"的 56x44 矩形（立项书 §2.2；半径放宽 40→150 为 §4.4 风险1预案）。"""
 	wg = world_gen
-	for road in wg.official_roads:
+	# 2026-09-07：官道随青石城退役（wg.official_roads 已删）——防御式读取；重开样板区前须改锚
+	var roads_src: Array = wg.get("official_roads") if wg.get("official_roads") != null else []
+	for road in roads_src:
 		for c in road["cells"]:
 			road_set[c] = true
 	var spawn: Vector2 = wg._spawn_tile()
@@ -87,7 +89,8 @@ var _dbg_tid := {}
 func _gate_reachable(r: Rect2i) -> bool:
 	"""官道最近格距 rect ≤55（入口路 BFS 框+60 内可达），保证 P0 入口路必然铺成。"""
 	var best := 1 << 30
-	for road in wg.official_roads:
+	var roads_src2: Array = wg.get("official_roads") if wg.get("official_roads") != null else []
+	for road in roads_src2:
 		for c in road["cells"]:
 			var dx := maxf(maxf(r.position.x - c.x, c.x - (r.end.x - 1)), 0.0)
 			var dy := maxf(maxf(r.position.y - c.y, c.y - (r.end.y - 1)), 0.0)
@@ -278,15 +281,11 @@ func _stamp_orchard() -> int:
 # ---- 选址检查（返回否决原因码，""=通过） ----
 
 func _site_reason(r: Rect2i) -> String:
-	# A 世界边界 + 青石城避让（城半边 + 官道缓冲）
+	# A 世界边界（2026-09-07：青石城避让随城退役删除）
 	for p in [r.position, r.end - Vector2i(1, 1),
 			Vector2i(r.end.x - 1, r.position.y), Vector2i(r.position.x, r.end.y - 1)]:
 		if Vector2(p).length() > float(wg.WORLD_RADIUS) - 12.0:
 			return "border"
-	var m: int = wg.city_half + 6
-	if r.position.x < wg.CITY_POS.x + m and r.end.x > wg.CITY_POS.x - m \
-			and r.position.y < wg.CITY_POS.y + m and r.end.y > wg.CITY_POS.y - m:
-		return "city"
 	# B rect 内步长2 扫描——人工瓦片一票否决；山/水占比受控；植被占比受控
 	var geo := 0
 	var soft := 0
@@ -348,7 +347,8 @@ func _lay_gate_road():
 	var best := Vector2i.ZERO
 	var best_d := 1 << 30
 	var found := false
-	for road in wg.official_roads:
+	var roads_src3: Array = wg.get("official_roads") if wg.get("official_roads") != null else []
+	for road in roads_src3:
 		for c in road["cells"]:
 			if wg.get_tile_id(c.x, c.y) == 17:   # 桥格不做接入点
 				continue

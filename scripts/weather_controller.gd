@@ -3,6 +3,11 @@ extends Node
 @export var time_scale: float = 60.0
 @export var start_hour: float = 8.0
 
+# 长安城体验模式（2026-09-07，WorldFeatures.always_day）：时辰恒白天——
+# world_time 钉在 DAY_HOUR 不再推进（陷阱#27：只赋 current_hour 下一帧就被 _process 重算
+# 覆盖，必须钉 world_time 源头）；连带长安宵禁永不闭坊门、夜色 CanvasModulate 不降临
+const DAY_HOUR := 10.0   # 巳时：正午微暖光，树影浓度高段，观感最稳
+
 enum Weather {CLEAR, CLOUDY, RAIN, SNOW, FOG}
 
 var world_time: float = 0.0
@@ -35,12 +40,15 @@ var fog_overlay: ColorRect = null
 @onready var canvas_modulate: CanvasModulate = $"../CanvasModulate"
 
 func _ready():
+	if WorldFeatures.FLAG.get("always_day", false):
+		start_hour = DAY_HOUR
 	world_time = start_hour * 60.0 * time_scale
 	_create_weather_particles()
 	_setup_day_colors()
 	current_light = _target_light_color()   # 开局直接落在目标光，避免从纯白渐变
 	pick_new_weather()
-	print("[Weather] Controller ready - start hour " + str(start_hour))
+	print("[Weather] Controller ready - start hour " + str(start_hour)
+			+ (" (always_day 时辰冻结)" if WorldFeatures.FLAG.get("always_day", false) else ""))
 
 func _setup_day_colors():
 	day_colors = {
@@ -96,7 +104,10 @@ func _make_snow_material() -> ParticleProcessMaterial:
 	return mat
 
 func _process(delta):
-	world_time += delta * time_scale
+	if WorldFeatures.FLAG.get("always_day", false):
+		world_time = DAY_HOUR * 60.0 * time_scale   # 钉住源头（陷阱#27），current_hour 恒巳时
+	else:
+		world_time += delta * time_scale
 	current_hour = fmod(world_time / (60.0 * time_scale), 24.0)
 	_update_lighting(delta)
 	_update_weather(delta)

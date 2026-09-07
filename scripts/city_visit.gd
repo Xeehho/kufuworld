@@ -34,6 +34,7 @@ var _minimap: Control = null
 var _hint_shown := false
 var auto_spawn_in_city := true           # 出生点=长安明德门内（探针环境自动跳过，防干扰回归/E2E）
 
+
 func _ready():
 	world = get_node_or_null("/root/Main/World")
 	if world == null:
@@ -56,13 +57,15 @@ func _probe_present() -> bool:
 			return true
 	return false
 
-# 开局自动入城：等 NPC/系统生成稳定后走一次明德门入城（出生点=明德门内 3×3 校验点）
+# 开局直接入城（2026-09-07 长安体验模式）：出生点=长安明德门内，黑屏直达不给开放世界画面
+# ——先淡入黑屏再等系统稳定（NPC/纹理/世界首帧），玩家视角全程黑屏→城内淡入
 func _auto_enter_city():
-	await get_tree().create_timer(4.0).timeout   # 与E2E同时长：等NPC生成/主线弹窗/系统首帧全部稳定
+	_fade_rect.color = Color(0, 0, 0, 1.0)   # 立即压黑，跳过 0.25s 渐暗暴露开放世界
+	await get_tree().create_timer(1.2).timeout   # 系统稳定窗口（任务冻结后无主线弹窗，4s→1.2s）
 	if in_city or changan != null or _busy:
 		return
-	print("[CityVisit] 出生点=长安明德门内（自动入城）")
-	enter_city("S", true)   # force=true：开局主线弹窗可能未关，直入（弹窗为CanvasLayer不依赖世界）
+	print("[CityVisit] 出生点=长安明德门内（开局直达）")
+	enter_city("S", true)   # force=true：直入（弹窗为CanvasLayer不依赖世界）
 
 # ---- 开放世界侧：外郭轮廓 + 四门触发区 ----
 func _setup_footprint():
@@ -74,7 +77,7 @@ func _setup_footprint():
 	_build_entry_triggers()
 	print("[CityVisit] 长安外郭轮廓落地 origin=%s size=%dx%d 四城门=明德S/玄武N/春明E/开远W" %
 			[footprint_origin, FP_W, FP_H])
-	if not _hint_shown:
+	if not _hint_shown and not (auto_spawn_in_city and not _probe_present()):
 		_hint_shown = true
 		GameManager.emit_event("长安城郭", "东行远望，长安城郭巍然——走近城门即可入京。", 6)
 
@@ -82,18 +85,28 @@ func _find_footprint_origin() -> Vector2i:
 	var half := Vector2i(FP_W / 2, FP_H / 2)
 	var radius_cap: int = world_gen.WORLD_RADIUS - 30
 	# 偏东优先（设计稿：灞桥/入京在城东），步长2粗扫控制开销，逐格严格校验
+	# 2026-09-07：青石城已退役删除，避城排除随之移除
 	for cx in range(168, 40, -2):
 		for cy in range(-136, 137, 2):
 			var center := Vector2i(cx, cy)
 			if center.length() > radius_cap:
 				continue
-			if Vector2(center - world_gen.CITY_POS).length() < 48:
-				continue   # 避让青石城（半边22+安全距）
 			var o := center - half
 			if _rect_clear(o, FP_W + FP_SCAN_PAD * 2, FP_H + FP_SCAN_PAD * 2):
 				return o
-	# 兜底：固定东城点（理论上不会走到；日志可诊断）
-	print("[CityVisit] WARN: 选址扫描无净空点，回退固定位置(120,40)")
+	# 兜底2：全图扫描（任意方位净空点——东带无净空时世界其他区域通常仍有；
+	# 2026-09-07 实测删城后东带满镇/崖，回退固定点(120,40)会压在镇上截断door可达）
+	for cx in range(-168, 169, 2):
+		for cy in range(-136, 137, 2):
+			var center := Vector2i(cx, cy)
+			if center.length() > radius_cap:
+				continue
+			var o := center - half
+			if _rect_clear(o, FP_W + FP_SCAN_PAD * 2, FP_H + FP_SCAN_PAD * 2):
+				print("[CityVisit] 兜底全图扫描命中 origin=%s" % str(o))
+				return o
+	# 兜底3：固定东城点（最后手段；日志可诊断）
+	print("[CityVisit] WARN: 全图扫描仍无净空点，回退固定位置(120,40)")
 	return Vector2i(120 - half.x, 40 - half.y)
 
 func _rect_clear(o: Vector2i, w: int, h: int) -> bool:

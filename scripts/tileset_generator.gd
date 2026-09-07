@@ -43,8 +43,8 @@ static func build_tileset() -> TileSet:
 		35: ["res://sprites/tiles_mw22/stone.png", "res://sprites/tiles/stone.png"],                # Phase G重构: 石板广场（demo1城镇）
 		36: ["res://sprites/tiles_mw22/mushroom.png", "res://sprites/tiles/mushroom.png"],          # Phase G重构: 蘑菇装饰（demo2森林地表）
 		37: ["res://sprites/tiles_mw22/daisy.png", "res://sprites/tiles/daisy.png"],                # Phase G重构: 雏菊装饰
-		40: "res://sprites/tiles/city_wall.png",      # 青石城城墙砖（四面围墙，有碰撞）
-		43: "res://sprites/tiles/ward_wall.png",      # W2 唐制坊墙（白灰淡砖，里坊围合，有碰撞）
+		40: "res://sprites/tiles/city_wall.png",      # 城墙砖（青石城退役后=长安外郭轮廓用，city_visit 铺设，有碰撞）
+		43: "res://sprites/tiles/ward_wall.png",      # 坊墙（白灰淡砖；青石城退役后暂无铺设者，注册留档）
 		44: "res://sprites/tiles/boundary_stone.png", # W3 界碑（门派领地边界标记，无碰撞装饰）
 		# ---- 画面改造P1.2 地面变体（无碰撞，layer 0，由 _ground_variant 噪声抖动选入）----
 		45: ["res://sprites/tiles_mw22/grass_a.png", "res://sprites/tiles/grass_a.png"],   # 草地像素变体A

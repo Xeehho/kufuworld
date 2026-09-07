@@ -37,6 +37,10 @@ func _process(_delta):
 	_tick_respawns(_delta)
 
 func _setup_camps():
+	# 长安城体验模式（WorldFeatures.mobs_disabled）：野怪营地整体不生成（重生随空营地自然失效）
+	if WorldFeatures.FLAG["mobs_disabled"]:
+		print("[MobSpawner] 野怪冻结中（mobs_disabled=true），营地零生成")
+		return
 	var player := get_tree().get_first_node_in_group("player") as Node2D
 	if player == null:
 		return
