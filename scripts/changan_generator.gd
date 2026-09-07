@@ -235,6 +235,26 @@ func _paint_layout():
 		if _in_market(int(b["col"]), int(b["row"])):
 			continue
 		if int(b["stage_unlock"]) != 0:
+			# 未解锁坊（第四轮修缮）：原"留白"=大片裸草，zoom2 观感如占位块且违反无空地纪律——
+			# 改"夯土地坪+留草树坑"：无建筑但有远景肌理（树长草坑=自然逻辑），解锁时照常填充
+			var uy0 := row_y(int(b["row"]))
+			var ux0 := col_x(int(b["col"]))
+			var urng := RandomNumberGenerator.new()
+			urng.seed = hash(String(b["id"]))
+			var tree_pits := {}
+			for ti in range(10):
+				tree_pits[Vector2i(ux0 + 2 + urng.randi_range(0, bw - 5), uy0 + 2 + urng.randi_range(0, bh - 5))] = true
+			for yy in range(uy0 + 1, uy0 + bh - 1):
+				var ubase = yy * W
+				for xx in range(ux0 + 1, ux0 + bw - 1):
+					var cell := Vector2i(xx, yy)
+					if tree_pits.has(cell):
+						continue   # 树坑留草
+					if int(ground[ubase + xx]) == 0:
+						ground[ubase + xx] = T_LANE
+			for pit in tree_pits:
+				if int(decor[pit.y * W + pit.x]) == 0:
+					decor[pit.y * W + pit.x] = 8   # 橡树瓦（可行走装饰，无 sprite 穿模风险）
 			continue
 		_fill_ward_contents(b)
 	# M3 三渠+范式v3 南护城河（全城一次；渠后于坊填充避免被盖，街饰避水在其后）
@@ -406,9 +426,10 @@ func _paint_moat():
 		for y in range(H - margin, wy0):
 			if int(ground[y * W + x]) != T_WATER:
 				ground[y * W + x] = T_MAIN_ROAD
-	# ② 拱桥改"桥面裁剪版"切片（整块版下45%画死水面，锚哪都"接水"）；deck 顶=北岸岸顶(wy0*16)，
-	#    桥身跨岸石+上两行水、拱脚入水、下方露真实水瓦——两端视觉都落在岸/路上
-	_spawn_prop("bridge_arch_stone_deck", (cx + 0.5) * 16.0, wy0 * 16.0 + 58.0)
+	# ② 拱桥（第四轮修缮：红框"桥横放"根治——deck 横构图换 bridge_body_v 纵桥竖条 42×96，
+	#    桥长轴沿南北=进城过河方向；z=1 铺玩家层下（可穿行不遮挡），两侧露真实桥面瓦，
+	#    桥体覆盖 wy0..wy0+5：北端压北岸岸顶、南端收在南岸引道上）
+	_spawn_prop("bridge_body_v", (cx + 0.5) * 16.0, wy0 * 16.0 + 96.0, 1)
 	# 停船：切片已抠透明底（BOAT_KEY），锚点全压进 3 行水带内（底边=水带下缘-2px，防"船嵌陆地"）；
 	# 距桥轴 ≥10 格（拱桥 prop 半宽 48px+船半宽 48px+余量，防"船身被桥截半"）
 	var rng := RandomNumberGenerator.new()
@@ -548,21 +569,32 @@ func _fill_ward_generic(b: Dictionary, occupied: Array = []):
 		for xx in range(x0 + 1, x0 + bw - 1):
 			if int(ground[base + xx]) == 0:
 				ground[base + xx] = T_LANE
-	# ② N/S 店排（前店后院坊市肌理）：2×1 店/摊 foot，避门轴 ±3 格
-	var shop_vars := ["house_shop_open", "house_door_a", "gable_ma", "house_win_a"]
-	var stall_vars := ["stall_red", "stall_awn_blue", "stall_food_a", "stall_goods_blue", "stall_white_awn"]
+	# ② N/S 店排（前店后院坊市肌理）：第四轮修缮——house 族 sprite 檐宽≈95px(6格) 而 foot 仅 2 格，
+	#    原步距 3 必致相邻店 sprite 层层互叠（vision 判"红门有门无墙/短墙截断"的真凶）——
+	#    改 house/stall 交替：house 位间距 7 格（sprite 6 格+1 净距），间隔位放窄 stall（46~50px 不出 3 格）
+	var shop_vars := ["house_door_a", "gable_ma", "house_win_a", "gable_white", "house_win_small"]   # ≤96px 檐宽（house_shop_open 190px 巨宽弃用）
+	var stall_vars := ["stall_red", "stall_wood", "stall_red2", "stall_banner"]   # 窄款 43~46px（96px 宽棚款留市场内场，防压后排院墙）
+	var shop_slots := [1, 8, 15, 22]      # house 位（间距 7 ≥ sprite 6 格）
+	var stall_slots := [4, 11, 18, 21]   # stall 位（窄摊 46px=3 格；与 house 位净距≥3 防叠）
 	for row in [y0 + 1, y0 + bh - 2]:
-		for sx in [x0 + 2, x0 + 5, x0 + 8, x0 + 15, x0 + 18, x0 + 21]:
+		for si in range(shop_slots.size()):
+			var sx := x0 + int(shop_slots[si])
 			if sx + 1 >= gx0 - 1 and sx <= gx0 + 2:
 				continue
 			var rect := Rect2i(sx, row, 2, 1)
 			if _hits_occupied(rect, occupied) or not _cells_clear(sx, row, 2, 1):
 				continue
 			if rng.randf() < (0.85 if high else 0.7):
-				if rng.randf() < 0.72:
-					_spawn_building(shop_vars[rng.randi_range(0, shop_vars.size() - 1)], rect)
-				else:
-					_spawn_building(stall_vars[rng.randi_range(0, stall_vars.size() - 1)], rect)
+				_spawn_building(shop_vars[(si + int(b["col"])) % shop_vars.size()], rect)
+		for si in range(stall_slots.size()):
+			var sx := x0 + int(stall_slots[si])
+			if sx + 1 >= gx0 - 1 and sx <= gx0 + 2:
+				continue
+			var rect := Rect2i(sx, row, 2, 1)
+			if _hits_occupied(rect, occupied) or not _cells_clear(sx, row, 2, 1):
+				continue
+			if rng.randf() < (0.75 if high else 0.6):
+				_spawn_building(stall_vars[rng.randi_range(0, stall_vars.size() - 1)], rect)
 	# ③ 四合院组群（第三轮修缮：v4"错缝排"仍是散楼平铺——用户红框"一层叠一层无思考"根治；
 	#    重写为概念图式院落范式：院墙围合 + 北正房 + 东西厢房 + 南月洞门 + 方砖庭院 + 门前甬道，
 	#    每坊 2×2 院背靠背，避开坊内十字街（竖街 gx0..gx0+1 / 横街 gy0..gy0+1 各让 1 格）；
@@ -593,14 +625,15 @@ func _fill_ward_generic(b: Dictionary, occupied: Array = []):
 		if ax + 9 > x0 + bw - 2 or ay + 9 > y0 + bh - 2:
 			continue   # 坊尺寸不足整院则跳过（宁缺勿挤）
 		var kind := k % 4   # 0/1=宅院 2=园池院 3=地标院
+		var is_bottom: bool = k >= 2   # 贴南店排的院：倒座 sprite 会与店排瓦顶垂直互叠（"只露一行瓦"根因）
 		if not high and k % 2 == 1 and rng.randf() < 0.5:
 			continue   # 低密度坊抽稀一院
 		if rng.randf() > lot_chance:
 			continue
-		# 院墙（北/南/东/西）+ 南墙中央留 2 格门洞
+		# 院墙（北/南/东/西）+ 南墙东侧留 2 格门洞（ax+5..ax+6，与西半倒座错开）
 		for wx2 in range(ax, ax + 9):
 			_put_wall.call(wx2, ay, T_WARD_WALL)
-			if wx2 < ax + 3 or wx2 > ax + 4:
+			if wx2 < ax + 5 or wx2 > ax + 6:
 				_put_wall.call(wx2, ay + 8, T_WARD_WALL)
 		for wy2 in range(ay, ay + 9):
 			_put_wall.call(ax, wy2, T_WARD_WALL_V)
@@ -610,58 +643,75 @@ func _fill_ward_generic(b: Dictionary, occupied: Array = []):
 			for xx2 in range(ax + 1, ax + 8):
 				if int(ground[yy2 * W + xx2]) == T_LANE:
 					ground[yy2 * W + xx2] = T_PAVE
-		# 南门楼：月洞门（compound/gate_stone 被探针锁给 lot 宅门楼计数，坊内院门沿用月洞门）
-		if _cells_clear(ax + 3, ay + 7, 2, 2) and not _hits_occupied(Rect2i(ax + 3, ay + 7, 2, 2), occupied):
-			_spawn_building("moongate_white", Rect2i(ax + 3, ay + 7, 2, 2))
-			ward_placed.append(Rect2i(ax + 1, ay + 5, 7, 4))
+		# 南门楼：月洞门（东南角，避开西半倒座；compound/gate_stone 被探针锁给 lot 宅门楼计数）
+		if _cells_clear(ax + 5, ay + 7, 2, 2) and not _hits_occupied(Rect2i(ax + 5, ay + 7, 2, 2), occupied):
+			_spawn_building("moongate_white", Rect2i(ax + 5, ay + 7, 2, 2))
+			ward_placed.append(Rect2i(ax + 3, ay + 5, 6, 4))
 		var canal_hit := false   # 正房矩形触渠缝则整院降级为园池院
 		for cc in range(ax + 2, ax + 6):
 			for cx2 in canal_xs:
 				if abs(cc - int(cx2)) <= 2:
 					canal_hit = true
 		if kind == 2 or canal_hit:
-			# 园池院：草皮 + 双树 + 酒坛/条凳（"无空地纪律"绿化只以园池口袋形式出现）
-			_set_rect(ground, ax + 1, ay + 1, 7, 7, 0)
-			_spawn_prop("tree_lush_a" if k % 2 == 0 else "tree_lush_b", (ax + 3) * 16.0, (ay + 6) * 16.0)
-			_spawn_prop("jars_cluster_b" if k % 2 == 0 else "bench_wood", (ax + 6) * 16.0 + 8.0, (ay + 7) * 16.0)
+			# 园池院：草皮 + 大树 + 石灯（"无空地纪律"绿化只以园池口袋形式出现）
+			# 第四轮修缮：草皮只覆"墙内且无足印/装饰"的格（防草压墙/邻院屋顶）；树居院心（96px 树冠
+			#   ax+1..ax+7 全在墙内）；酒坛类 93px 宽 sprite 出院墙——移出园池（重叠根治）
+			for yy2 in range(ay + 1, ay + 8):
+				for xx2 in range(ax + 1, ax + 8):
+					var g2 := int(ground[yy2 * W + xx2])
+					if int(decor[yy2 * W + xx2]) == 0 and (g2 == T_LANE or g2 == T_PAVE):
+						ground[yy2 * W + xx2] = 0
+			_spawn_prop("tree_lush_a" if k % 2 == 0 else "tree_lush_b", (ax + 4) * 16.0, (ay + 4) * 16.0)   # 树锚上移2格：冠顶与南店排瓦顶净距≥1格
+			if int(decor[(ay + 7) * W + ax + 6]) == 0:
+				_spawn_prop("lantern_stone_s", (ax + 6) * 16.0 + 8.0, (ay + 7) * 16.0 + 8.0)
 			ward_placed.append(Rect2i(ax + 1, ay + 1, 7, 6))
 		else:
-			# 北正房 4×2（地标院换 2 层楼阁）
+			# 第四轮修缮（红框"酒坛树草屋顶重叠"根治）：SCKR 民居 sprite 檐宽≈6 格（foot 2~4 格），
+			#   东西厢房贴侧墙放 sprite 必越墙压邻院——改"两进式"：北正房 + 南倒座各居中，
+			#   全部 sprite 外扩≤1.5 格留在本院内（檐压本院墙=正常出檐，禁跨到院外）
 			var main_name: String = HOUSE_PROPS[(k * 2) % HOUSE_PROPS.size()]
 			if kind == 3:
 				main_name = ["lou_brown", "lou_blue", "hall_grey", "lou_dark"][k % 4]
-			if _hits_occupied(Rect2i(ax + 2, ay + 1, 4, 2), occupied) or not _cells_clear(ax + 2, ay + 1, 4, 2):
-				# 正房位被占用（lot 门面等）→ 只留厢房的半院，不强塞
-				pass
-			else:
+			if not _hits_occupied(Rect2i(ax + 2, ay + 1, 4, 2), occupied) and _cells_clear(ax + 2, ay + 1, 4, 2):
 				_spawn_building(main_name, Rect2i(ax + 2, ay + 1, 4, 2))
 				ward_placed.append(Rect2i(ax, ay - 3, 9, 5))
-			# 东西厢房 2×2（正房前两侧，留中庭 3 宽）
-			var wing := ["gable_ma", "gable_white", "house_door_a", "house_win_a"]
-			for wslot in [[ax + 1, ay + 3], [ax + 6, ay + 3]]:
-				var wrect := Rect2i(wslot[0], wslot[1], 2, 2)
-				if _hits_occupied(wrect, occupied) or not _cells_clear(wslot[0], wslot[1], 2, 2):
-					continue
-				_spawn_building(wing[(k + wslot[0]) % wing.size()], wrect)
-				ward_placed.append(Rect2i(wslot[0] - 1, wslot[1] - 3, 4, 5))
-			# 庭院小件（门口视线外一只，宁少勿堆）
-			if int(decor[(ay + 6) * W + ax + 7]) == 0:
-				_spawn_prop("bonsai_b" if k % 2 == 0 else "lantern_stone_s", (ax + 7) * 16.0 + 8.0, (ay + 7) * 16.0)
-		# 门前甬道：门洞向南接巷（覆巷土格）
+			# 南倒座 3×2 居西侧（居中 sprite ax-0.5..ax+5.5，只檐压本院西墙）；
+			# bottom 院不放（倒座 sprite 与南店排瓦顶垂直互叠=红框"屋顶只露一行瓦"根治）
+			if not is_bottom and not _hits_occupied(Rect2i(ax + 1, ay + 6, 3, 2), occupied) and _cells_clear(ax + 1, ay + 6, 3, 2):
+				var dao_name: String = ["house_small_door", "house_win_small", "gable_white"][k % 3]
+				_spawn_building(dao_name, Rect2i(ax + 1, ay + 6, 3, 2))
+				ward_placed.append(Rect2i(ax, ay + 3, 8, 5))
+			# 庭院小件：中庭东南角一只（48px 小件不出墙）
+			if int(decor[(ay + 5) * W + ax + 6]) == 0 and int(ground[(ay + 5) * W + ax + 6]) == T_PAVE:
+				_spawn_prop("bonsai_b" if k % 2 == 0 else "lantern_stone_s", (ax + 6) * 16.0 + 8.0, (ay + 6) * 16.0)
+		# 门前甬道：门洞（ax+5..ax+6）向南接巷（覆巷土格）
 		for dy in range(9, 11):
-			for dx in range(3, 5):
+			for dx in range(5, 7):
 				var xx3: int = ax + dx
 				var yy3: int = ay + dy
 				if yy3 < H and int(decor[yy3 * W + xx3]) == 0 and int(ground[yy3 * W + xx3]) == T_LANE:
 					ground[yy3 * W + xx3] = T_MAIN_ROAD
-	# 行间院子小件（排间空带；避门口 worn path/门轴，且避开建筑 sprite 外扩圈——宁少勿堆）
+	# 行间院子小件（第四轮修缮：原随机散摆读作"门口杂物堆"——语义化"靠墙根"：
+	#    只贴院墙/坊墙外侧（距墙≤1 格=墙根堆放，符合生活逻辑），避门口甬道/主干，
+	#    且避开建筑 sprite 外扩圈——宁少勿堆）
 	for i in range(rng.randi_range(2, 4)):
 		var px2: int = x0 + rng.randi_range(2, 23)
 		var py2: int = y0 + [7, 8, 12, 13, 18, 19][rng.randi_range(0, 5)]
 		if abs(px2 - gx0 - 0.5) < 3.0 or int(decor[py2 * W + px2]) != 0:
 			continue
-		if int(ground[py2 * W + px2]) != T_LANE:
-			continue   # worn path/园池草皮格不放
+		var g3 := int(ground[py2 * W + px2])
+		if g3 != T_LANE:
+			continue   # 甬道/园池草皮格不放
+		var near_wall2 := false   # 墙根判定：四邻 1 格内有院墙瓦（decor）
+		for d2 in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var nx2: int = px2 + int(d2.x)
+			var ny2: int = py2 + int(d2.y)
+			var dv := int(decor[ny2 * W + nx2])
+			if dv == T_WARD_WALL or dv == T_WARD_WALL_V:
+				near_wall2 = true
+				break
+		if not near_wall2:
+			continue
 		var blocked := false
 		for pr in ward_placed:
 			if Rect2i(px2 - 2, py2 - 6, 5, 8).intersects(Rect2(pr)):
@@ -669,7 +719,7 @@ func _fill_ward_generic(b: Dictionary, occupied: Array = []):
 				break
 		if blocked:
 			continue
-		var sp: String = ["bonsai_b", "bench_wood", "lantern_stone_s", "jars_cluster_b"][i % 4]
+		var sp: String = ["bench_wood", "jars_cluster_b", "bonsai_b"][i % 3]   # 石灯移出杂物组（灯属门口/街灯语义）
 		_spawn_prop(sp, px2 * 16.0 + 8.0, (py2 + 1) * 16.0)
 	# W/E 内列行道树（低频，免大件侧脸穿墙）
 	for edge_x in [x0 + 1, x0 + bw - 2]:
@@ -749,15 +799,18 @@ func _paint_street_dressing():
 	rng.seed = 20260906
 	var zq_x0 := col_x(5) - zq_s
 	var zq_x1 := col_x(5) - 1
-	# 朱雀大街：红灯笼街灯两侧对列 + 国槐行道树（props 无碰撞，落在御道边缘格）
+	# 朱雀大街：红灯笼街灯两侧成对同高（第四轮修缮：原左右交替=每行只有单侧一盏，zoom2 下读作
+	#   "孤灯零散"——改同 y 两侧各一盏成对；国槐行道树交错，不与灯同行）
 	var y := _origin().y + 6
 	var alt := 0
 	while y < H - margin - wall - 4:
-		var lx := zq_x0 + 1 if alt % 2 == 0 else zq_x1 - 1
-		if _dressing_cell_free(lx, y):
-			_spawn_prop("lamp_red", lx * 16.0 + 8.0, (y + 1) * 16.0)
-		var tx := zq_x1 - 1 if alt % 2 == 0 else zq_x0 + 1
-		if y % 16 == 6 and _dressing_cell_free(tx, y - 3):
+		for lx2 in [zq_x0 + 1, zq_x1 - 1]:
+			if _dressing_cell_free(lx2, y):
+				_spawn_prop("lamp_red", lx2 * 16.0 + 8.0, (y + 1) * 16.0)
+		# 街树位内移 1 格（zq_x0+2/zq_x1-2）：缘内 1 格时 96px 树冠跨过坊界压临街店排瓦顶
+		#   （第四轮复验同位复发根因）；避让半径 4 格
+		var tx := zq_x1 - 2 if alt % 2 == 0 else zq_x0 + 2
+		if y % 16 == 6 and _dressing_cell_free(tx, y - 3) and not _near_building_foot(tx, y - 3, 4):
 			_spawn_prop("tree_lush_a" if alt % 3 == 0 else "tree_lush_b", tx * 16.0 + 8.0, (y - 2) * 16.0)
 		alt += 1
 		y += 12
@@ -789,16 +842,19 @@ func _paint_street_dressing():
 	# 环路行道大树
 	for wy in range(margin + wall + ring, H - margin - wall - ring, 24):
 		for xx in [margin + wall + 2, W - margin - wall - ring - 2]:
-			if _dressing_cell_free(xx, wy):
+			if _dressing_cell_free(xx, wy) and not _near_building_foot(xx, wy):
 				_spawn_prop("tree_big", xx * 16.0 + 8.0, (wy + 1) * 16.0)
 	# 牌坊：承天门外金大牌坊 + 明德门内石牌坊（朱雀轴线礼制门户）
 	var pcx := col_x(5) - zq_s + zq_s / 2
 	var palace_south := row_y(palace_rows.y) + bh
 	_spawn_prop("paifang_big_gold", (pcx + 0.5) * 16.0, (palace_south + 3) * 16.0)
 	_spawn_prop("paifang_stone_g", (pcx + 0.5) * 16.0, (H - margin - wall - 4) * 16.0)
-	# 明德门内石狮
-	_spawn_prop("lion_white_a", (pcx - 2) * 16.0 + 8.0, (H - margin - wall - 2) * 16.0)
+	# 明德门内石狮（第四轮修缮：原 pcx-2/pcx+3 偏 1 格不对称——中轴对称 pcx±3）+ 门楼两侧红灯笼成对
+	_spawn_prop("lion_white_a", (pcx - 3) * 16.0 + 8.0, (H - margin - wall - 2) * 16.0)
 	_spawn_prop("lion_white_b", (pcx + 3) * 16.0 + 8.0, (H - margin - wall - 2) * 16.0)
+	for lx2 in [pcx - 4, pcx + 4]:
+		if _dressing_cell_free(lx2, H - margin - wall - 3):
+			_spawn_prop("lamp_red", lx2 * 16.0 + 8.0, (H - margin - wall - 2) * 16.0)
 	# ---- 范式v3 街面生活道具：停车马/路口灯笼/告示牌/拴驴/金轿（均 _dressing_cell_free 避水避墙）----
 	var prng := RandomNumberGenerator.new()
 	prng.seed = 20260907
@@ -825,22 +881,27 @@ func _paint_street_dressing():
 			_spawn_prop(street_carts[ci % street_carts.size()], lx * 16.0 + 8.0, (cy + 2) * 16.0, 2, 0.5)
 			ci += 1
 		cy += 34
-	# 主干街十字路口：红灯笼/告示牌交替
+	# 主干街十字路口：红灯笼/告示牌（第四轮修缮：原单只摆一角读作"孤灯"——改对角成对，
+	#    两件同种对角摆=路口四角两两对称，语义=路口标识）
 	for i in range(1, cols):
 		if i == 5:
 			continue
 		for j in range(1, rows):
-			var ix := col_x(i) - main_s + 1 if (i + j) % 2 == 0 else col_x(i) - 2
-			var iy := row_y(j) - main_s + 1 if (i + j) % 2 == 0 else row_y(j) - 2
-			if _dressing_cell_free(ix, iy):
-				_spawn_prop("lamp_red" if (i + j) % 3 != 0 else "board_notice", ix * 16.0 + 8.0, (iy + 1) * 16.0)
-	# 城门内侧单侧黄灯柱（v3.1：去拴驴——驴/石狮/门楼同格堆叠观感混乱，拴驴只保留在坊内院缝）
+			var pick: String = "lamp_red" if (i + j) % 3 != 0 else "board_notice"
+			for corner in [[1, 1], [-2, -2]]:
+				var ix: int = col_x(i) - main_s + int(corner[0])
+				var iy: int = row_y(j) - main_s + int(corner[1])
+				if _dressing_cell_free(ix, iy):
+					_spawn_prop(pick, ix * 16.0 + 8.0, (iy + 1) * 16.0)
+	# 城门内侧黄灯柱（第四轮修缮：原单侧一支不对称——改门内两侧成对）
 	for side in gate_info:
 		var g: Dictionary = gate_info[side]
 		var inside: Vector2i = g["inside"]
-		var off := Vector2i(3, 0) if side == "S" or side == "N" else Vector2i(0, 3)
-		if _dressing_cell_free(inside.x + off.x, inside.y + off.y):
-			_spawn_prop("lamp_yellow", (inside.x + off.x) * 16.0 + 8.0, (inside.y + off.y + 1) * 16.0)
+		var horizontal: bool = side == "S" or side == "N"
+		for sgn in [-3, 3]:
+			var off := Vector2i(sgn, 0) if horizontal else Vector2i(0, sgn)
+			if _dressing_cell_free(inside.x + off.x, inside.y + off.y):
+				_spawn_prop("lamp_yellow", (inside.x + off.x) * 16.0 + 8.0, (inside.y + off.y + 1) * 16.0)
 	# 承天门外金轿仪仗（朝房意象；第三轮修缮：0.5 半缩对齐门楼比例）
 	var palace_south_y := row_y(palace_rows.y) + bh
 	if _dressing_cell_free(pcx - 5, palace_south_y + 1):
@@ -873,6 +934,19 @@ func _dressing_cell_free(x: int, y: int) -> bool:
 	var g := int(ground[y * W + x])
 	var d := int(decor[y * W + x])
 	return d == 0 and (g == T_MAIN_ROAD or g == T_ZHUQUE or g == T_LANE)
+
+# 建筑 sprite 邻近检查（第四轮品控§三-3）：树/大件摆放点半径 r 格内有建筑足印(T_FOOT)即避让，
+# 防止树冠压邻店瓦顶（红框"树长在屋顶里"根治——只查本格 decor 挡不住 sprite 像素级外扩）
+func _near_building_foot(x: int, y: int, r := 3) -> bool:
+	for dy in range(-r, r + 1):
+		for dx in range(-r, r + 1):
+			var nx: int = x + dx
+			var ny: int = y + dy
+			if nx < 0 or ny < 0 or nx >= W or ny >= H:
+				continue
+			if int(decor[ny * W + nx]) == T_FOOT:
+				return true
+	return false
 
 func _in_market(c: int, r: int) -> bool:
 	for mk in markets:

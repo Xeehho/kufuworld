@@ -131,7 +131,7 @@ PROPS = [
     ("donkey_post",      JC6, (384, 216, 480, 290)),  # 拴柱驴
     ("donkey_saddle",    JC6, (576, 216, 675, 292)),  # 驮驴
     ("pillar_red",       JC6, (714, 0, 768, 96)),     # 朱红廊柱
-    ("board_notice",     JC6, (240, 576, 302, 682)),  # 告示牌
+    ("board_notice",     JC6, (240, 576, 289, 682)),  # 告示牌（第四轮重切：右缘x50+是邻件半只木桶，主分量实测右界288）
     ("banner_wine2",     JC6, (192, 576, 240, 672)),  # 酒旗·竖
     ("lamp_yellow",      JC6, (676, 572, 724, 768)),  # 黄灯柱
     # ---- v3：水乡族（江南 B05 船/码头/月洞门/拱桥/神龛/盆景）----
@@ -230,10 +230,10 @@ PROPS = [
     ("lantern_stand_b",  JC7, (634, 100, 662, 174)),   # 灯笼架·纸罩
     ("lantern_pole_pair", JC7, (580, 197, 668, 288)),  # 双灯宫灯架
     ("lantern_red_stand", JC7, (582, 387, 618, 450)),  # 红灯笼矮架
-    ("lantern_std_red",  WI5, (600, 483, 648, 576)),   # 红灯笼高杆
-    ("screen_panel_lacquer", WI5, (552, 480, 600, 576)), # 漆器屏板（(552,480)实测为青瓷屏板非灯，选窗误判已纠）
+    ("lantern_std_red",  WI5, (633, 483, 648, 576)),   # 红灯笼高杆（第四轮重切：左缘x0-8是邻件第二杆残片，主分量实测左界633）
+    ("screen_panel_lacquer", WI5, (552, 480, 577, 576)), # 漆器屏板（第四轮重切：右缘x39+贴邻红灯笼窄条，主分量实测右界576）
     ("lamp_small",       WI2, (730, 96, 768, 190)),    # 小灯檠
-    ("firepit",          WI2, (656, 672, 704, 766)),   # 火盆
+    ("firepit",          WI2, (676, 727, 704, 766)),   # 火盆（第四轮重切：右上邻件灯头+左下余烬钵剔除，主分量=炭火盆本体）
     # 厨房
     ("stove_brick",      WI2, (3, 9, 96, 96)),         # 灶·双眼砖
     ("stove_stone",      WI2, (192, 0, 285, 96)),      # 灶·石双锅
@@ -321,6 +321,7 @@ def trim_alpha(im, pad=1):
 # 船类切片背景抠透明：源图水面为平色底，从四边界泛洪键出与边缘连通的水域（boat_cover 篷顶色近水色，
 # 全图色键会吃掉篷内像素——泛洪只吃 hull 外水域，闭环区内同色不动）；再两轮邻接去晕
 BOAT_KEY = {"boat_row", "boat_cover", "boat_small", "boat_sampan"}
+ROTATED_FROM = {}   # 旋转派生件 → 源切片名（main 里填充，manifest 登记用）
 
 def key_water_bg(im):
     px = im.load()
@@ -408,6 +409,29 @@ def main():
             im = key_water_bg(im)
         im.save(os.path.join(OUT_PROPS, name + ".png"))
         made.append((name, im, "prop"))
+    # 第四轮：整数旋转派生件（90° 旋转像素无损，合规；记录源名+方向，manifest 同步登记）
+    # bridge_arch_stone_v = deck 版顺时针 90°（96×58→58×96）：桥长轴转南北=进城过河方向
+    for name, (src, rot) in {
+        "bridge_arch_stone_v": ("bridge_arch_stone_deck", Image.ROTATE_270),
+    }.items():
+        if only and src not in only and name not in only:
+            continue
+        im = Image.open(os.path.join(OUT_PROPS, src + ".png")).convert("RGBA").transpose(rot)
+        im.save(os.path.join(OUT_PROPS, name + ".png"))
+        made.append((name, im, "prop"))
+        ROTATED_FROM[name] = src
+    # 第四轮：裁剪派生件——护城河纵桥桥体竖条：竖版右16px是画死的水纹（旋转前在底部），
+    # 裁掉得 42×96 纯桥体；居中铺桥带 z=1（玩家层下可穿行），两侧露真实桥面瓦=纵桥
+    for name, (src, l, r) in {
+        "bridge_body_v": ("bridge_arch_stone_v", 0, -16),
+    }.items():
+        if only and src not in only and name not in only:
+            continue
+        base = Image.open(os.path.join(OUT_PROPS, src + ".png")).convert("RGBA")
+        im = trim_alpha(base.crop((l, 0, base.width + r, base.height)))
+        im.save(os.path.join(OUT_PROPS, name + ".png"))
+        made.append((name, im, "prop"))
+        ROTATED_FROM[name] = src
     for name, rel, box in TILES:
         if only and name not in only:
             continue
@@ -600,6 +624,11 @@ def main():
         for name, rel, box in PROPS:
             assets.append({"name": name, "kind": "prop", "category": cat_of(name),
                            "sheet": rel, "box": list(box)})
+        for name, src in ROTATED_FROM.items():
+            src_e = next(a for a in assets if a["name"] == src)
+            assets.append({"name": name, "kind": "prop", "category": cat_of(name),
+                           "sheet": src_e["sheet"], "box": src_e["box"], "rotated_from": src,
+                           "note": "90°整数旋转派生件（像素无损）"})
         for name, rel, box in TILES:
             assets.append({"name": name, "kind": "tile", "category": cat_of(name),
                            "sheet": rel, "box": list(box)})

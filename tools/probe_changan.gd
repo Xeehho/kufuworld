@@ -270,7 +270,9 @@ func _ready() -> void:
 		v3_fails.append("街面生活道具=%d(<12)" % life_cnt)
 	if int(prop_names.get("palace_gate_red", 0)) < 1:
 		v3_fails.append("承天门楼prop缺失")
-	if int(prop_names.get("bridge_arch_stone_deck", 0)) + int(prop_names.get("bridge_arch_stone", 0)) < 1:
+	var bridge_props := int(prop_names.get("bridge_body_v", 0)) + int(prop_names.get("bridge_arch_stone_v", 0)) \
+			+ int(prop_names.get("bridge_arch_stone_deck", 0)) + int(prop_names.get("bridge_arch_stone", 0))
+	if bridge_props < 1:
 		v3_fails.append("护城河拱桥prop缺失")
 	fails.append_array(v3_fails)
 	if not mv_fails.is_empty():
