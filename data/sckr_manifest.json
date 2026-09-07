@@ -974,7 +974,7 @@
    "box": [
     240,
     576,
-    302,
+    289,
     682
    ]
   },
@@ -1084,6 +1084,18 @@
     192,
     576,
     288
+   ]
+  },
+  {
+   "name": "bridge_arch_stone_deck",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    480,
+    192,
+    576,
+    250
    ]
   },
   {
@@ -2016,7 +2028,7 @@
    "category": "street_furniture",
    "sheet": "wuxia_interior_dlc/tile-B-05.png",
    "box": [
-    600,
+    633,
     483,
     648,
     576
@@ -2030,7 +2042,7 @@
    "box": [
     552,
     480,
-    600,
+    577,
     576
    ]
   },
@@ -2052,8 +2064,8 @@
    "category": "interior",
    "sheet": "wuxia_interior_dlc/tile-B-02.png",
    "box": [
-    656,
-    672,
+    676,
+    727,
     704,
     766
    ]
@@ -2249,6 +2261,34 @@
     480,
     672
    ]
+  },
+  {
+   "name": "bridge_arch_stone_v",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    480,
+    192,
+    576,
+    250
+   ],
+   "rotated_from": "bridge_arch_stone_deck",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "bridge_body_v",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    480,
+    192,
+    576,
+    250
+   ],
+   "rotated_from": "bridge_arch_stone_v",
+   "note": "90°整数旋转派生件（像素无损）"
   },
   {
    "name": "street_main",
