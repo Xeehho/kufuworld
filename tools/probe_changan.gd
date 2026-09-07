@@ -27,6 +27,10 @@ func _ready() -> void:
 		100: Color(0.90, 0.88, 0.82), 101: Color(0.62, 0.66, 0.74), 102: Color(0.16, 0.16, 0.18),
 		2: Color(0.55, 0.40, 0.30), 75: Color(0.80, 0.30, 0.25), 76: Color(0.75, 0.38, 0.30),
 		77: Color(0.35, 0.32, 0.30), 8: Color(0.30, 0.50, 0.28),
+		# 第五轮补：竖墙/城墙族映射（曾缺失致 105 竖坊墙在灰盒图回退成草绿，肉眼排查被误导）
+		105: Color(0.84, 0.82, 0.76), 104: Color(0.55, 0.32, 0.26), 103: Color(0.33, 0.33, 0.34),
+		106: Color(0.36, 0.36, 0.37), 108: Color(0.34, 0.34, 0.35), 109: Color(0.34, 0.34, 0.35),
+		111: Color(0.55, 0.58, 0.62), 112: Color(0.25, 0.42, 0.66),
 	}
 	var img := Image.create(changan.W, changan.H, false, Image.FORMAT_RGBA8)
 	for y in range(changan.H):
@@ -93,11 +97,12 @@ func _ready() -> void:
 				m1_fails.append("%s·%s 门面tile期望%d实铺%d" % [b["name"], lot["ref"], expect, got])
 	if lot_wards < 8:
 		m1_fails.append("stage0剧情坊带lots数=%d(<8)" % lot_wards)
-	# ---- Slice F→视觉重构 断言：宅门楼 SCKR prop（75/76/77 门面瓦仍是探针基准） ----
-	# 期望从数据推导：stage0 坊 lots 按品级计门楼数（两市店铺 76 门垫不配门楼，改配门面楼 prop）
+	# ---- Slice F→视觉重构 断言：宅门楼 SCKR prop（75/76/77 门面瓦仍是探针基准）----
+	# 期望从数据推导：全量坊 lots 按品级计门楼数（第五轮起生成末尾自动全解锁，stage1/2 lot 同样立门楼；
+	# 两市店铺 76 门垫不配门楼，改配门面楼 prop）
 	var expect_gate_props := 0
 	for b in changan.blocks:
-		if String(b["type"]) != "ward" or int(b["stage_unlock"]) != 0:
+		if String(b["type"]) != "ward":
 			continue
 		expect_gate_props += b.get("lots", []).size()
 	var props: Array = changan.get_children().filter(func(n): return n.is_in_group("changan_prop"))
@@ -122,9 +127,9 @@ func _ready() -> void:
 			m3_fails.append("水渠%s水格=%d(<100)" % [canal_name, changan.canal_cells[canal_name]])
 	if changan.bridge_count < 12:
 		m3_fails.append("渠桥格=%d(<12)" % changan.bridge_count)
-	# 宵禁册：坊门+市门格初始全开瓦，切换后换闭瓦（68 带碰撞）
-	if changan.curfew_gates.size() < 20:
-		m3_fails.append("宵禁门注册=%d(<20)" % changan.curfew_gates.size())
+	# 宵禁册（第五轮起坊无门，仅两市 4×2 门格）：初始全开瓦，切换后换闭瓦（68 带碰撞）
+	if changan.curfew_gates.size() != 8:
+		m3_fails.append("宵禁门注册=%d(≠8，应仅两市)" % changan.curfew_gates.size())
 	var first_gate: Vector2i = changan.curfew_gates[0]["cells"][0]
 	if int(changan.decor[first_gate.y * changan.W + first_gate.x]) != changan.T_GATE_OPEN:
 		m3_fails.append("宵禁门格初始非开瓦")
@@ -208,13 +213,13 @@ func _ready() -> void:
 		mv_fails.append("市摊=%d(<12)" % stall_cnt)
 	if int(prop_names.get("house_shop_open", 0)) < 4:
 		mv_fails.append("店铺门面prop=%d(<4)" % int(prop_names.get("house_shop_open", 0)))
-	# 坊门门楼（各坊 S 门挂灰瓦榜门楼，门洞内露开/闭门瓦）
-	if int(prop_names.get("market_gate", 0)) < 90:
-		mv_fails.append("坊门楼=%d(<90)" % int(prop_names.get("market_gate", 0)))
-	# 坊墙方向感知抽样：竖段（E/W 走向）应为 105 竖版瓦
-	var v_sample := Vector2i(changan.col_x(3), changan.row_y(6) + 13)   # 坊 w_3_6 西墙竖段中点
-	if int(changan.decor[v_sample.y * changan.W + v_sample.x]) != changan.T_WARD_WALL_V:
-		mv_fails.append("坊墙竖段未用竖版瓦(%d)" % int(changan.decor[v_sample.y * changan.W + v_sample.x]))
+	# 第五轮「去墙小街区」守卫：坊墙/坊门楼全退役（残留=去墙不彻底）
+	if int(prop_names.get("market_gate", 0)) != 0:
+		mv_fails.append("坊门楼残留=%d（应为0）" % int(prop_names.get("market_gate", 0)))
+	var v_sample := Vector2i(changan.col_x(3), changan.row_y(6) + 13)   # 坊 w_3_6 西缘中点
+	if int(changan.decor[v_sample.y * changan.W + v_sample.x]) == changan.T_WARD_WALL_V \
+			or int(changan.decor[v_sample.y * changan.W + v_sample.x]) == changan.T_WARD_WALL:
+		mv_fails.append("坊西缘残留墙瓦(%d)" % int(changan.decor[v_sample.y * changan.W + v_sample.x]))
 	# 街灯/行道树阈值已前置（城门楼断言后）——此处只留牌坊
 	if int(prop_names.get("paifang_big_gold", 0)) != 1 or int(prop_names.get("paifang_stone_g", 0)) != 1:
 		mv_fails.append("朱雀牌坊≠1/1")

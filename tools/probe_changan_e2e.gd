@@ -147,23 +147,23 @@ func _ready() -> void:
 			await _shot("changan_m2_gate_tower.png")
 			_log("[probe] 门楼采样 grade=%s gate=(%d,%d)" % [String(lot["grade"]), gtx, gty])
 			tower_shot = true
-	# 3.6) M3 宵禁/夜色/时辰：城内时辰流动（Weather 未冻结）+ 暮鼓闭坊门 + 晨鼓复开
+	# 3.6) M3 宵禁/市门换瓦（体验模式恒白天后改直调，2026-09-07）：WeatherController 每帧把
+	#      world_time 钉回巳时（陷阱#27 源头钉扎），时辰推进路径不可用——直调 set_curfew 验证
+	#      市门瓦切换（poll 路径属体验模式设计冻结；瓦断言场景探针已覆盖）
 	var weather = main.get_node_or_null("World/WeatherController")
-	_check(weather != null and weather.process_mode != Node.PROCESS_MODE_DISABLED,
-			"城内 Weather 未冻结（时辰流动/CanvasModulate 夜色生效）")
 	if weather:
 		var gcell: Vector2i = ch.curfew_gates[0]["cells"][0]
-		weather.world_time = 20.5 * 60.0 * weather.time_scale   # 戌时暮鼓
+		ch.set_process(false)   # 暂停宵禁轮询：恒白天下 poll 下一帧会把直调结果翻回开瓦
+		ch.set_curfew(true)
 		await _settle(6)
 		_check(ch.curfew and int(ch.decor[gcell.y * ch.W + gcell.x]) == ch.T_GATE_CLOSED,
-				"暮鼓宵禁：坊门换闭门瓦(68)")
-		await _wait(2.5)   # 等灯光 lerp 稳定再出夜色样张
-		await _shot("changan_m3_curfew_night.png")
-		weather.world_time = 10.0 * 60.0 * weather.time_scale   # 晨鼓开门
+				"宵禁：市门换闭门瓦(68)")
+		await _shot("changan_m3_curfew.png")
+		ch.set_curfew(false)
 		await _settle(6)
 		_check(not ch.curfew and int(ch.decor[gcell.y * ch.W + gcell.x]) == ch.T_GATE_OPEN,
-				"晨鼓开门：坊门复开(67)")
-		await _wait(2.5)   # 等灯光 lerp 回白天，内景样张不受夜色残留影响
+				"晨鼓开门：市门复开(67)")
+		ch.set_process(true)
 	# 3.7) M3 城内NPC：按锚点日程生成
 	_check(ch.npc_list.size() == ch.CITY_NPC_CONFIGS.size(),
 			"城内NPC生成=%d（配置%d）" % [ch.npc_list.size(), ch.CITY_NPC_CONFIGS.size()])
