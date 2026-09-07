@@ -109,7 +109,8 @@ func _ready() -> void:
 		m1_fails.append("宅门楼prop=%d≠stage0 lots数%d（克隆缺切片会全跳过）" % [gate_props, expect_gate_props])
 	var bad_tex := 0
 	for p2 in props:
-		if p2.texture == null or p2.offset.y != -p2.texture.get_height() / 2.0:
+		# 底边锚校验带缩放：offset.y == -h*scale/2（车轿族 0.5 半缩，第三轮比例纪律）
+		if p2.texture == null or p2.offset.y != -p2.texture.get_height() * p2.scale.y / 2.0:
 			bad_tex += 1
 	if bad_tex > 0:
 		m1_fails.append("prop纹理/底边锚异常=%d" % bad_tex)
@@ -269,7 +270,7 @@ func _ready() -> void:
 		v3_fails.append("街面生活道具=%d(<12)" % life_cnt)
 	if int(prop_names.get("palace_gate_red", 0)) < 1:
 		v3_fails.append("承天门楼prop缺失")
-	if int(prop_names.get("bridge_arch_stone", 0)) < 1:
+	if int(prop_names.get("bridge_arch_stone_deck", 0)) + int(prop_names.get("bridge_arch_stone", 0)) < 1:
 		v3_fails.append("护城河拱桥prop缺失")
 	fails.append_array(v3_fails)
 	if not mv_fails.is_empty():

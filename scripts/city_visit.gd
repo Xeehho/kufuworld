@@ -230,11 +230,15 @@ func _set_camera_limits(city: bool):
 		cam.limit_top = int(CITY_OFFSET.y)
 		cam.limit_right = int(changan.W * 16)
 		cam.limit_bottom = int(CITY_OFFSET.y + changan.H * 16)
+		# 第三轮修缮：城内 zoom 3→2（世界像素=2屏像素，整数比不糊）——单体建筑占屏减半，
+		# 一眼一坊组群+街面密度，对齐概念图中远视距；开放世界维持 zoom 3
+		cam.zoom = Vector2(2.0, 2.0)
 	else:
 		cam.limit_left = -10000000
 		cam.limit_top = -10000000
 		cam.limit_right = 10000000
 		cam.limit_bottom = 10000000
+		cam.zoom = Vector2(3.0, 3.0)
 
 # ---- M4 内景：门面触发区 → 独立子地图（INTERIOR_OFFSET 空间）；出口垫/ESC 返回门面原位 ----
 func enter_interior(ref: String) -> void:
