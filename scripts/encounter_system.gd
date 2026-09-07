@@ -188,6 +188,10 @@ func _opt(text: String, result: String, gold: int = 0, qi: float = 0,
 func _process(delta):
 	if active_encounter != null:
 		return
+	# 长安城体验模式（WorldFeatures.encounters_disabled 2026-09-07）：随机掷骰整体冻结
+	# （手动入口不受影响）；恢复时改回 false 即可
+	if WorldFeatures.FLAG.get("encounters_disabled", false):
+		return
 	# 剧情对话进行中暂缓掷骰（冷却不消耗，对话结束后恢复原节奏）
 	# 否则随机奇遇会经 _force_open_encounter 强制关闭主线对话，导致剧情断链
 	if DialogManager.is_dialog_open():

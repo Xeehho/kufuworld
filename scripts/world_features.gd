@@ -15,6 +15,7 @@ const FLAG := {
 	"quests_disabled": true,     # 任务冻结 ✅ 2026-09-07 长安城体验模式：主线不启动+告示板零发布（W8 重启语义暂停，恢复时改回 false 并同步 regress 断言组 quest）
 	"mobs_disabled": true,       # 野怪冻结 ✅ 2026-09-07 长安城体验模式：营地不生成、不重生（story_camps 本就随 quests_disabled 拒绝；恢复时改回 false）
 	"always_day": true,          # 时辰恒白天 ✅ 2026-09-07 长安城体验模式：WeatherController 钉 world_time=巳时（宵禁永不闭门、夜色不降临；恢复改 false）
+	"encounters_disabled": true, # 奇遇随机触发冻结 ✅ 2026-09-07 长安体验模式：随机掷骰停（手动入口不受影响；恢复改 false）
 	"bridge_prop": true,         # W5 石拱桥 prop（可通行语义与外观分离）✅ 2026-09-01 开启（W7 legacy 删）
 	"walkability_policy": true,  # W6 可行域政策（SETTLEMENT/ROAD 零碰撞物+走廊连通）✅ 2026-09-01 开启（W7 legacy 删）
 	"demo_town": false,          # 城镇样板区 2026-09-07 暂关：入口路/选址硬依赖青石城四门官道（_gate_reachable/_lay_gate_road），官道随城退役后失锚——待改锚出生点/长安外郭后重开
