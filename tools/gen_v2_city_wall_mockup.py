@@ -146,11 +146,13 @@ def main():
     # 东西竖墙：y12..129（118 行）两端嵌入行——
     # 南底行 y129=序列位29（col24）嵌进墙带垛口行（补 13px 透明豁口，模板 y45 同款）；
     # 北顶行 y12=序列位2（col27）嵌进北墙带墙基行（源29,11 下部 6px 固有透明，嵌满格竖墙件补缝）
+    # 东墙=模板右竖墙原样（模板左右竖墙翻转位 f6=rot90 / fA=rot270 已互为镜像，用户手拼对称；
+    #   再 hmirror 会还原成西墙同款导致东西不对称——2026-09-08 用户反馈修正）
     for y in range(12, 130):
         sy = (y - 12 + 2) % 30
         for c in range(3):
-            put(bld, VW_W + c, y, N(vwl[c][sy]))          # 西墙=模板左竖墙原序列
-            put(bld, VW_E + c, y, N(hmirror(vwr[c][sy])))  # 东墙=右竖墙镜像
+            put(bld, VW_W + c, y, N(vwl[c][sy]))   # 西墙=模板左竖墙原序列
+            put(bld, VW_E + c, y, N(vwr[c][sy]))   # 东墙=模板右竖墙原序列（天然镜像）
 
     # ── 写 tmx ──
     def layer_xml(idx, name, data):
