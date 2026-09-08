@@ -94,9 +94,10 @@ def main():
     # 单元①门楼包（建筑 x41..56 y44..49；地面 x21..52 y18..49，空格照抄 0）
     gate_build = [[TG(x, y) for x in range(41, 57)] for y in range(44, 50)]
     gate_ground = [[DG(x, y) for x in range(21, 53)] for y in range(18, 50)]
-    # 单元②竖墙序列（左右各 3 列 × 29 行）
-    vwl = [[TG(x, y) for y in range(16, 45)] for x in range(14, 17)]
-    vwr = [[TG(x, y) for y in range(16, 45)] for x in range(84, 87)]
+    # 单元②竖墙序列（左右各 3 列 × 30 行——含 y45 嵌入行：竖墙件嵌进墙带垛口行补透明豁口，
+    # 模板"三线齐平零露缝"的关键细节，序列底=col24 位）
+    vwl = [[TG(x, y) for y in range(16, 46)] for x in range(14, 17)]
+    vwr = [[TG(x, y) for y in range(16, 46)] for x in range(84, 87)]
     # 单元③横墙带 5 行墙身 gid（源 col29 row7..11，从模板 y45 x38 直接取）
     wall_row_gid = [TG(38, y) for y in range(45, 50)]
 
@@ -142,9 +143,11 @@ def main():
     stamp_ground_pkg(N_CX, 8 - 49, True)
     stamp_build_pkg(N_CX, 7, True)
 
-    # 东西竖墙：序列 29 行循环平铺 y7..128（122 行）
-    for y in range(7, 129):
-        sy = (y - 7) % 29
+    # 东西竖墙：y12..129（118 行）两端嵌入行——
+    # 南底行 y129=序列位29（col24）嵌进墙带垛口行（补 13px 透明豁口，模板 y45 同款）；
+    # 北顶行 y12=序列位2（col27）嵌进北墙带墙基行（源29,11 下部 6px 固有透明，嵌满格竖墙件补缝）
+    for y in range(12, 130):
+        sy = (y - 12 + 2) % 30
         for c in range(3):
             put(bld, VW_W + c, y, N(vwl[c][sy]))          # 西墙=模板左竖墙原序列
             put(bld, VW_E + c, y, N(hmirror(vwr[c][sy])))  # 东墙=右竖墙镜像
