@@ -44,18 +44,21 @@ WX3 = "wuxia/tile-B-03.png"                # 丹陛/横卷轴/蒲团垫/兵器�
 
 # ---- prop 清单：大件（Sprite2D 用，自动修边）----
 PROPS = [
-    # 城墙族（京城包 B01 城墙带）
-    ("gate_tower_big",   JC,  (473, 98, 568, 192)),   # 城门楼·大（蓝顶骑楼+拱门）明德门
-    ("gate_tower_mid",   JC,  (620, 98, 706, 192)),   # 城门楼·中（蓝顶）玄武/春明/开远
-    ("gate_tower_big_o", JC,  (473, 194, 568, 288)),  # 城门楼·大（橙顶变体）
-    ("wall_seg",         JC,  (568, 116, 634, 192)),  # 城墙直段（垛口+墙身）
+    # 城墙族（京城包 B01 城墙带）——框坐标=考古文档§7.1 重切清单（样板间 v6 PASS，2026-09-08）
+    # 双档基线纪律：纯墙段墙脚底线 y=185 / 城门楼城台脚底线 y=191——官方透视层次，禁止拉平
+    ("gate_tower_big",   JC,  (467, 98, 577, 192)),   # 城门楼·大（蓝顶骑楼+拱门）明德门；110×94，左右缘均=垛口起相位(467/577)
+    ("gate_tower_mid",   JC,  (620, 98, 720, 192)),   # 城门楼·中（蓝顶）玄武/春明/开远；尾扩到720含垛前隙（根治4px透缝）
+    ("gate_tower_big_o", JC,  (473, 194, 568, 288)),  # 城门楼·大（橙顶变体）；实内容左缘 483，对接按实内容边缘
+    ("wall_run",         JC,  (577, 98, 645, 192)),   # 城墙直段·整带 68×94（4 整垛口周期，首尾=垛口起相位；墙脚底线 185）
+    ("wall_seg",         JC,  (568, 116, 634, 192)),  # 城墙直段（旧切片，退役保留：错拍+底线差6px，新代码勿引用）
     ("paifang_stone",    JC,  (290, 98, 384, 192)),   # 石牌坊（灰）
     ("paifang_stone_g",  JC,  (290, 196, 384, 288)),  # 石牌坊（金顶）
     # 宫殿族（京城包 B03）
     ("hall_taiji",       JC3, (0, 0, 144, 96)),       # 太极殿·重檐金顶+白石台基
     ("palace_gate_red",  JC3, (144, 0, 288, 96)),     # 宫城正门·红墙金顶（承天门）
     ("gate_stone_gold",  JC3, (288, 0, 384, 96)),     # 石基城门楼·金顶
-    ("palace_gate_gold", JC3, (0, 96, 144, 192)),     # 宫门·金顶红墙+石狮
+    ("palace_gate_gold", JC3, (0, 96, 144, 192)),     # 宫门·金顶红墙+石狮（框收144去断续列）
+    ("palace_wall_run",  JC3, (0, 128, 48, 192)),     # 宫墙整带 48×64（x0~32 前排矮墙 y141~174 + x35~48 后排高墙 y128~191；金瓦垄 6px 周期 48 整除；样板间 B PASS）
     ("gate_stone_blue",  JC3, (144, 96, 288, 192)),   # 石基城门楼·蓝顶带墙
     ("pagoda_blue",      JC3, (390, 0, 478, 99)),     # 大雁塔·青瓦五级（底缘99，防混入下方楼脊）
     ("pagoda_gold",      JC3, (483, 96, 575, 192)),   # 宝塔·金顶五级
@@ -89,8 +92,8 @@ PROPS = [
     ("drum_tower",       JC,  (490, 290, 564, 386)),  # 鼓楼（市楼乙）
     ("market_gate",      JC,  (487, 390, 569, 474)),  # 市门楼（带榜墙门）
     # 民居族（江南包 JN）
-    ("house_win_a",      JN,  (195, 0, 288, 92)),     # 民居·窗
-    ("house_door_a",     JN,  (295, 0, 390, 92)),     # 民居·门
+    ("house_win_a",      JN,  (195, 0, 288, 92)),     # 民居·窗（93×92 同排同高基准件）
+    ("house_door_a",     JN,  (295, 0, 384, 92)),     # 民居·门（89×92；截尾384去7px顶部矮帽——样板间v6核销"门段顶多矮帽"）
     ("house_win_small",  JN,  (395, 0, 480, 92)),     # 民居·双窗小
     ("house_shop_open",  JN,  (290, 96, 480, 192)),   # 店铺·开敞门面
     ("gable_ma",         JN,  (192, 96, 288, 192)),   # 马头墙
@@ -262,9 +265,18 @@ TILES = [
     ("street_lane",   JN, (400, 492, 416, 508)),  # 74 巷路：夯土
     ("street_zhuque", JC, (64, 176, 80, 192)),    # 71 御道石板：横排大板（地面感；仅朱雀中轴3宽铺装）
     ("pave_market",   JC, (96, 544, 112, 560)),   # 市内/宫内地面：宽版石板
-    # 城墙（垛口+墙身同窗）
+    # 城墙（垛口+墙身同窗）——旧两行制，外郭墙改造后退役保留（新代码用 wall_band 族）
     ("wall_city",     JC, (568, 122, 584, 138)),  # 70 外郭城墙·垛口行（城齿+箭窗压顶）
     ("wall_city_body", JC, (568, 138, 584, 154)), # 106 外郭城墙·砖身行（横缝，N/S 走向段）
+    # ---- 城墙整带 tile 族（2026-09-08 重切落地：用户 Tiled 验证 PASS 的官方拼法固化）----
+    # 垛口相位实测：齿13~14px+豁2~3px=16px 整周期，齿起 x mod 16 = 2~3；
+    # col29 窗 (464..480) 恰含一个完整周期（豁464..466+齿467..479）——平铺天然无错拍无残齿（§8.2/§8.3-1 根治）
+    # 行结构=官方城墙带同构：crest 垛口行(齿体y125~131) + body 墙身×3 + base 墙脚行(内容y176~185，底线185=纯墙档)
+    ("wall_band_crest",  JC, (464, 112, 480, 128)),  # 114 垛口行（完整周期窗）
+    ("wall_band_body_a", JC, (464, 128, 480, 144)),  # 115 墙身·上
+    ("wall_band_body_b", JC, (464, 144, 480, 160)),  # 116 墙身·中
+    ("wall_band_body_c", JC, (464, 160, 480, 176)),  # 117 墙身·下
+    ("wall_band_base",   JC, (464, 176, 480, 192)),  # 118 墙脚行（内容止于 y185，下方 7px 透明=墙前地面）
     # ---- v3 水系（江南 B05）：渠水蓝+岸石顶面 ----
     ("water_canal",   JN5, (240, 352, 256, 368)), # 112 渠水/护城河·江南蓝（(96,344)波浪纹平铺成块状，改纯水平铺窗）
     ("quay_stone",    JN5, (200, 260, 216, 276)), # 111 岸石·渠岸顶面（浅灰石板，(304,344)曾误切木栈道）
@@ -285,6 +297,18 @@ TILES = [
 # 镂空 prop（摊贩/门楼）不再露出身后 tile-2 小屋画）。切片缺失时回退 house_town 可见版。
 def make_foot_tile():
     return Image.new("RGBA", (16, 16), (0, 0, 0, 0))
+
+# ---- 城墙竖墙旋转 tile（2026-09-08 重切落地）：墙身 tile 整数 90° 旋转 = 俯视墙厚侧立面 ----
+# 用户 Tiled 验证 PASS 拼法：西墙三列(外→内)=body_a/b/c 逆90°；东墙(外→内)=body_c/b/a 顺90°；
+# 断面读感"侧棱亮线朝外+走道亮带朝城内"，光影自洽（§8.1 语法2）。90° 整数旋转像素无损。
+ROT_TILES = [
+    ("wall_band_v_w0", "wall_band_body_a", Image.ROTATE_90),    # 119 西墙·外列（源=墙身上段）
+    ("wall_band_v_w1", "wall_band_body_b", Image.ROTATE_90),    # 120 西墙·中列
+    ("wall_band_v_w2", "wall_band_body_c", Image.ROTATE_90),    # 121 西墙·内列
+    ("wall_band_v_e0", "wall_band_body_c", Image.ROTATE_270),   # 122 东墙·外列（源=墙身下段）
+    ("wall_band_v_e1", "wall_band_body_b", Image.ROTATE_270),   # 123 东墙·中列
+    ("wall_band_v_e2", "wall_band_body_a", Image.ROTATE_270),   # 124 东墙·内列
+]
 
 # ---- 合成 tile：竖向三段 vstack（顶盖/墙身/墙脚）→ 16×16 ----
 # 条带=(box, 高px, rot)；rot=90 时墙身先旋转（横缝变竖缝，供 E/W 走向竖墙用），顶盖不转（垛口恒在顶）
@@ -411,8 +435,15 @@ def main():
         made.append((name, im, "prop"))
     # 第四轮：整数旋转派生件（90° 旋转像素无损，合规；记录源名+方向，manifest 同步登记）
     # bridge_arch_stone_v = deck 版顺时针 90°（96×58→58×96）：桥长轴转南北=进城过河方向
+    # gate_tower_mid_v_e/_w（2026-09-08 重切落地）= 门楼逆/顺 90°（100×94→94×100）：
+    #   E/W 竖墙城门骑楼。逆90°(ROTATE_90)=原图底边→右缘(朝东=E门)；顺90°(ROTATE_270)=底边→左缘(朝西=W门)。
+    #   像素无损保持双档基线（城台脚 y191）
     for name, (src, rot) in {
         "bridge_arch_stone_v": ("bridge_arch_stone_deck", Image.ROTATE_270),
+        "gate_tower_mid_v_e": ("gate_tower_mid", Image.ROTATE_90),
+        "gate_tower_mid_v_w": ("gate_tower_mid", Image.ROTATE_270),
+        "palace_wall_run_v_e": ("palace_wall_run", Image.ROTATE_90),   # 宫墙竖边·东（底边→右缘朝东=城外）
+        "palace_wall_run_v_w": ("palace_wall_run", Image.ROTATE_270),  # 宫墙竖边·西（底边→左缘朝西=城外）
     }.items():
         if only and src not in only and name not in only:
             continue
@@ -478,6 +509,15 @@ def main():
                         px[xx, yy] = (74, 88, 112, 255)
         im.save(os.path.join(OUT_TILES, name + ".png"))
         made.append((name, im, "tile"))
+    # 城墙竖墙旋转派生 tile（依赖上方 wall_band_body_* 已切出）
+    for name, src, rot in ROT_TILES:
+        if only and name not in only and src not in only:
+            continue
+        im = Image.open(os.path.join(OUT_TILES, src + ".png")).convert("RGBA").transpose(rot)
+        assert im.size == (16, 16), f"{name}: 旋转 tile 必须16x16, got {im.size}"
+        im.save(os.path.join(OUT_TILES, name + ".png"))
+        made.append((name, im, "tile"))
+        ROTATED_FROM[name] = src
     if not only or "foot" in only:
         make_foot_tile().save(os.path.join(OUT_TILES, "foot.png"))
         made.append(("foot", make_foot_tile(), "tile"))
@@ -624,14 +664,15 @@ def main():
         for name, rel, box in PROPS:
             assets.append({"name": name, "kind": "prop", "category": cat_of(name),
                            "sheet": rel, "box": list(box)})
-        for name, src in ROTATED_FROM.items():
-            src_e = next(a for a in assets if a["name"] == src)
-            assets.append({"name": name, "kind": "prop", "category": cat_of(name),
-                           "sheet": src_e["sheet"], "box": src_e["box"], "rotated_from": src,
-                           "note": "90°整数旋转派生件（像素无损）"})
         for name, rel, box in TILES:
             assets.append({"name": name, "kind": "tile", "category": cat_of(name),
                            "sheet": rel, "box": list(box)})
+        # 旋转派生件登记放最后：源可能是 prop（bridge）也可能是 tile（wall_band 竖墙）
+        for name, src in ROTATED_FROM.items():
+            src_e = next(a for a in assets if a["name"] == src)
+            assets.append({"name": name, "kind": src_e["kind"], "category": cat_of(name),
+                           "sheet": src_e["sheet"], "box": src_e["box"], "rotated_from": src,
+                           "note": "90°整数旋转派生件（像素无损）"})
         for name, rel, strips, weights in COMPOSITES:
             assets.append({"name": name, "kind": "composite_tile", "category": "wall",
                            "sheet": rel, "strips": [list(s) for s in strips]})

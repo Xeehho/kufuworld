@@ -12,9 +12,9 @@
    "category": "building",
    "sheet": "jingcheng/tile-B-01.png",
    "box": [
-    473,
+    467,
     98,
-    568,
+    577,
     192
    ]
   },
@@ -26,7 +26,7 @@
    "box": [
     620,
     98,
-    706,
+    720,
     192
    ]
   },
@@ -40,6 +40,18 @@
     194,
     568,
     288
+   ]
+  },
+  {
+   "name": "wall_run",
+   "kind": "prop",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    577,
+    98,
+    645,
+    192
    ]
   },
   {
@@ -123,6 +135,18 @@
     0,
     96,
     144,
+    192
+   ]
+  },
+  {
+   "name": "palace_wall_run",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    0,
+    128,
+    48,
     192
    ]
   },
@@ -518,7 +542,7 @@
    "box": [
     295,
     0,
-    390,
+    384,
     92
    ]
   },
@@ -2263,34 +2287,6 @@
    ]
   },
   {
-   "name": "bridge_arch_stone_v",
-   "kind": "prop",
-   "category": "decor",
-   "sheet": "jiangnan/tile-B-05.png",
-   "box": [
-    480,
-    192,
-    576,
-    250
-   ],
-   "rotated_from": "bridge_arch_stone_deck",
-   "note": "90°整数旋转派生件（像素无损）"
-  },
-  {
-   "name": "bridge_body_v",
-   "kind": "prop",
-   "category": "decor",
-   "sheet": "jiangnan/tile-B-05.png",
-   "box": [
-    480,
-    192,
-    576,
-    250
-   ],
-   "rotated_from": "bridge_arch_stone_v",
-   "note": "90°整数旋转派生件（像素无损）"
-  },
-  {
    "name": "street_main",
    "kind": "tile",
    "category": "ground",
@@ -2372,6 +2368,66 @@
     138,
     584,
     154
+   ]
+  },
+  {
+   "name": "wall_band_crest",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    112,
+    480,
+    128
+   ]
+  },
+  {
+   "name": "wall_band_body_a",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    128,
+    480,
+    144
+   ]
+  },
+  {
+   "name": "wall_band_body_b",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    144,
+    480,
+    160
+   ]
+  },
+  {
+   "name": "wall_band_body_c",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    160,
+    480,
+    176
+   ]
+  },
+  {
+   "name": "wall_band_base",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    176,
+    480,
+    192
    ]
   },
   {
@@ -2517,6 +2573,174 @@
     726,
     52
    ]
+  },
+  {
+   "name": "bridge_arch_stone_v",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    480,
+    192,
+    576,
+    250
+   ],
+   "rotated_from": "bridge_arch_stone_deck",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "gate_tower_mid_v_e",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    620,
+    98,
+    720,
+    192
+   ],
+   "rotated_from": "gate_tower_mid",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "gate_tower_mid_v_w",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    620,
+    98,
+    720,
+    192
+   ],
+   "rotated_from": "gate_tower_mid",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "palace_wall_run_v_e",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    0,
+    128,
+    48,
+    192
+   ],
+   "rotated_from": "palace_wall_run",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "palace_wall_run_v_w",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "jingcheng/tile-B-03.png",
+   "box": [
+    0,
+    128,
+    48,
+    192
+   ],
+   "rotated_from": "palace_wall_run",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "bridge_body_v",
+   "kind": "prop",
+   "category": "decor",
+   "sheet": "jiangnan/tile-B-05.png",
+   "box": [
+    480,
+    192,
+    576,
+    250
+   ],
+   "rotated_from": "bridge_arch_stone_v",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "wall_band_v_w0",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    128,
+    480,
+    144
+   ],
+   "rotated_from": "wall_band_body_a",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "wall_band_v_w1",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    144,
+    480,
+    160
+   ],
+   "rotated_from": "wall_band_body_b",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "wall_band_v_w2",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    160,
+    480,
+    176
+   ],
+   "rotated_from": "wall_band_body_c",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "wall_band_v_e0",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    160,
+    480,
+    176
+   ],
+   "rotated_from": "wall_band_body_c",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "wall_band_v_e1",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    144,
+    480,
+    160
+   ],
+   "rotated_from": "wall_band_body_b",
+   "note": "90°整数旋转派生件（像素无损）"
+  },
+  {
+   "name": "wall_band_v_e2",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    128,
+    480,
+    144
+   ],
+   "rotated_from": "wall_band_body_a",
+   "note": "90°整数旋转派生件（像素无损）"
   },
   {
    "name": "wall_ward",

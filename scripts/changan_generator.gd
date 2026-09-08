@@ -26,7 +26,21 @@ const T_WALL_CAP_E = 109    # 外郭城墙·竖段外列东齿（齿朝东）
 const T_GATE_OPEN = 67      # 坊门·开（无碰撞）
 const T_GATE_CLOSED = 68    # 坊门·闭（宵禁/未解锁，带碰撞）
 const T_PALACE_WALL = 69    # 宫墙
-const T_OUTER_WALL = 70     # 外郭城墙
+const T_OUTER_WALL = 70     # 外郭城墙（旧两行制·垛口行；墙带改造后仅探针兼容留档）
+# ---- 外郭城墙整带 tile 族（2026-09-08 重切落地：考古文档§7/§8，用户 Tiled 拼法固化）----
+# 横墙 5 行=crest 垛口(16px整周期)+body_a/b/c 墙身+base 墙脚（纯墙底线 y185）；
+# 竖墙 3 列=墙身 90° 旋转（墙厚 48px 断面）；拐角=竖墙纵贯+横墙紧贴内列起铺（齐平式，§8.1 语法3）
+const T_WB_CREST = 114
+const T_WB_BODY_A = 115
+const T_WB_BODY_B = 116
+const T_WB_BODY_C = 117
+const T_WB_BASE = 118
+const T_WB_V_W0 = 119       # 西墙·外列
+const T_WB_V_W1 = 120       # 西墙·中列
+const T_WB_V_W2 = 121       # 西墙·内列
+const T_WB_V_E0 = 122       # 东墙·外列
+const T_WB_V_E1 = 123       # 东墙·中列
+const T_WB_V_E2 = 124       # 东墙·内列
 const T_ZHUQUE = 71         # 朱雀大街御道
 const T_MAIN_ROAD = 72      # 主干街
 const T_WARD_STREET = 73    # 坊内十字街
@@ -42,7 +56,7 @@ const CURFEW_END := 5.0
 # ---- M3 三渠（龙首/清明/永安）：街缝内1宽水带，跨路处铺桥 ----
 const CANALS := [{"name": "清明渠", "seam": 1}, {"name": "龙首渠", "seam": 7}, {"name": "永安渠", "seam": 10}]
 
-const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 100, 102, 103, 104, 105, 106, 108, 109, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89, 112]   # 坊墙43→100、足印=T_FOOT(102)（透明碰撞）；宅门75~77已去碰撞（M4传送门）；83~89=内景瓦碰撞段；112=渠水/护城河（范式v3）
+const COLLIDING := [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 100, 102, 103, 104, 105, 106, 108, 109, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89, 112, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124]   # 坊墙43→100、足印=T_FOOT(102)（透明碰撞）；宅门75~77已去碰撞（M4传送门）；83~89=内景瓦碰撞段；112=渠水/护城河（范式v3）；114~124=外郭城墙整带族（与 tileset_generator collision_tile_ids 双份同步）
 
 # ---- 网格参数（JSON 解析后类型化）----
 var bw := 26
@@ -172,6 +186,41 @@ func _load_data() -> bool:
 func _origin() -> Vector2i:
 	return Vector2i(margin + wall + ring, margin + wall + ring)
 
+# ---- 外郭城墙整带（2026-09-08 重切落地：考古文档§7/§8 用户 Tiled 拼法固化）----
+# 几何纪律：城内碰撞格不变（墙圈仍占 margin/margin+1 两行两列——街网冻结/BFS 不受影响），
+# 墙带向外增高加厚：N 横墙 5 行 y=margin-3(crest)..margin+1(base)；S 横墙 y=H-margin-2(base)..H-margin+2(crest)；
+# W 竖墙 3 列 x=margin-1(w0)..margin+1(w2)；E 竖墙 x=W-margin-2(e2)..W-margin(e0)（墙厚 48px 断面）。
+# 齐平式拐角（§8.1 语法3）：竖墙纵贯 y=margin-3..H-margin+2（拐角区=竖墙断面），
+# 横墙 x 从竖墙内列旁起铺（竖墙外缘=横墙端头，墙底全线连续零重叠零露缝）。
+# 双档基线（§7.2 规则5）：base tile 内容止于格内 y9（源 y185 纯墙档），门楼 prop 底=格线-1（源 y191 门楼档）。
+func _paint_outer_walls():
+	var x0 := margin + 2
+	var x1 := W - margin - 3
+	var band := [T_WB_CREST, T_WB_BODY_A, T_WB_BODY_B, T_WB_BODY_C, T_WB_BASE]
+	for i in range(5):
+		_set_rect(decor, x0, margin - 3 + i, x1 - x0 + 1, 1, band[i])
+		_set_rect(decor, x0, H - margin - 2 + i, x1 - x0 + 1, 1, band[4 - i])
+	var y0 := margin - 3
+	var y1 := H - margin + 2
+	for cc in [[margin - 1, T_WB_V_W0], [margin, T_WB_V_W1], [margin + 1, T_WB_V_W2],
+			[W - margin, T_WB_V_E0], [W - margin - 1, T_WB_V_E1], [W - margin - 2, T_WB_V_E2]]:
+		_set_rect(decor, int(cc[0]), y0, 1, y1 - y0 + 1, int(cc[1]))
+	# 城内清零（墙带只向外扩，城内格不受影响）
+	_set_rect(decor, margin + 2, margin + 2, W - margin * 2 - 4, H - margin * 2 - 4, 0)
+
+# 四城门豁口：挖穿整带（N/S 门 5 行×3 格、E/W 门 3 列×3 格）——门楼 prop 后铺骑豁口上
+func _carve_city_gates():
+	var cx := col_x(5) - zq_s + zq_s / 2
+	_set_rect(decor, cx - 1, H - margin - 2, 3, 5, T_GATE_OPEN)
+	_register_gate("S", "明德门", [Vector2i(cx - 1, H - margin - 1), Vector2i(cx, H - margin - 1), Vector2i(cx + 1, H - margin - 1)], Vector2i(cx, H - margin - wall - 2))
+	_set_rect(decor, cx - 1, margin - 3, 3, 5, T_GATE_OPEN)
+	_register_gate("N", "玄武门", [Vector2i(cx - 1, margin), Vector2i(cx, margin), Vector2i(cx + 1, margin)], Vector2i(cx, margin + wall + 1))
+	var cyc := _center_seam_y()
+	_set_rect(decor, W - margin - 2, cyc - 1, 3, 3, T_GATE_OPEN)
+	_register_gate("E", "春明门", [Vector2i(W - margin - 1, cyc - 1), Vector2i(W - margin - 1, cyc), Vector2i(W - margin - 1, cyc + 1)], Vector2i(W - margin - wall - 2, cyc))
+	_set_rect(decor, margin - 1, cyc - 1, 3, 3, T_GATE_OPEN)
+	_register_gate("W", "开远门", [Vector2i(margin, cyc - 1), Vector2i(margin, cyc), Vector2i(margin, cyc + 1)], Vector2i(margin + wall + 1, cyc))
+
 func col_x(c: int) -> int:
 	return _origin().x + c * (bw + main_s) + (4 if c >= 5 else 0)   # 4=朱雀加宽补偿
 
@@ -189,17 +238,8 @@ func _paint_layout():
 	ground.resize(W * H)          # 默认0=草
 	decor = PackedByteArray()
 	decor.resize(W * H)
-	# 外郭城墙两行制：垛口行（70）在外 + 砖身行（106/107 按走向）在内——城墙视觉加高
-	_set_rect(decor, margin, margin, W - margin * 2, 1, T_OUTER_WALL)
-	_set_rect(decor, margin, H - margin - 1, W - margin * 2, 1, T_OUTER_WALL)
-	_set_rect(decor, margin + 1, margin + 1, W - margin * 2 - 2, 1, T_WALL_BODY)
-	_set_rect(decor, margin + 1, H - margin - 2, W - margin * 2 - 2, 1, T_WALL_BODY)
-	# E/W 竖段双列：外列=垛口齿（西墙齿朝西/东墙齿朝东，与横墙垛口转角衔接），内列=砖纹立面
-	_set_rect(decor, margin, margin + 1, 1, H - margin * 2 - 2, T_WALL_CAP_W)
-	_set_rect(decor, margin + 1, margin + 1, 1, H - margin * 2 - 2, T_WALL_FACE_V)
-	_set_rect(decor, W - margin - 1, margin + 1, 1, H - margin * 2 - 2, T_WALL_CAP_E)
-	_set_rect(decor, W - margin - 2, margin + 1, 1, H - margin * 2 - 2, T_WALL_FACE_V)
-	_set_rect(decor, margin + 2, margin + 2, W - margin * 2 - 4, H - margin * 2 - 4, 0)
+	# 外郭城墙整带（2026-09-08 重切落地）：替代旧两行制——官方 80px 高墙带同构复刻
+	_paint_outer_walls()
 	# 环路（贴城墙内侧，4宽土路）
 	var m := margin + wall
 	_set_rect(ground, m, m, W - m * 2, ring, T_MAIN_ROAD)
@@ -249,21 +289,8 @@ func _paint_layout():
 	# M3 三渠+范式v3 南护城河（全城一次；渠后于坊填充避免被盖，街饰避水在其后）
 	_paint_canals()
 	_paint_moat()
-	# M1 四城门：豁口+注册（v3 起自 _fill_ward_generic 移出——注册本应全局一次，非每坊一次）
-	var cx := col_x(5) - zq_s + zq_s / 2
-	_set_rect(decor, cx - 1, H - margin - wall, 3, 1, T_GATE_OPEN)
-	_set_rect(decor, cx - 1, H - margin - wall - 1, 3, 1, T_GATE_OPEN)
-	_register_gate("S", "明德门", [Vector2i(cx - 1, H - margin - wall), Vector2i(cx, H - margin - wall), Vector2i(cx + 1, H - margin - wall)], Vector2i(cx, H - margin - wall - 2))
-	_set_rect(decor, cx - 1, margin, 3, 1, T_GATE_OPEN)
-	_set_rect(decor, cx - 1, margin + 1, 3, 1, T_GATE_OPEN)
-	_register_gate("N", "玄武门", [Vector2i(cx - 1, margin), Vector2i(cx, margin), Vector2i(cx + 1, margin)], Vector2i(cx, margin + wall + 1))
-	var cyc := _center_seam_y()
-	_set_rect(decor, W - margin - wall, cyc - 1, 1, 3, T_GATE_OPEN)
-	_set_rect(decor, W - margin - wall - 1, cyc - 1, 1, 3, T_GATE_OPEN)
-	_register_gate("E", "春明门", [Vector2i(W - margin - wall, cyc - 1), Vector2i(W - margin - wall, cyc), Vector2i(W - margin - wall, cyc + 1)], Vector2i(W - margin - wall - 2, cyc))
-	_set_rect(decor, margin, cyc - 1, 1, 3, T_GATE_OPEN)
-	_set_rect(decor, margin + 1, cyc - 1, 1, 3, T_GATE_OPEN)
-	_register_gate("W", "开远门", [Vector2i(margin, cyc - 1), Vector2i(margin, cyc), Vector2i(margin, cyc + 1)], Vector2i(margin + wall + 1, cyc))
+	# M1 四城门：豁口挖穿整带（5 行/3 列制）+注册（v3 起自 _fill_ward_generic 移出）
+	_carve_city_gates()
 	# 视觉重构：四城门楼 prop + 街巷点缀（牌坊/街灯/行道树/渠柳）——放在渠之后可避开水格
 	_spawn_city_gates_all()
 	_paint_street_dressing()
@@ -284,12 +311,79 @@ const PROP_ROOT := "res://sprites/changan_props_sckr/"
 const GATE_PROP_BY_GRADE := {"A": "gate_red_gold", "B": "compound_gate", "C": "gate_stone_small"}
 # 民居变体池（散院/小宅随机取，hash 种子定）
 const HOUSE_PROPS := ["house_win_a", "house_door_a", "house_win_small", "house_small_door"]
+# 排屋件池（2026-09-08 重切落地 §7.2：全部取自江南 B04 第1行族——画布高全 92px「同排同高」，
+# 件间身宽对接成连排长屋；gable_ma=山墙封端件 96×96。禁混第2/3行族（跨行混拼=参差根因 R1））
+const ROW_HOUSE_POOL := ["house_win_a", "house_win_small", "house_door_a", "house_win_a"]
+
+# 排屋组装器：段内件依次身宽对接（x_px 累进，缝 0）、全排底边锚同一格线（§7.2 硬规则 3/4）；
+# 段宽自适应：<160px 单件居中 / 160~250px 无封端直排 / ≥250px 双 gable_ma 山墙封端。
+# footprint 按 sprite 实际像素覆盖换算格压 T_FOOT（防叠摆+碰撞线）
+func _spawn_house_row(x_from: int, x_to: int, ry: int, seed_val: int) -> int:
+	if x_to - x_from + 1 < 4 or not _cells_clear(x_from, ry, x_to - x_from + 1, 1):
+		return 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_val
+	var bottom := (ry + 1) * 16.0
+	var x_px := x_from * 16.0
+	var x_end := (x_to + 1) * 16.0
+	var seg_w := x_end - x_px
+	var placed := 0
+
+	if seg_w < 160.0:
+		var pn0: String = ROW_HOUSE_POOL[seed_val % ROW_HOUSE_POOL.size()]
+		var t0 := _prop_tex(pn0)
+		if t0:
+			_spawn_prop(pn0, (x_px + x_end) / 2.0, bottom)
+			_row_foot((x_px + x_end) / 2.0 - t0.get_width() / 2.0, t0.get_width(), ry)
+			placed = 1
+	else:
+		var cap := seg_w >= 250.0
+		var gable := _prop_tex("gable_ma")
+		if cap and gable:
+			_spawn_prop("gable_ma", x_px + gable.get_width() / 2.0, bottom)
+			_row_foot(x_px, gable.get_width(), ry)
+			x_px += gable.get_width()
+			placed += 1
+		var idx := 0
+		while true:
+			var pn: String = ROW_HOUSE_POOL[(seed_val / 7 + idx * 3) % ROW_HOUSE_POOL.size()]
+			var t := _prop_tex(pn)
+			if t == null:
+				break
+			var reserve := 0.0
+			if cap and gable:
+				reserve = gable.get_width()
+			if x_px + t.get_width() + reserve > x_end:
+				break
+			if cap and gable and x_px + t.get_width() + reserve > x_end - t.get_width():
+				break   # 至少还差一件空间则本轮不封端（留直排收尾）
+			_spawn_prop(pn, x_px + t.get_width() / 2.0, bottom)
+			_row_foot(x_px, t.get_width(), ry)
+			x_px += t.get_width()
+			placed += 1
+			idx += 1
+		if cap and gable and x_px + gable.get_width() <= x_end and placed >= 2:
+			_spawn_prop("gable_ma", x_px + gable.get_width() / 2.0, bottom)
+			_row_foot(x_px, gable.get_width(), ry)
+			placed += 1
+	stats_v3["row_house"] = int(stats_v3.get("row_house", 0)) + placed
+	return placed
+
+# 排屋 footprint：按 sprite 像素覆盖换算格压 T_FOOT（ry 行内）
+func _row_foot(x_left_px: float, w: float, ry: int):
+	if w <= 0.0:
+		return
+	var c0 := int(floor(x_left_px / 16.0))
+	var c1 := int(ceil((x_left_px + w) / 16.0)) - 1
+	for xx in range(c0, c1 + 1):
+		if xx >= 0 and xx < W and ry >= 0 and ry < H:
+			decor[ry * W + xx] = T_FOOT
 # 第五轮「去墙小街区」（2026-09-07）：坊内巷排排位/地标池——坊=十字巷分隔小街区，
 # 排屋沿巷背靠背（屋顶平行街道=样式图核心特征），园池口袋/街角地标穿插
 const ROW_SLOTS := [1, 8, 16, 22]
 const LANDMARK_PROPS := ["lou_brown", "lou_blue", "lou_dark", "hall_grey"]
-# 城门楼：明德门用大骑楼，其余三门用中型
-const CITY_GATE_PROP := {"S": "gate_tower_big", "N": "gate_tower_mid", "E": "gate_tower_mid", "W": "gate_tower_mid"}
+# 城门楼：明德门用大骑楼，其余三门中型；E/W 竖墙门用 90° 旋转件（门脸朝城外，2026-09-08 重切落地）
+const CITY_GATE_PROP := {"S": "gate_tower_big", "N": "gate_tower_mid", "E": "gate_tower_mid_v_e", "W": "gate_tower_mid_v_w"}
 var _prop_tex_cache := {}
 
 func _prop_tex(pname: String) -> Texture2D:
@@ -317,6 +411,21 @@ func _spawn_prop(pname: String, center_x: float, bottom_y: float, z := 2, pscale
 	add_child(prop)
 	return prop
 
+# 旋转墙带 prop：侧缘中点锚（90° 旋转件用——左/右缘=墙脚线朝城外，2026-09-08 重切落地）
+func _spawn_prop_side(pname: String, x: float, y: float, side: String, z := 2) -> Sprite2D:
+	var tex := _prop_tex(pname)
+	if tex == null:
+		return null
+	var prop := Sprite2D.new()
+	prop.texture = tex
+	prop.position = Vector2(x, y)
+	prop.offset = Vector2(tex.get_width() / 2.0 if side == "L" else -tex.get_width() / 2.0, 0)
+	prop.z_index = z
+	prop.add_to_group("changan_prop")
+	prop.set_meta("prop", pname)
+	add_child(prop)
+	return prop
+
 # 建筑 prop：footprint 占格（T_FOOT 透明碰撞，镂空 prop 不露身后画）+ 底边中点锚 sprite
 func _spawn_building(pname: String, foot: Rect2i, pscale := 1.0):
 	for yy in range(foot.position.y, foot.position.y + foot.size.y):
@@ -330,26 +439,49 @@ func _spawn_building(pname: String, foot: Rect2i, pscale := 1.0):
 	_spawn_prop(pname, cx, by, 2, pscale)
 
 # 城门楼 prop + 门垛碰撞（拱门走廊净宽≥26px，出城触发区仍在豁口格）
+# 双档基线（§7.2 规则5）：门楼底 y=191 档（格线-1），纯墙底 y=185 档（base tile 格内 9px）——差 6px=官方透视
 func _spawn_city_gate(side: String):
 	var pname: String = CITY_GATE_PROP.get(side, "gate_tower_mid")
-	if _prop_tex(pname) == null:
+	var tex := _prop_tex(pname)
+	if tex == null:
 		return
 	var g: Dictionary = gate_info[side]
 	var cells: Array = g["gap_cells"]
 	var c0: Vector2i = cells[0]
 	var c1: Vector2i = cells[cells.size() - 1]
-	var center_px := Vector2((c0.x + c1.x) * 0.5 + 0.5, (c0.y + c1.y) * 0.5 + 0.5) * 16.0
-	_spawn_prop(pname, center_px.x, center_px.y + 8.0)
-	var body := StaticBody2D.new()
-	body.position = center_px
 	var vertical := (side == "E" or side == "W")
+	var prop := Sprite2D.new()
+	prop.texture = tex
+	prop.z_index = 2
+	prop.add_to_group("changan_prop")
+	prop.set_meta("prop", pname)
+	if not vertical:
+		# 横墙门（S/N）：底边中点锚，底线=墙带 base 行格线-1（门楼档 y191 vs 纯墙档 y185）
+		var cx := (c0.x + c1.x) * 0.5 + 0.5
+		var base_row := H - margin - 2 if side == "S" else margin + 1
+		prop.position = Vector2(cx * 16.0, (base_row + 1) * 16.0 - 1.0)
+		prop.offset = Vector2(0, -tex.get_height() / 2.0)
+	else:
+		# 竖墙门（E/W）：旋转件（94×100），墙脚线=外缘列格线-1，外缘中点锚
+		var cy := (c0.y + c1.y) * 0.5 + 0.5
+		if side == "E":
+			prop.position = Vector2((W - margin + 1) * 16.0 - 1.0, cy * 16.0)
+			prop.offset = Vector2(-tex.get_width() / 2.0, 0)
+		else:
+			prop.position = Vector2((margin - 1) * 16.0 + 1.0, cy * 16.0)
+			prop.offset = Vector2(tex.get_width() / 2.0, 0)
+	add_child(prop)
+	# 门垛碰撞兜底（墙带 tile 碰撞为主，垛体防视觉缝穿行：拱门净宽 32px ≥ 玩家 24px）
+	var body := StaticBody2D.new()
+	body.position = prop.position
 	for sgn in [-1.0, 1.0]:
 		var cs := CollisionShape2D.new()
 		var shape := RectangleShape2D.new()
-		# 门垛盖两行墙（垛口+砖身），拱门净宽 32px ≥ 玩家 24px
 		shape.size = Vector2(8, 30) if not vertical else Vector2(30, 8)
-		cs.shape = shape
-		cs.position = Vector2(sgn * 20.0, -6.0) if not vertical else Vector2(0, sgn * 20.0 - 6.0)
+		if not vertical:
+			cs.position = Vector2(sgn * 20.0, -6.0)
+		else:
+			cs.position = Vector2(0, sgn * 20.0)
 		body.add_child(cs)
 	add_child(body)
 # M4 内景家具瓦（与 changan_interior.gd 一致；门面店铺陈设用）
@@ -394,10 +526,11 @@ func _paint_canals():
 
 # ---- 范式v3 南护城河：墙外 3 宽水带 + 岸石 + 御道桥（石拱桥 prop）+ 停船 ----
 # 只动墙外 margin 带（BFS/传送门/落点全在墙内，无结构影响）；出城触发区在门豁口，先于水面触发
+# 2026-09-08 墙带改造：S 墙 crest 行扩至 H-margin+2，护城河整体南移 3 行（wy0=H-margin+4）避让
 var moat_boat_count := 0
 
 func _paint_moat():
-	var wy0 := H - margin + 1           # 北岸岸石行
+	var wy0 := H - margin + 4           # 北岸岸石行（墙带 crest H-margin+2 外让 1 行草）
 	var wy1 := wy0 + 3                  # 水带 3 行（wy0+1..wy0+3）
 	if wy1 >= H:
 		return
@@ -589,46 +722,42 @@ func _fill_ward_generic(b: Dictionary, occupied: Array = []):
 				continue
 			if rng.randf() < (0.75 if high else 0.6):
 				_spawn_building(stall_vars[rng.randi_range(0, stall_vars.size() - 1)], rect)
-	# ③ 排屋肌理（第五轮「去墙小街区」，2026-09-07 样式图驱动）：
-	#    坊=十字巷分隔的 4 小街区：沿主街店排（②已铺）+ 临巷两排排屋，无院墙无坊墙，
-	#    屋顶平行街道成排、背靠背（样式图核心特征）；园池口袋/街角地标楼穿插破均质。
-	#    视觉带算术核算（sprite 檐宽≈6格/高≈6格，底边锚）：
-	#    北店排 y0+1 视觉 -3..2 / 巷北排 y0+8 视觉 3..9 / 十字巷 12..13 /
-	#    巷南排 y0+18 视觉 13..19（檐口与南店排 19.25 相接=背靠背街屋）/ 南店排 y0+24 视觉 19.25..26
+	# ③ 排屋肌理（2026-09-08 重切落地重写：§7.2 硬规则——同排同高/身宽对接/底边锚）：
+	#    坊=十字巷分隔的 4 小街区，每排被 N-S 巷切成东西两段，段内连排长屋连续对接
+	#    （替代旧 ROW_SLOTS 散点：间距 7 格>件宽 93px 必露 19px 缝=R1「房子贴不到一起」根因）；
+	#    屋顶平行街道成排、背靠背（样式图核心特征），园池口袋/街角地标楼穿插破均质。
+	#    视觉带核算（排屋件 92px 高、底边锚排带格底，上探 5.75 格）：
+	#    北店排 y0+1 视觉 -3..2 / 巷北排 y0+8 视觉 3.25..9 / 十字巷 12..13 /
+	#    巷南排 y0+18 视觉 13.25..19（与南店排 19.25 相接=背靠背街屋）
 	var gy0 := y0 + bh / 2
-	# 排位 x 槽 [1,8,16,22]（slot16 而非 15——檐 span 14..19 不压 N-S 巷列 12..13）；
-	# 园池口袋（每坊 2：北/南排各 1）+ 街角地标楼（每坊 1）：hash 确定性，破"排排齐"均质感
-	var pocket_n := 8 + 8 * (rng.randi() % 2)      # 北排口袋槽：8 或 16
-	var pocket_s := 16 - 8 * (rng.randi() % 2)     # 南排口袋槽：16 或 8
+	var pocket_seed := hash(String(b["id"]))
 	var landmark_half := rng.randi() % 2
 	var landmark_slot: int = [1, 22][rng.randi() % 2]  # 街角位（临主街+坊缘，视野最开阔）
 	var row_defs := [[0, y0 + 8], [1, gy0 + 6]]    # [半坊, 脚行]：巷北排 / 巷南排（gy0+6=y0+18）
 	for rd in row_defs:
 		var half: int = rd[0]
 		var ry: int = rd[1]
-		for slot in ROW_SLOTS:
-			var sl := int(slot)
-			var sx := x0 + sl
-			var rect := Rect2i(sx, ry, 2, 1)
-			if _hits_occupied(rect, occupied) or not _cells_clear(sx, ry, 2, 1):
+		for seg in [[x0 + 1, gx0 - 1], [gx0 + 2, x0 + bw - 2]]:
+			var s_from: int = seg[0]
+			var s_to: int = seg[1]
+			if s_to - s_from < 4 or _hits_occupied(Rect2i(s_from, ry, s_to - s_from + 1, 1), occupied):
 				continue
-			if sl == (pocket_n if half == 0 else pocket_s):
-				# 园池口袋：北排植树（树冠 rows 4..10，不压北店排檐 -3..2 也不压巷 12..13）；
-				# 南排前庭只有 rows 14..19 净空（南店排檐 19.25 起），放 48px 小件（rows 15..18）
+			# 街角地标楼（每坊 1）：破天际线（段首/段尾 2 格）
+			if half == landmark_half:
+				if landmark_slot == 1 and s_from == x0 + 1 and _cells_clear(s_from, ry, 2, 1):
+					_spawn_building(LANDMARK_PROPS[(hash(String(b["id"])) + ry) % LANDMARK_PROPS.size()], Rect2i(s_from, ry, 2, 1))
+					s_from += 2
+				elif landmark_slot == 22 and s_to == x0 + bw - 2 and _cells_clear(s_to - 1, ry, 2, 1):
+					_spawn_building(LANDMARK_PROPS[(hash(String(b["id"])) + ry) % LANDMARK_PROPS.size()], Rect2i(s_to - 1, ry, 2, 1))
+					s_to -= 2
+			# 园池口袋（抽稀节奏，样式图疏密）：北排植树/南排盆景+跳过整段
+			if rng.randf() < 0.16:
 				if half == 0:
-					_spawn_prop("tree_lush_a" if (sl + ry) % 2 == 0 else "tree_lush_b", (sx + 1) * 16.0, (ry + 2) * 16.0)
+					_spawn_prop("tree_lush_a" if (s_from + ry) % 2 == 0 else "tree_lush_b", (s_from + 2) * 16.0, (ry + 2) * 16.0)
 				else:
-					_spawn_prop("bonsai_b", (sx + 1) * 16.0, ry * 16.0)
+					_spawn_prop("bonsai_b", (s_from + 2) * 16.0, ry * 16.0)
 				continue
-			if half == landmark_half and sl == landmark_slot:
-				_spawn_building(LANDMARK_PROPS[(hash(String(b["id"])) + sl) % LANDMARK_PROPS.size()], rect)
-				continue
-			if rng.randf() > (0.92 if high else 0.78):
-				continue   # 抽稀个别排位=前院留白（样式图疏密节奏）
-			var vname: String = HOUSE_PROPS[(sl + half * 7 + int(b["col"])) % HOUSE_PROPS.size()]
-			if rng.randf() < 0.35:
-				vname = ["gable_ma", "gable_white", "house_small_door"][(sl + half * 2) % 3]   # 屋顶色相点缀
-			_spawn_building(vname, rect)
+			_spawn_house_row(s_from, s_to, ry, pocket_seed + ry * 31 + s_from)
 	# ④ 临巷生活小件：贴巷北排立面（足印下缘邻格=门口放物，窄款 48px 不出排带）；
 	#    巷南排前庭被南店排檐盖（背靠背街屋），不放
 	for i in range(rng.randi_range(2, 3)):
@@ -824,7 +953,10 @@ func _paint_street_dressing():
 
 # ---- v4 墙脚绿带清扫：城墙/坊墙/宫墙正交相邻的城内草格一律夯土（"墙根绿边"根治）----
 func _sweep_wall_grass():
-	var wall_ids := [T_WARD_WALL, T_WARD_WALL_V, T_PALACE_WALL, T_PALACE_WALL_V, T_OUTER_WALL, T_WALL_BODY, T_WALL_FACE_V, T_WALL_CAP_W, T_WALL_CAP_E]
+	var wall_ids := [T_WARD_WALL, T_WARD_WALL_V, T_PALACE_WALL, T_PALACE_WALL_V, T_OUTER_WALL,
+			T_WALL_BODY, T_WALL_FACE_V, T_WALL_CAP_W, T_WALL_CAP_E,
+			T_WB_CREST, T_WB_BODY_A, T_WB_BODY_B, T_WB_BODY_C, T_WB_BASE,
+			T_WB_V_W0, T_WB_V_W1, T_WB_V_W2, T_WB_V_E0, T_WB_V_E1, T_WB_V_E2]
 	for y in range(margin, H - margin):
 		var base = y * W
 		for x in range(margin, W - margin):
@@ -878,6 +1010,20 @@ func _paint_palace():
 	_set_rect(ground, px0, py0, px1 - px0 + 1, py1 - py0 + 1, T_GRASS)
 	_set_wall_ring(px0, py0, px1 - px0 + 1, py1 - py0 + 1, T_PALACE_WALL, T_PALACE_WALL_V)
 	_set_rect(decor, px0 + 1, py0 + 1, px1 - px0 - 1, py1 - py0 - 1, 0)
+	# 宫墙整带 prop 链（2026-09-08 重切落地：palace_wall_run 48×64 整带，考古§7.1 样板间 B PASS；
+	# tile ring 保留=碰撞/BFS 兜底，prop 盖上方做 50~64px 高墙视觉——修复 R5「24px 宫墙 vs 96px 宫门 1:4 断裂」）
+	# 拐角/宫门豁口不铺（角格 tile 兜底+承天门 prop 骑豁口）；玩家 z=5 恒在 prop 前，无遮挡问题
+	if _prop_tex("palace_wall_run") != null:
+		for wx in range(px0 + 1, px1, 3):
+			_spawn_prop("palace_wall_run", (wx + 1.5) * 16.0, (py0 + 1) * 16.0)
+		var pcx2 := col_x(5) - zq_s + zq_s / 2
+		for wx in range(px0 + 1, px1, 3):
+			if abs(wx + 1 - pcx2) <= 3:
+				continue   # 承天门豁口（palace_gate_red prop 骑上）
+			_spawn_prop("palace_wall_run", (wx + 1.5) * 16.0, (py1 + 1) * 16.0)
+		for wy2 in range(py0 + 1, py1, 3):
+			_spawn_prop_side("palace_wall_run_v_w", px0 * 16.0, (wy2 + 1.5) * 16.0, "L")
+			_spawn_prop_side("palace_wall_run_v_e", (px1 + 1) * 16.0, (wy2 + 1.5) * 16.0, "R")
 	# 丹墀广场：院内满铺方砖（金砖漫地），中轴御道直抵太极殿
 	_set_rect(ground, px0 + 1, py0 + 1, px1 - px0 - 1, py1 - py0 - 1, T_PAVE)
 	var pcx := col_x(5) - zq_s + zq_s / 2

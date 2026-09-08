@@ -114,8 +114,12 @@ func _ready() -> void:
 		m1_fails.append("宅门楼prop=%d≠stage0 lots数%d（克隆缺切片会全跳过）" % [gate_props, expect_gate_props])
 	var bad_tex := 0
 	for p2 in props:
-		# 底边锚校验带缩放：offset.y == -h*scale/2（车轿族 0.5 半缩，第三轮比例纪律）
-		if p2.texture == null or p2.offset.y != -p2.texture.get_height() * p2.scale.y / 2.0:
+		# 底边锚校验带缩放：offset.y == -h*scale.y/2（车轿族 0.5 半缩，第三轮比例纪律）
+		# 侧缘锚件例外（2026-09-08 墙带改造：宫墙竖边/城门楼旋转件 offset.y=0、offset.x=±w/2）
+		var side_anchor := false
+		if p2.texture:
+			side_anchor = p2.offset.y == 0.0 and abs(abs(p2.offset.x) - p2.texture.get_width() * p2.scale.x / 2.0) < 0.01
+		if p2.texture == null or (p2.offset.y != -p2.texture.get_height() * p2.scale.y / 2.0 and not side_anchor):
 			bad_tex += 1
 	if bad_tex > 0:
 		m1_fails.append("prop纹理/底边锚异常=%d" % bad_tex)
@@ -182,8 +186,10 @@ func _ready() -> void:
 		if not FileAccess.file_exists("res://sprites/tiles_changan_sckr/" + sckr_paths[tid]):
 			mv_fails.append("SCKR切片缺失 tiles_changan_sckr/%s（跑 tools/import_sckr_changan.py）" % sckr_paths[tid])
 	# 城门楼×4（大骑楼明德门+中楼×3）
-	if int(prop_names.get("gate_tower_big", 0)) != 1 or int(prop_names.get("gate_tower_mid", 0)) != 3:
-		mv_fails.append("城门楼prop big=%d mid=%d≠1/3" % [int(prop_names.get("gate_tower_big", 0)), int(prop_names.get("gate_tower_mid", 0))])
+	# 城门楼四门四件（2026-09-08 墙带改造：S=big、N=mid、E/W=90°旋转件 mid_v_e/_w）
+	if int(prop_names.get("gate_tower_big", 0)) != 1 or int(prop_names.get("gate_tower_mid", 0)) != 1 \
+			or int(prop_names.get("gate_tower_mid_v_e", 0)) != 1 or int(prop_names.get("gate_tower_mid_v_w", 0)) != 1:
+		mv_fails.append("城门楼prop big=%d mid=%d v_e=%d v_w=%d≠1/1/1/1" % [int(prop_names.get("gate_tower_big", 0)), int(prop_names.get("gate_tower_mid", 0)), int(prop_names.get("gate_tower_mid_v_e", 0)), int(prop_names.get("gate_tower_mid_v_w", 0))])
 	# 街巷点缀阈值（落格校验会吞个别格，阈值留余量）
 	if int(prop_names.get("lamp_red", 0)) < 15:
 		mv_fails.append("街灯=%d(<15)" % int(prop_names.get("lamp_red", 0)))
@@ -280,6 +286,56 @@ func _ready() -> void:
 	if bridge_props < 1:
 		v3_fails.append("护城河拱桥prop缺失")
 	fails.append_array(v3_fails)
+	# ---- 墙带断言三件套（2026-09-08 重切落地，§7.3 工程化转译：decor 格级+密度级）----
+	# ①墙带连续性（逐缝透缝→格级）：N/S 横墙 5 行在城门豁口之外无断点/异瓦
+	# ②脚线单值（底边分组→格级）：N/S 墙 base 行非豁口段全部 T_WB_BASE（双档基线之纯墙档）
+	# ③排屋密度（身宽对接+底边锚由组装器构造保证）：row_house 件数阈值
+	var wb_fails: Array = []
+	var band_ok := [changan.T_WB_CREST, changan.T_WB_BODY_A, changan.T_WB_BODY_B, changan.T_WB_BODY_C, changan.T_WB_BASE]
+	var gate_x: int = changan.col_x(5) - changan.zq_s + changan.zq_s / 2
+	var gate_y: int = changan._center_seam_y()
+	var seam_bad := 0
+	for i in range(5):
+		var yn: int = changan.margin - 3 + i
+		var ys: int = changan.H - changan.margin - 2 + i
+		for xx in range(changan.margin + 2, changan.W - changan.margin - 2):
+			if xx >= gate_x - 1 and xx <= gate_x + 1:
+				continue   # 门豁口
+			if not band_ok.has(int(changan.decor[yn * changan.W + xx])):
+				seam_bad += 1
+			if not band_ok.has(int(changan.decor[ys * changan.W + xx])):
+				seam_bad += 1
+	if seam_bad > 0:
+		wb_fails.append("墙带断点/异瓦格=%d（N/S 横墙5行应连续）" % seam_bad)
+	var base_bad := 0
+	for xx in range(changan.margin + 2, changan.W - changan.margin - 2):
+		if xx >= gate_x - 1 and xx <= gate_x + 1:
+			continue
+		if int(changan.decor[(changan.margin + 1) * changan.W + xx]) != changan.T_WB_BASE:
+			base_bad += 1
+		if int(changan.decor[(changan.H - changan.margin - 2) * changan.W + xx]) != changan.T_WB_BASE:
+			base_bad += 1
+	if base_bad > 0:
+		wb_fails.append("墙脚行异瓦格=%d（脚线应单值 T_WB_BASE）" % base_bad)
+	# 竖墙 3 列纵贯（齐平拐角）：W/E 竖墙列在 y 全程（除 E/W 门豁口行）应为竖墙瓦
+	var vw_bad := 0
+	var vw_ids := [changan.T_WB_V_W0, changan.T_WB_V_W1, changan.T_WB_V_W2, changan.T_WB_V_E0, changan.T_WB_V_E1, changan.T_WB_V_E2]
+	for yy in range(changan.margin - 3, changan.H - changan.margin + 3):
+		if yy >= gate_y - 1 and yy <= gate_y + 1:
+			continue   # E/W 门豁口
+		for xc in [changan.margin - 1, changan.margin, changan.margin + 1,
+				changan.W - changan.margin, changan.W - changan.margin - 1, changan.W - changan.margin - 2]:
+			if not vw_ids.has(int(changan.decor[yy * changan.W + xc])):
+				vw_bad += 1
+	if vw_bad > 0:
+		wb_fails.append("竖墙列断点格=%d（应纵贯齐平拐角）" % vw_bad)
+	# 墙带 tile 注册+切片存在（114~124）
+	for tid2 in range(114, 125):
+		if not ts_mv.has_source(tid2):
+			wb_fails.append("墙带瓦%d未注册" % tid2)
+	if int(changan.stats_v3.get("row_house", 0)) < 60:
+		wb_fails.append("排屋件=%d(<60)" % int(changan.stats_v3.get("row_house", 0)))
+	fails.append_array(wb_fails)
 	if not mv_fails.is_empty():
 		fails.append_array(mv_fails)
 	if not m3_fails.is_empty():

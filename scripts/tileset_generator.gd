@@ -110,10 +110,23 @@ static func build_tileset() -> TileSet:
 		88: ["res://sprites/tiles_changan_sckr/interior_cabinet.png", "res://sprites/tiles/interior_cabinet.png"],     # 柜（碰撞）
 		89: ["res://sprites/tiles_changan_sckr/interior_shelf.png", "res://sprites/tiles/interior_shelf.png"],         # 架（碰撞）
 		113: ["res://sprites/tiles_changan_sckr/floor_medal.png", "res://sprites/tiles/interior_carpet.png"],          # 厅心花砖（无碰撞，毯心/甬道点缀）
+		# ---- 外郭城墙整带 tile 族 114~124（2026-09-08 重切落地，用户 Tiled 拼法固化；垛口 16px 整周期无错拍）----
+		# 横墙 5 行=crest 垛口行 + body_a/b/c 墙身 + base 墙脚行（纯墙底线 y185）；竖墙=墙身 90° 旋转 3 列（墙厚 48px）
+		114: ["res://sprites/tiles_changan_sckr/wall_band_crest.png", "res://sprites/tiles/changan_outer_wall.png"],   # 垛口行（完整周期窗：豁3+齿13）
+		115: ["res://sprites/tiles_changan_sckr/wall_band_body_a.png", "res://sprites/tiles/changan_outer_wall.png"],  # 墙身·上
+		116: ["res://sprites/tiles_changan_sckr/wall_band_body_b.png", "res://sprites/tiles/changan_outer_wall.png"],  # 墙身·中
+		117: ["res://sprites/tiles_changan_sckr/wall_band_body_c.png", "res://sprites/tiles/changan_outer_wall.png"],  # 墙身·下
+		118: ["res://sprites/tiles_changan_sckr/wall_band_base.png", "res://sprites/tiles/changan_outer_wall.png"],    # 墙脚行（内容止 y185，下 7px=墙前地面）
+		119: ["res://sprites/tiles_changan_sckr/wall_band_v_w0.png", "res://sprites/tiles/changan_outer_wall.png"],    # 西墙·外列（body_a 逆90°）
+		120: ["res://sprites/tiles_changan_sckr/wall_band_v_w1.png", "res://sprites/tiles/changan_outer_wall.png"],    # 西墙·中列
+		121: ["res://sprites/tiles_changan_sckr/wall_band_v_w2.png", "res://sprites/tiles/changan_outer_wall.png"],    # 西墙·内列
+		122: ["res://sprites/tiles_changan_sckr/wall_band_v_e0.png", "res://sprites/tiles/changan_outer_wall.png"],    # 东墙·外列（body_c 顺90°）
+		123: ["res://sprites/tiles_changan_sckr/wall_band_v_e1.png", "res://sprites/tiles/changan_outer_wall.png"],    # 东墙·中列
+		124: ["res://sprites/tiles_changan_sckr/wall_band_v_e2.png", "res://sprites/tiles/changan_outer_wall.png"],    # 东墙·内列
 	}
 
-	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙, 100=长安坊墙, 102=建筑足印（透明碰撞）；75~77=宅门（M4起无碰撞接传送门）；83/84/86/88/89=内景墙/屏风/案/柜/架
-	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89, 100, 102, 103, 104, 105, 106, 108, 109, 112]
+	# 需要碰撞的瓦片ID：5=水, 3=山崖, 7=雪崖, 2/10/11=16px房, 12=洞穴, 14=岩石, 15=栅栏, 40=城墙, 43=坊墙, 65/66=崖壁变体, 68=坊门闭, 69=宫墙, 70=外郭城墙, 100=长安坊墙, 102=建筑足印（透明碰撞）；75~77=宅门（M4起无碰撞接传送门）；83/84/86/88/89=内景墙/屏风/案/柜/架；114~124=外郭城墙整带族（2026-09-08）
+	var collision_tile_ids = [5, 3, 7, 2, 10, 11, 12, 14, 15, 40, 43, 65, 66, 68, 69, 70, 83, 84, 86, 88, 89, 100, 102, 103, 104, 105, 106, 108, 109, 112, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124]
 	# 先添加物理层（在循环之前）
 	ts.add_physics_layer()
 
