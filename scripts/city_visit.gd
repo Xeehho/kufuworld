@@ -7,16 +7,30 @@ extends Node2D
 #       城内行走靠"传送玩家到偏移空间"，开放世界 TileMap 物理不在该空间、互不干扰
 
 const ChangAnScene := preload("res://scenes/changan.tscn")
+const ChangAnV2Scene := preload("res://scenes/changan_v2.tscn")   # 长安v2·剧情尺度新城（docs/长安城v2-剧情尺度规划.md）
 const INTERIOR_SCRIPT := preload("res://scripts/changan_interior.gd")
 const TILE_CITY_WALL := 40
 const TILE_PATH := 1
-const CITY_OFFSET := Vector2(0, 40000)   # 城内坐标空间（开放世界半径200格=±3200px 之外）
-const INTERIOR_OFFSET := Vector2(0, 80000)   # M4 内景坐标空间（再往北，与城内互不干扰）
-const FP_W := 64                          # footprint 外郭轮廓尺寸（格）
-const FP_H := 44
-const FP_SCAN_PAD := 8                    # 选址扫描净空外扩
+# 城市版本开关：1=旧城（108坊史实尺度 401×304）；2=v2剧情尺度新城（30街区 168×142 灰盒文字占位）
+# 两城坐标空间错开共存——v2 城挂 y=60000，旧城/旧内景 40000/80000 原样保留可随时切回对比
+const CITY_VERSION := 2
+const CITY_OFFSET_V1 := Vector2(0, 40000)      # 城内坐标空间（开放世界半径200格=±3200px 之外）
+const INTERIOR_OFFSET_V1 := Vector2(0, 80000)  # v1 内景坐标空间
+const CITY_OFFSET_V2 := Vector2(0, 60000)
+const INTERIOR_OFFSET_V2 := Vector2(0, 100000) # v2 内景（灰盒期未启用）
+const FP_W_V1 := 64                            # v1 footprint 外郭轮廓尺寸（格）
+const FP_H_V1 := 44
+const FP_W_V2 := 44                            # v2 城更小，footprint 同比缩（152:126 ≈ 44:36）
+const FP_H_V2 := 36
+const FP_SCAN_PAD := 8                         # 选址扫描净空外扩
 const FREEZE_NODES := ["WorldGenerator", "FarmSystem", "StationSystem", "MobSpawner", "NPCSpawner", "TreeChopSystem"]
 # 注意：WeatherController 不冻结（M3）——城内时辰照常流动驱动宵禁，World CanvasModulate 夜色覆盖全画布
+
+# 按版本初始化的运行期量（名沿用旧 const，调用处零改动）
+var CITY_OFFSET := CITY_OFFSET_V1
+var INTERIOR_OFFSET := INTERIOR_OFFSET_V1
+var FP_W := FP_W_V1
+var FP_H := FP_H_V1
 
 var world: Node2D = null
 var world_gen = null
@@ -44,6 +58,11 @@ func _ready():
 	world_gen = world.get_node_or_null("WorldGenerator")
 	_minimap = world.get_node_or_null("UI/MinimapHUD")
 	_setup_fade_layer()
+	if CITY_VERSION == 2:
+		CITY_OFFSET = CITY_OFFSET_V2
+		INTERIOR_OFFSET = INTERIOR_OFFSET_V2
+		FP_W = FP_W_V2
+		FP_H = FP_H_V2
 	# WorldGenerator._ready 在 Main._ready 同帧早已跑完（_setup_city_visit 排最后），可直接铺轮廓
 	_setup_footprint()
 	if auto_spawn_in_city and not _probe_present():
@@ -182,12 +201,15 @@ func enter_city(gate_id: String, force: bool = false) -> void:
 	_busy = true
 	await _fade(1.0)
 	_set_world_frozen(true)
-	changan = ChangAnScene.instantiate()
+	var scene_packed = ChangAnV2Scene if CITY_VERSION == 2 else ChangAnScene
+	changan = scene_packed.instantiate()
 	changan.exit_requested.connect(_on_city_exit_requested)
 	changan.interior_requested.connect(enter_interior)
 	world.add_child(changan)
 	changan.position = CITY_OFFSET
-	await changan.generation_done
+	# v2 生成器同步完成（_ready 内即 emit）——信号可能已发过，done 守卫防 await 永挂
+	if not changan.done:
+		await changan.generation_done
 	var g: Dictionary = changan.gate_info[gate_id]
 	var spawn_cell: Vector2i = changan.find_clear_spawn(g["inside"])
 	player.global_position = CITY_OFFSET + changan.cell_to_px(spawn_cell)

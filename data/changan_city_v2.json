@@ -1,0 +1,48 @@
+{
+  "version": "v2.1-greybox",
+  "grid": {
+    "cols": 6,
+    "rows": 5,
+    "block": [20, 20],
+    "street": {"zhunque": 6, "main": 4, "ring": 3},
+    "wall": 2,
+    "margin": 8,
+    "axis_col": 3
+  },
+  "gates": {
+    "S": {"name": "明德门", "align": "zhuque"},
+    "N": {"name": "玄武门", "align": "seam_v", "seam": 5},
+    "E": {"name": "春明门", "align": "seam_h", "seam": 2},
+    "W": {"name": "开远门", "align": "seam_h", "seam": 2}
+  },
+  "blocks": [
+    {"id": "xiude", "col": 0, "row": 0, "name": "修德坊", "kind": "temple", "label": "弘福寺·玄奘译场", "stage": 0},
+    {"id": "fanglin", "col": 1, "row": 0, "name": "芳林坊", "kind": "military", "label": "北衙禁军·西内苑", "stage": 0},
+    {"id": "gongcheng", "col": 2, "row": 0, "span": [2, 1], "name": "宫城·太极宫", "kind": "palace", "label": "太极殿/两仪殿/承天门（朱雀大街北端）", "stage": 0},
+    {"id": "donggong", "col": 4, "row": 0, "name": "东宫", "kind": "palace_east", "label": "太子东宫（终幕党争）", "stage": 0},
+    {"id": "daminggong", "col": 5, "row": 0, "name": "大明宫预留", "kind": "royal_reserve", "label": "四幕扩建·暂空地", "stage": 2},
+    {"id": "chongye", "col": 0, "row": 1, "name": "崇业坊", "kind": "taoist", "label": "玄都观", "stage": 0},
+    {"id": "banzheng", "col": 1, "row": 1, "name": "颁政坊", "kind": "residential", "label": "官宅居民", "stage": 0},
+    {"id": "huangcheng", "col": 2, "row": 1, "span": [2, 1], "name": "皇城官署带", "kind": "office", "label": "京兆府/大理寺/御史台/鸿胪寺/将作监/太医署/秘书省·新罗倭使邸", "stage": 0},
+    {"id": "chongren", "col": 4, "row": 1, "name": "崇仁坊", "kind": "noble", "label": "长孙府/程府/李府·击鞠场", "stage": 0},
+    {"id": "pingkang", "col": 5, "row": 1, "name": "平康坊", "kind": "venue", "label": "天香阁·青楼", "stage": 0},
+    {"id": "xishi", "col": 0, "row": 2, "name": "西市", "kind": "market", "label": "琥珀光酒肆/主角工坊/柜坊当铺/波斯粟特邸", "stage": 0},
+    {"id": "changshou", "col": 1, "row": 2, "name": "长寿坊", "kind": "noble", "label": "怀化郡王府·居民", "stage": 0},
+    {"id": "wuben", "col": 2, "row": 2, "name": "务本坊", "kind": "noble", "label": "房府·国子监", "stage": 0},
+    {"id": "jingshan", "col": 3, "row": 2, "name": "靖善坊", "kind": "temple", "label": "大兴善寺", "stage": 0},
+    {"id": "dongshi", "col": 4, "row": 2, "name": "东市", "kind": "market", "label": "高档商市（与西市同规格）", "stage": 0},
+    {"id": "anyi", "col": 5, "row": 2, "name": "安邑坊", "kind": "yamen", "label": "万年县衙·客栈邸店", "stage": 0},
+    {"id": "huaiyuan", "col": 0, "row": 3, "name": "怀远坊", "kind": "residential", "label": "居民坊", "stage": 1},
+    {"id": "yankang", "col": 1, "row": 3, "name": "延康坊", "kind": "noble", "label": "魏王府（夺嫡对手）", "stage": 0},
+    {"id": "yongxing", "col": 2, "row": 3, "name": "永兴坊", "kind": "noble", "label": "魏征府·清流宅", "stage": 0},
+    {"id": "chongyi", "col": 3, "row": 3, "name": "崇义坊", "kind": "noble", "label": "清河崔/博陵崔/范阳卢/兰陵萧", "stage": 0},
+    {"id": "xuanyang", "col": 4, "row": 3, "name": "宣阳坊", "kind": "noble", "label": "长乐公主府/尉迟/秦/侯/高/阎府", "stage": 0},
+    {"id": "shengye", "col": 5, "row": 3, "name": "胜业坊", "kind": "noble", "label": "吴王府·晋王府", "stage": 1},
+    {"id": "yanshou", "col": 0, "row": 4, "name": "延寿坊", "kind": "residential", "label": "居民坊", "stage": 1},
+    {"id": "tongji", "col": 1, "row": 4, "name": "通济坊", "kind": "residential", "label": "居民坊", "stage": 1},
+    {"id": "fengan", "col": 2, "row": 4, "name": "丰安坊", "kind": "residential", "label": "居民坊", "stage": 1, "extra_labels": [{"at": "center_south", "text": "陈宅·预留（买宅解锁）"}]},
+    {"id": "changming", "col": 3, "row": 4, "name": "昌明坊", "kind": "residential", "label": "居民坊", "stage": 1},
+    {"id": "jinchang", "col": 4, "row": 4, "name": "晋昌坊", "kind": "temple", "label": "大慈恩寺·大雁塔", "stage": 2},
+    {"id": "qujiang", "col": 5, "row": 4, "name": "曲江预留地", "kind": "reserve_empty", "label": "水系后置·暂空地", "stage": 2}
+  ]
+}
