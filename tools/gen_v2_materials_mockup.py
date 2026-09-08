@@ -4,10 +4,10 @@
 产物（docs/参考/tiled_work/）：
   v2_tile16.tsx        — 16px 地面/墙带切片 collection 表（manifest tile 类）
   v2_props.tsx         — prop 大件 collection 表（起步批：城门楼/排屋/山墙/店面/杂件）
-  v2_materials_mockup.tmx — 1px 网格起步图（1200×900，base64+zlib），预摆三段：
-    A 城墙示范段 = 用户 Outer_city_wall.tmx 原拼法整段拷贝（零损耗 ground truth）
-    B 排屋连排段 = G1 件按内容边缘零间隙程序化密排 + 山墙封端 + 底边锚
-    C 地面五联段 = S 族地面各铺一条
+  v2_materials_mockup.tmx — 1px 网格起步图（1440×1000，base64+zlib）：
+    只含用户 Outer_city_wall.tmx 城墙段原拼法整段拷贝（零损耗 ground truth）。
+    ⚠️ 2026-09-08 用户拍板：不预摆任何 AI 模板（排屋/店面/地面段已删）——
+    除城墙段外全部留白，拼法由用户手拼探索，AI 只供切片+验收。
 纯数据工作文件，重跑即可重建。切片纪律：全部引用 manifest 条目，无临时像素窗口。
 """
 import base64
@@ -137,38 +137,8 @@ def main():
     copy_user_layer(ground, '地面', 16, 16)
     copy_user_layer(build, '建筑', 16, 16)
 
-    # 段 B：排屋连排（内容边缘零间隙密排 + 底边锚 y=820）
-    ROW = ['house_win_a', 'house_door_a', 'house_win_a', 'gable_white']
-    edges = {}
-    for n in ROW:
-        im = Image.open(os.path.join(PROPS_DIR, n + '.png')).convert('RGBA')
-        px, (w, h) = im.load(), im.size
-        left = next(x for x in range(w) if any(px[x, y][3] > 10 for y in range(h)))
-        right = next(x for x in range(w - 1, -1, -1) if any(px[x, y][3] > 10 for y in range(h)))
-        edges[n] = (left, right, w, h)
-    x, base_y = 16, 880
-    prop_gid = {n: 1 + n_tiles + i for i, n in enumerate(PROPS)}
-    for n in ROW:
-        left, right, w, h = edges[n]
-        put_x = x - left  # 内容左缘落在当前 x
-        for yy in range(h):
-            for xx in range(w):
-                put(build, put_x + xx, base_y - h + yy, prop_gid[n])
-        x += right - left + 1  # 内容右缘 +1px = 下一件内容左缘
-
-    # 店面大件单独示范（house_shop_open 190×96，底边锚同一 y）
-    so_w, so_h = png_size(os.path.join(PROPS_DIR, 'house_shop_open.png'))
-    for yy in range(so_h):
-        for xx in range(so_w):
-            put(build, 640 + xx, base_y - so_h + yy, prop_gid['house_shop_open'])
-
-    # 段 C：地面五联（y=856，各 96×16）
-    tile_gid = {n: 1 + i for i, n in enumerate(TILE16)}
-    for i, n in enumerate(['street_zhuque', 'street_main', 'street_ward', 'street_lane', 'pave_market']):
-        ox = 16 + i * 112
-        for yy in range(16):
-            for xx in range(96):
-                put(ground, ox + xx, 920 + yy, tile_gid[n])
+    # 2026-09-08 用户拍板：不预摆 AI 模板——排屋/店面/地面段全删，
+    # 城墙段以外留白，拼法由用户手拼探索（AI 只供切片+验收）。
 
     # ④tmx
     def layer_xml(idx, name, data):
@@ -185,10 +155,8 @@ def main():
         ts_lines.append(' <tileset firstgid="%d" source="%s"/>' % (nf, ts['src']))
 
     notes = [
-        ('城墙示范段（你的原拼法·勿改）', 16, 620, '#e0b040'),
-        ('排屋连排：内容边缘零间隙+山墙封端+底边锚y880', 16, 850, '#7fd0ff'),
-        ('店面门脸 house_shop_open（西市/东市用）', 640, 800, '#7fd0ff'),
-        ('地面五联：御道/主干/坊巷/小巷/方砖', 16, 904, '#a0e0a0'),
+        ('城墙模板（你的原拼法·已保留）', 16, 620, '#e0b040'),
+        ('↓ 下方全部留白：排屋/店面/地面由你自己拼，拼完发回验收', 16, 700, '#a0a0a0'),
     ]
     obj_lines = [' <objectgroup id="10" name="标注">']
     for i, (txt, ox, oy, color) in enumerate(notes):
@@ -213,7 +181,7 @@ def main():
 
     print('[v2-mockup] tile16=%d props=%d 续用表=%s' % (
         n_tiles, n_props, [(ts['name'], nf) for ts, nf in kept]))
-    print('[v2-mockup] 排屋密排 x 终点=%d（4件内容累计宽）' % x)
+    print('[v2-mockup] 预摆=仅城墙段（用户拍板：不留 AI 模板）')
     print('[v2-mockup] → %s (%.1f KB)' % (out, os.path.getsize(out) / 1024))
 
 
