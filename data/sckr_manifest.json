@@ -2743,6 +2743,21 @@
    "note": "90°整数旋转派生件（像素无损）"
   },
   {
+   "name": "wall_band_body_c_s4",
+   "kind": "tile",
+   "category": "wall",
+   "sheet": "jingcheng/tile-B-01.png",
+   "box": [
+    464,
+    160,
+    480,
+    176
+   ],
+   "shifted_from": "wall_band_body_c",
+   "shift_x": 4,
+   "note": "水平循环移位派生件（像素重排无损；竖墙砖身错缝行，与源件逐行交替）"
+  },
+  {
    "name": "wall_ward",
    "kind": "composite_tile",
    "category": "wall",

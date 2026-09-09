@@ -11,15 +11,25 @@
 - wall_rows: 横墙带 5 行 = 源B01(29, 7..11) 平铺
 - gate_pkg:  门楼包 = 建筑(门楼 x41..56 × y44..49) + 地面(马道+门前路 x21..52 × y18..49)
 - vwall:     竖墙 3 列 × 29 行（左右两侧序列，纵向 6 行自周期循环平铺）
+
+竖墙 B1 砖身修正（2026-09-09 用户拍板）：模板竖墙三列=墙带 row8/9/10 六列变体 rot90（东墙 rot270），
+砖面 4px 横皮转成竖条纹=砖立砌反重力。内两列全跨度改未旋转 body_c / body_c_s4（循环移位 4px）按行交替
+=横向砖层+标准跑缝；外列垛口肩带（含两端嵌入补缝件 y12 北 / y129 南）保留模板原样，拐角零缝语法不动。
 """
 import base64
 import os
 import struct
+import sys
 import xml.etree.ElementTree as ET
 import zlib
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from gen_v2_materials_mockup import write_tileset_tsx, TILES_DIR
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 WORK = os.path.join(ROOT, 'docs', '参考', 'tiled_work')
+
+B1_BRICK = ['wall_band_body_c', 'wall_band_body_c_s4']   # 偶行/奇行（manifest 语义名，collection 表 v2_wall_b1.tsx）
 
 FLIP_H, FLIP_V, FLIP_D = 0x80000000, 0x40000000, 0x20000000
 FLIP_MASK = FLIP_H | FLIP_V | FLIP_D
@@ -87,9 +97,12 @@ def main():
     TG = lambda x, y: build[y * tw + x]   # 模板建筑层取格
     DG = lambda x, y: ground[y * tw + x]  # 模板地面层取格
 
-    # 新图只引一张 B01 表（firstgid=1）
+    # 新图引 B01 表（firstgid=1）+ B1 砖身 collection 表（firstgid 紧接其后）
     keep = [(old_fg, 1, b01_cnt)]
     N = lambda g: remap_gid(g, ttss, keep)
+    FG_B1 = 1 + b01_cnt
+    n_b1 = write_tileset_tsx('v2_wall_b1.tsx', B1_BRICK, TILES_DIR, 16)
+    B1_GID = [FG_B1 + i for i in range(n_b1)]   # [body_c, body_c_s4]
 
     # 单元①门楼包（建筑 x41..56 y44..49；地面 x21..52 y18..49，空格照抄 0）
     gate_build = [[TG(x, y) for x in range(41, 57)] for y in range(44, 50)]
@@ -148,11 +161,20 @@ def main():
     # 北顶行 y12=序列位2（col27）嵌进北墙带墙基行（源29,11 下部 6px 固有透明，嵌满格竖墙件补缝）
     # 东墙=模板右竖墙原样（模板左右竖墙翻转位 f6=rot90 / fA=rot270 已互为镜像，用户手拼对称；
     #   再 hmirror 会还原成西墙同款导致东西不对称——2026-09-08 用户反馈修正）
+    # B1（2026-09-09）：内两列（西 c1,c2=x8,x9；东 c0,c1=x158,x159）全跨度换横向砖层，按 y 奇偶交替
+    #   body_c/body_c_s4（跑缝）；外列垛口肩带含两端嵌入件（豁口补缝细节只在外列 col24 row8）保留模板原样。
+    #   内两列嵌入件 (24,9)/(24,10) 本为全实心旋转件，换砖不破零缝；若保留会成一格竖条纹补丁（渲染已验）
     for y in range(12, 130):
         sy = (y - 12 + 2) % 30
+        brick = B1_GID[y & 1]
         for c in range(3):
-            put(bld, VW_W + c, y, N(vwl[c][sy]))   # 西墙=模板左竖墙原序列
-            put(bld, VW_E + c, y, N(vwr[c][sy]))   # 东墙=模板右竖墙原序列（天然镜像）
+            gw, ge = N(vwl[c][sy]), N(vwr[c][sy])
+            if c in (1, 2):
+                gw = brick   # 西墙内两列
+            if c in (0, 1):
+                ge = brick   # 东墙内两列
+            put(bld, VW_W + c, y, gw)   # 西墙外列=模板左竖墙原序列
+            put(bld, VW_E + c, y, ge)   # 东墙外列=模板右竖墙原序列（天然镜像）
 
     # ── 写 tmx ──
     def layer_xml(idx, name, data):
@@ -164,7 +186,7 @@ def main():
     notes = [
         ('南墙·明德门（你的模板原版，宽 168 格按文档）', 20, 136, '#e0b040'),
         ('北墙·玄武门（模板镜像对折）', 20, 18, '#e0b040'),
-        ('东西墙=你的竖墙序列纵贯；E/W 门暂未放（等你拍板）', 12, 70, '#a0a0a0'),
+        ('东西墙=你的竖墙序列纵贯，内两列已换 B1 横向砖层（拍板 09-09）；E/W 门暂未放', 12, 70, '#a0a0a0'),
     ]
     objs = [' <objectgroup id="10" name="标注">']
     for i, (txt, ox, oy, color) in enumerate(notes):
@@ -176,7 +198,8 @@ def main():
     tmx = ('<?xml version="1.0" encoding="UTF-8"?>\n'
            '<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" '
            'width="%d" height="%d" tilewidth="16" tileheight="16" infinite="0" nextlayerid="11" nextobjectid="%d">\n'
-           ' <tileset firstgid="1" source="ts_02.tsx"/>\n' % (W, H, len(notes) + 1))
+           ' <tileset firstgid="1" source="ts_02.tsx"/>\n'
+           ' <tileset firstgid="%d" source="v2_wall_b1.tsx"/>\n' % (W, H, len(notes) + 1, FG_B1))
     tmx += layer_xml(1, '地面', gnd)
     tmx += layer_xml(2, '建筑', bld)
     tmx += layer_xml(3, '道具', [0] * (W * H))
