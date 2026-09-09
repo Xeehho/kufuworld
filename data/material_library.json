@@ -1,0 +1,3682 @@
+{
+ "version": 1,
+ "generated": "2026-09-09 16:04",
+ "note": "素材库进件清单：board.tmx 盖章→精切件。尺度实测全表共用 ≈96px 单体基准，进件 1:1 不缩放；01/02/03 大件=多模块合院/拼板（见 report）。派生 PNG 受 license 约束已 gitignore，重跑本脚本再生。",
+ "scale_baseline_px": 96,
+ "categories": {
+  "00_地面": {
+   "kind": "ground",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "00_地面_01",
+     "file": "pieces/00_地面_01.png",
+     "w": 64,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan_dlc/tile-B-01.png",
+      "box": [
+       688,
+       480,
+       752,
+       576
+      ]
+     },
+     "board_cells": {
+      "x0": -10,
+      "y0": -14,
+      "x1": -7,
+      "y1": -9
+     },
+     "flip": null,
+     "opacity": 0.969,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_02",
+     "file": "pieces/00_地面_02.png",
+     "w": 80,
+     "h": 144,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       112,
+       528,
+       192,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": -20,
+      "y0": -13,
+      "x1": -16,
+      "y1": -5
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_03",
+     "file": "pieces/00_地面_03.png",
+     "w": 96,
+     "h": 96,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan_dlc/tile-B-02.png",
+      "box": [
+       192,
+       336,
+       288,
+       432
+      ]
+     },
+     "board_cells": {
+      "x0": -1,
+      "y0": -13,
+      "x1": 4,
+      "y1": -8
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_04",
+     "file": "pieces/00_地面_04.png",
+     "w": 92,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-05.png",
+      "box": [
+       672,
+       384,
+       764,
+       480
+      ]
+     },
+     "board_cells": {
+      "x0": 8,
+      "y0": -13,
+      "x1": 13,
+      "y1": -8
+     },
+     "flip": null,
+     "opacity": 0.891,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.93,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_05",
+     "file": "pieces/00_地面_05.png",
+     "w": 32,
+     "h": 208,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-05.png",
+      "box": [
+       224,
+       512,
+       256,
+       720
+      ]
+     },
+     "board_cells": {
+      "x0": -14,
+      "y0": -7,
+      "x1": -13,
+      "y1": 5
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_06",
+     "file": "pieces/00_地面_06.png",
+     "w": 48,
+     "h": 16,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/modern_residential/tile-B-02.png",
+      "box": [
+       624,
+       544,
+       672,
+       560
+      ]
+     },
+     "board_cells": {
+      "x0": -7,
+      "y0": -5,
+      "x1": -5,
+      "y1": 3
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_07",
+     "file": "pieces/00_地面_07.png",
+     "w": 48,
+     "h": 144,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-04.png",
+      "box": [
+       0,
+       528,
+       144,
+       576
+      ]
+     },
+     "board_cells": {
+      "x0": -1,
+      "y0": -5,
+      "x1": 1,
+      "y1": 3
+     },
+     "flip": "0x60000000",
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_08",
+     "file": "pieces/00_地面_08.png",
+     "w": 48,
+     "h": 48,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-04.png",
+      "box": [
+       48,
+       672,
+       96,
+       720
+      ]
+     },
+     "board_cells": {
+      "x0": 5,
+      "y0": -5,
+      "x1": 7,
+      "y1": 3
+     },
+     "flip": "0x60000000",
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_09",
+     "file": "pieces/00_地面_09.png",
+     "w": 64,
+     "h": 144,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-05.png",
+      "box": [
+       304,
+       384,
+       368,
+       528
+      ]
+     },
+     "board_cells": {
+      "x0": 10,
+      "y0": -5,
+      "x1": 13,
+      "y1": 3
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_10",
+     "file": "pieces/00_地面_10.png",
+     "w": 96,
+     "h": 192,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       192,
+       288,
+       288,
+       480
+      ]
+     },
+     "board_cells": {
+      "x0": -24,
+      "y0": -3,
+      "x1": -19,
+      "y1": 8
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_11",
+     "file": "pieces/00_地面_11.png",
+     "w": 64,
+     "h": 160,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan_dlc/tile-B-04.png",
+      "box": [
+       16,
+       512,
+       80,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": 6,
+      "y0": 5,
+      "x1": 9,
+      "y1": 14
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_12",
+     "file": "pieces/00_地面_12.png",
+     "w": 208,
+     "h": 48,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-05.png",
+      "box": [
+       0,
+       464,
+       208,
+       512
+      ]
+     },
+     "board_cells": {
+      "x0": -9,
+      "y0": 7,
+      "x1": 3,
+      "y1": 9
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "00_地面_13",
+     "file": "pieces/00_地面_13.png",
+     "w": 384,
+     "h": 96,
+     "class": "ground",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-05.png",
+      "box": [
+       0,
+       288,
+       384,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -25,
+      "y0": 12,
+      "x1": -2,
+      "y1": 17
+     },
+     "flip": null,
+     "opacity": 1.0,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    }
+   ],
+   "issues": []
+  },
+  "01_民居坊": {
+   "kind": "residential",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "01_民居坊_01",
+     "file": "pieces/01_民居坊_01.png",
+     "w": 192,
+     "h": 184,
+     "class": "estate",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       0,
+       584,
+       192,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": -12,
+      "x1": -1,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.578,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.84,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_02",
+     "file": "pieces/01_民居坊_02.png",
+     "w": 192,
+     "h": 192,
+     "class": "estate",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       192,
+       576,
+       384,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": 5,
+      "y0": -12,
+      "x1": 16,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.98,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_03",
+     "file": "pieces/01_民居坊_03.png",
+     "w": 192,
+     "h": 192,
+     "class": "estate",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       384,
+       576,
+       576,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": 22,
+      "y0": -12,
+      "x1": 33,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.979,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_04",
+     "file": "pieces/01_民居坊_04.png",
+     "w": 192,
+     "h": 192,
+     "class": "estate",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       576,
+       576,
+       768,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": 40,
+      "y0": -12,
+      "x1": 51,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.95,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_05",
+     "file": "pieces/01_民居坊_05.png",
+     "w": 150,
+     "h": 155,
+     "class": "estate",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       597,
+       16,
+       747,
+       171
+      ]
+     },
+     "board_cells": {
+      "x0": 57,
+      "y0": -9,
+      "x1": 66,
+      "y1": 0
+     },
+     "flip": null,
+     "opacity": 0.7,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.81,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_06",
+     "file": "pieces/01_民居坊_06.png",
+     "w": 96,
+     "h": 176,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       480,
+       208,
+       576,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -13,
+      "y0": 5,
+      "x1": -8,
+      "y1": 15
+     },
+     "flip": null,
+     "opacity": 0.876,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.98,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_07",
+     "file": "pieces/01_民居坊_07.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       0,
+       288,
+       96,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -4,
+      "y0": 10,
+      "x1": 1,
+      "y1": 15
+     },
+     "flip": null,
+     "opacity": 0.877,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.98,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_08",
+     "file": "pieces/01_民居坊_08.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       96,
+       288,
+       192,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": 4,
+      "y0": 10,
+      "x1": 9,
+      "y1": 15
+     },
+     "flip": null,
+     "opacity": 0.878,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.98,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_09",
+     "file": "pieces/01_民居坊_09.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       192,
+       288,
+       288,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": 12,
+      "y0": 10,
+      "x1": 17,
+      "y1": 15
+     },
+     "flip": null,
+     "opacity": 0.809,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.98,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_10",
+     "file": "pieces/01_民居坊_10.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       288,
+       288,
+       384,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": 20,
+      "y0": 10,
+      "x1": 25,
+      "y1": 15
+     },
+     "flip": null,
+     "opacity": 0.878,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.98,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "01_民居坊_11",
+     "file": "pieces/01_民居坊_11.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       384,
+       288,
+       480,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": 28,
+      "y0": 10,
+      "x1": 33,
+      "y1": 15
+     },
+     "flip": null,
+     "opacity": 0.878,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.98,
+      "bottom_ok": true
+     }
+    }
+   ],
+   "issues": []
+  },
+  "02_官宅清流": {
+   "kind": "residential_noble",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "02_官宅清流_01",
+     "file": "pieces/02_官宅清流_01.png",
+     "w": 384,
+     "h": 368,
+     "class": "scene_board",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       0,
+       208,
+       384,
+       576
+      ]
+     },
+     "board_cells": {
+      "x0": -26,
+      "y0": -21,
+      "x1": -8,
+      "y1": 19
+     },
+     "flip": null,
+     "opacity": 0.755,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.93,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "02_官宅清流_02",
+     "file": "pieces/02_官宅清流_02.png",
+     "w": 480,
+     "h": 192,
+     "class": "scene_board",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       288,
+       192,
+       768,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -8,
+      "y0": -15,
+      "x1": 21,
+      "y1": 18
+     },
+     "flip": null,
+     "opacity": 0.772,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.98,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "02_官宅清流_03",
+     "file": "pieces/02_官宅清流_03.png",
+     "w": 192,
+     "h": 192,
+     "class": "estate",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       192,
+       384,
+       384,
+       576
+      ]
+     },
+     "board_cells": {
+      "x0": -6,
+      "y0": -10,
+      "x1": 5,
+      "y1": 1
+     },
+     "flip": null,
+     "opacity": 0.797,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.99,
+      "bottom_ok": true
+     }
+    }
+   ],
+   "issues": []
+  },
+  "03_贵戚府": {
+   "kind": "noble",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "03_贵戚府_01",
+     "file": "pieces/03_贵戚府_01.png",
+     "w": 192,
+     "h": 192,
+     "class": "estate",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       384,
+       384,
+       576,
+       576
+      ]
+     },
+     "board_cells": {
+      "x0": 5,
+      "y0": -5,
+      "x1": 16,
+      "y1": 6
+     },
+     "flip": null,
+     "opacity": 0.897,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.99,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "03_贵戚府_02",
+     "file": "pieces/03_贵戚府_02.png",
+     "w": 192,
+     "h": 192,
+     "class": "estate",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       576,
+       384,
+       768,
+       576
+      ]
+     },
+     "board_cells": {
+      "x0": 19,
+      "y0": -5,
+      "x1": 30,
+      "y1": 6
+     },
+     "flip": null,
+     "opacity": 0.895,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.99,
+      "bottom_ok": true
+     }
+    }
+   ],
+   "issues": [
+    "盖章区域全透明（源表 downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png box [304, 208, 368, 288]）——疑误盖，未出件"
+   ]
+  },
+  "04_亲王公主府": {
+   "kind": "noble",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "04_亲王公主府_01",
+     "file": "pieces/04_亲王公主府_01.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       0,
+       288,
+       96,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -11,
+      "y0": -6,
+      "x1": -6,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.824,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.33,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "04_亲王公主府_02",
+     "file": "pieces/04_亲王公主府_02.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       96,
+       288,
+       192,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -3,
+      "y0": -6,
+      "x1": 2,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.826,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.33,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "04_亲王公主府_03",
+     "file": "pieces/04_亲王公主府_03.png",
+     "w": 94,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       1,
+       384,
+       95,
+       480
+      ]
+     },
+     "board_cells": {
+      "x0": 5,
+      "y0": -6,
+      "x1": 10,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.856,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.64,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "04_亲王公主府_04",
+     "file": "pieces/04_亲王公主府_04.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       384,
+       288,
+       480,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -11,
+      "y0": 2,
+      "x1": -6,
+      "y1": 7
+     },
+     "flip": null,
+     "opacity": 0.817,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.33,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "04_亲王公主府_05",
+     "file": "pieces/04_亲王公主府_05.png",
+     "w": 96,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       480,
+       289,
+       576,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -3,
+      "y0": 2,
+      "x1": 2,
+      "y1": 7
+     },
+     "flip": null,
+     "opacity": 0.846,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.31,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "04_亲王公主府_06",
+     "file": "pieces/04_亲王公主府_06.png",
+     "w": 94,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       97,
+       384,
+       191,
+       480
+      ]
+     },
+     "board_cells": {
+      "x0": 5,
+      "y0": 2,
+      "x1": 10,
+      "y1": 7
+     },
+     "flip": null,
+     "opacity": 0.851,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.14,
+      "bottom_ok": false
+     }
+    }
+   ],
+   "issues": []
+  },
+  "05_官署": {
+   "kind": "office",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "05_官署_01",
+     "file": "pieces/05_官署_01.png",
+     "w": 464,
+     "h": 240,
+     "class": "scene_board",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       0,
+       528,
+       464,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": -26,
+      "y0": -6,
+      "x1": 3,
+      "y1": 8
+     },
+     "flip": null,
+     "opacity": 0.553,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.28,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "05_官署_02",
+     "file": "pieces/05_官署_02.png",
+     "w": 94,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       97,
+       673,
+       191,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": 5,
+      "y0": 2,
+      "x1": 10,
+      "y1": 7
+     },
+     "flip": null,
+     "opacity": 0.81,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "05_官署_03",
+     "file": "pieces/05_官署_03.png",
+     "w": 83,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       678,
+       1,
+       761,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": -22,
+      "y0": 9,
+      "x1": -17,
+      "y1": 14
+     },
+     "flip": null,
+     "opacity": 0.777,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.41,
+      "bottom_ok": false
+     }
+    }
+   ],
+   "issues": []
+  },
+  "06_宫城": {
+   "kind": "palace",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "06_宫城_01",
+     "file": "pieces/06_宫城_01.png",
+     "w": 92,
+     "h": 88,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       674,
+       583,
+       766,
+       671
+      ]
+     },
+     "board_cells": {
+      "x0": -32,
+      "y0": -12,
+      "x1": -27,
+      "y1": -7
+     },
+     "flip": null,
+     "opacity": 0.558,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.54,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "06_宫城_02",
+     "file": "pieces/06_宫城_02.png",
+     "w": 94,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       385,
+       384,
+       479,
+       479
+      ]
+     },
+     "board_cells": {
+      "x0": -23,
+      "y0": -12,
+      "x1": -18,
+      "y1": -7
+     },
+     "flip": null,
+     "opacity": 0.489,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.5,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "06_宫城_03",
+     "file": "pieces/06_宫城_03.png",
+     "w": 144,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       0,
+       0,
+       144,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": -14,
+      "y0": -9,
+      "x1": -6,
+      "y1": -4
+     },
+     "flip": null,
+     "opacity": 0.786,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.5,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "06_宫城_04",
+     "file": "pieces/06_宫城_04.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       0,
+       288,
+       96,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": 1,
+      "y0": -9,
+      "x1": 6,
+      "y1": -4
+     },
+     "flip": null,
+     "opacity": 0.824,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.33,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "06_宫城_05",
+     "file": "pieces/06_宫城_05.png",
+     "w": 92,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       482,
+       384,
+       574,
+       479
+      ]
+     },
+     "board_cells": {
+      "x0": -23,
+      "y0": -5,
+      "x1": -18,
+      "y1": 0
+     },
+     "flip": null,
+     "opacity": 0.423,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.33,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "06_宫城_06",
+     "file": "pieces/06_宫城_06.png",
+     "w": 144,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       144,
+       0,
+       288,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": -15,
+      "y0": 0,
+      "x1": -7,
+      "y1": 5
+     },
+     "flip": null,
+     "opacity": 0.73,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.7,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "06_宫城_07",
+     "file": "pieces/06_宫城_07.png",
+     "w": 144,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       0,
+       96,
+       144,
+       192
+      ]
+     },
+     "board_cells": {
+      "x0": 0,
+      "y0": 0,
+      "x1": 8,
+      "y1": 5
+     },
+     "flip": null,
+     "opacity": 0.59,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.4,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "06_宫城_08",
+     "file": "pieces/06_宫城_08.png",
+     "w": 94,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       289,
+       384,
+       383,
+       480
+      ]
+     },
+     "board_cells": {
+      "x0": -23,
+      "y0": 2,
+      "x1": -18,
+      "y1": 7
+     },
+     "flip": null,
+     "opacity": 0.577,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.17,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "06_宫城_09",
+     "file": "pieces/06_宫城_09.png",
+     "w": 92,
+     "h": 68,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       386,
+       700,
+       478,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": -23,
+      "y0": 9,
+      "x1": -18,
+      "y1": 13
+     },
+     "flip": null,
+     "opacity": 0.531,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.04,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "06_宫城_10",
+     "file": "pieces/06_宫城_10.png",
+     "w": 94,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       192,
+       192,
+       286,
+       288
+      ]
+     },
+     "board_cells": {
+      "x0": -14,
+      "y0": 9,
+      "x1": -9,
+      "y1": 14
+     },
+     "flip": null,
+     "opacity": 0.612,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.24,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "06_宫城_11",
+     "file": "pieces/06_宫城_11.png",
+     "w": 96,
+     "h": 94,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       288,
+       2,
+       384,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": -4,
+      "y0": 9,
+      "x1": 1,
+      "y1": 14
+     },
+     "flip": null,
+     "opacity": 0.867,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.84,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "06_宫城_12",
+     "file": "pieces/06_宫城_12.png",
+     "w": 94,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       193,
+       673,
+       287,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": 6,
+      "y0": 9,
+      "x1": 11,
+      "y1": 14
+     },
+     "flip": null,
+     "opacity": 0.802,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.23,
+      "bottom_ok": false
+     }
+    }
+   ],
+   "issues": [
+    "盖章区域全透明（源表 downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png box [400, 528, 464, 576]）——疑误盖，未出件"
+   ]
+  },
+  "07_寺观": {
+   "kind": "temple",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "07_寺观_01",
+     "file": "pieces/07_寺观_01.png",
+     "w": 92,
+     "h": 89,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       482,
+       486,
+       574,
+       575
+      ]
+     },
+     "board_cells": {
+      "x0": -16,
+      "y0": -13,
+      "x1": -11,
+      "y1": -8
+     },
+     "flip": null,
+     "opacity": 0.452,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.33,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "07_寺观_02",
+     "file": "pieces/07_寺观_02.png",
+     "w": 38,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       413,
+       0,
+       451,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": -7,
+      "y0": -13,
+      "x1": -4,
+      "y1": -8
+     },
+     "flip": null,
+     "opacity": 0.7,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.53,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "07_寺观_03",
+     "file": "pieces/07_寺观_03.png",
+     "w": 52,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       502,
+       0,
+       554,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": -1,
+      "y0": -13,
+      "x1": 2,
+      "y1": -8
+     },
+     "flip": null,
+     "opacity": 0.624,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.48,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "07_寺观_04",
+     "file": "pieces/07_寺观_04.png",
+     "w": 64,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       496,
+       96,
+       560,
+       192
+      ]
+     },
+     "board_cells": {
+      "x0": 5,
+      "y0": -13,
+      "x1": 8,
+      "y1": -8
+     },
+     "flip": null,
+     "opacity": 0.584,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.44,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "07_寺观_05",
+     "file": "pieces/07_寺观_05.png",
+     "w": 82,
+     "h": 91,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       295,
+       580,
+       377,
+       671
+      ]
+     },
+     "board_cells": {
+      "x0": -16,
+      "y0": -6,
+      "x1": -11,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.477,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.32,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "07_寺观_06",
+     "file": "pieces/07_寺观_06.png",
+     "w": 64,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       304,
+       96,
+       368,
+       192
+      ]
+     },
+     "board_cells": {
+      "x0": -7,
+      "y0": -5,
+      "x1": -4,
+      "y1": 0
+     },
+     "flip": null,
+     "opacity": 0.543,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.34,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "07_寺观_07",
+     "file": "pieces/07_寺观_07.png",
+     "w": 82,
+     "h": 192,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       391,
+       96,
+       473,
+       288
+      ]
+     },
+     "board_cells": {
+      "x0": -2,
+      "y0": -4,
+      "x1": 9,
+      "y1": 1
+     },
+     "flip": null,
+     "opacity": 0.736,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.55,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "07_寺观_08",
+     "file": "pieces/07_寺观_08.png",
+     "w": 767,
+     "h": 288,
+     "class": "scene_board",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       0,
+       0,
+       767,
+       288
+      ]
+     },
+     "board_cells": {
+      "x0": -15,
+      "y0": 2,
+      "x1": -10,
+      "y1": 13
+     },
+     "flip": null,
+     "opacity": 0.539,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.2,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "07_寺观_09",
+     "file": "pieces/07_寺观_09.png",
+     "w": 272,
+     "h": 288,
+     "class": "scene_board",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       96,
+       192,
+       368,
+       480
+      ]
+     },
+     "board_cells": {
+      "x0": -8,
+      "y0": 2,
+      "x1": 2,
+      "y1": 13
+     },
+     "flip": null,
+     "opacity": 0.653,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.09,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "07_寺观_10",
+     "file": "pieces/07_寺观_10.png",
+     "w": 82,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       583,
+       0,
+       665,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": 4,
+      "y0": 4,
+      "x1": 9,
+      "y1": 9
+     },
+     "flip": null,
+     "opacity": 0.753,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.11,
+      "bottom_ok": false
+     }
+    }
+   ],
+   "issues": []
+  },
+  "08_市铺": {
+   "kind": "market",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "08_市铺_01",
+     "file": "pieces/08_市铺_01.png",
+     "w": 192,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       0,
+       0,
+       192,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": -6,
+      "x1": -1,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.794,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.25,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_02",
+     "file": "pieces/08_市铺_02.png",
+     "w": 96,
+     "h": 90,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       192,
+       1,
+       288,
+       91
+      ]
+     },
+     "board_cells": {
+      "x0": 4,
+      "y0": -6,
+      "x1": 9,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.859,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.94,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_03",
+     "file": "pieces/08_市铺_03.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       288,
+       0,
+       384,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": 13,
+      "y0": -6,
+      "x1": 18,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.806,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.01,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_04",
+     "file": "pieces/08_市铺_04.png",
+     "w": 191,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       1,
+       96,
+       192,
+       192
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": 3,
+      "x1": -1,
+      "y1": 8
+     },
+     "flip": null,
+     "opacity": 0.798,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.2,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_05",
+     "file": "pieces/08_市铺_05.png",
+     "w": 96,
+     "h": 90,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       192,
+       97,
+       288,
+       187
+      ]
+     },
+     "board_cells": {
+      "x0": 4,
+      "y0": 3,
+      "x1": 9,
+      "y1": 8
+     },
+     "flip": null,
+     "opacity": 0.859,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.94,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_06",
+     "file": "pieces/08_市铺_06.png",
+     "w": 96,
+     "h": 94,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       288,
+       97,
+       384,
+       191
+      ]
+     },
+     "board_cells": {
+      "x0": 13,
+      "y0": 3,
+      "x1": 18,
+      "y1": 8
+     },
+     "flip": null,
+     "opacity": 0.85,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.12,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_07",
+     "file": "pieces/08_市铺_07.png",
+     "w": 190,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       1,
+       192,
+       191,
+       288
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": 11,
+      "x1": -1,
+      "y1": 16
+     },
+     "flip": null,
+     "opacity": 0.804,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.35,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_08",
+     "file": "pieces/08_市铺_08.png",
+     "w": 96,
+     "h": 90,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       192,
+       193,
+       288,
+       283
+      ]
+     },
+     "board_cells": {
+      "x0": 4,
+      "y0": 11,
+      "x1": 9,
+      "y1": 16
+     },
+     "flip": null,
+     "opacity": 0.859,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.94,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_09",
+     "file": "pieces/08_市铺_09.png",
+     "w": 96,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       288,
+       193,
+       384,
+       288
+      ]
+     },
+     "board_cells": {
+      "x0": 13,
+      "y0": 11,
+      "x1": 18,
+      "y1": 16
+     },
+     "flip": null,
+     "opacity": 0.837,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.07,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_10",
+     "file": "pieces/08_市铺_10.png",
+     "w": 83,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       496,
+       96,
+       579,
+       192
+      ]
+     },
+     "board_cells": {
+      "x0": 23,
+      "y0": 12,
+      "x1": 28,
+      "y1": 17
+     },
+     "flip": null,
+     "opacity": 0.93,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.99,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_11",
+     "file": "pieces/08_市铺_11.png",
+     "w": 190,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       1,
+       288,
+       191,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": 19,
+      "x1": -1,
+      "y1": 24
+     },
+     "flip": null,
+     "opacity": 0.808,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.52,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_12",
+     "file": "pieces/08_市铺_12.png",
+     "w": 96,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       192,
+       289,
+       288,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": 4,
+      "y0": 19,
+      "x1": 9,
+      "y1": 24
+     },
+     "flip": null,
+     "opacity": 0.813,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.99,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_13",
+     "file": "pieces/08_市铺_13.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       288,
+       288,
+       384,
+       384
+      ]
+     },
+     "board_cells": {
+      "x0": 13,
+      "y0": 19,
+      "x1": 18,
+      "y1": 24
+     },
+     "flip": null,
+     "opacity": 0.833,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.92,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_14",
+     "file": "pieces/08_市铺_14.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       192,
+       0,
+       288,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": 23,
+      "y0": 19,
+      "x1": 28,
+      "y1": 24
+     },
+     "flip": null,
+     "opacity": 0.825,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.9,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_15",
+     "file": "pieces/08_市铺_15.png",
+     "w": 191,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia/tile-B-02.png",
+      "box": [
+       1,
+       384,
+       192,
+       480
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": 27,
+      "x1": -1,
+      "y1": 32
+     },
+     "flip": null,
+     "opacity": 0.8,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.32,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_16",
+     "file": "pieces/08_市铺_16.png",
+     "w": 160,
+     "h": 93,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       304,
+       3,
+       464,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": 3,
+      "y0": 27,
+      "x1": 12,
+      "y1": 32
+     },
+     "flip": null,
+     "opacity": 0.778,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.98,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_17",
+     "file": "pieces/08_市铺_17.png",
+     "w": 78,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       18,
+       1,
+       96,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": 16,
+      "y0": 27,
+      "x1": 20,
+      "y1": 32
+     },
+     "flip": null,
+     "opacity": 0.853,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.95,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_18",
+     "file": "pieces/08_市铺_18.png",
+     "w": 90,
+     "h": 95,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       96,
+       1,
+       186,
+       96
+      ]
+     },
+     "board_cells": {
+      "x0": 23,
+      "y0": 27,
+      "x1": 28,
+      "y1": 32
+     },
+     "flip": null,
+     "opacity": 0.799,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.93,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_19",
+     "file": "pieces/08_市铺_19.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       384,
+       576,
+       480,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": -11,
+      "y0": 35,
+      "x1": -6,
+      "y1": 40
+     },
+     "flip": null,
+     "opacity": 0.784,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.06,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_20",
+     "file": "pieces/08_市铺_20.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       480,
+       576,
+       576,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": -2,
+      "y0": 35,
+      "x1": 3,
+      "y1": 40
+     },
+     "flip": null,
+     "opacity": 0.813,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.06,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_21",
+     "file": "pieces/08_市铺_21.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       576,
+       576,
+       672,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": 7,
+      "y0": 35,
+      "x1": 12,
+      "y1": 40
+     },
+     "flip": null,
+     "opacity": 0.795,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.04,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_22",
+     "file": "pieces/08_市铺_22.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       672,
+       576,
+       768,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": 15,
+      "y0": 35,
+      "x1": 20,
+      "y1": 40
+     },
+     "flip": null,
+     "opacity": 0.795,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.12,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_23",
+     "file": "pieces/08_市铺_23.png",
+     "w": 84,
+     "h": 80,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       108,
+       688,
+       192,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": 22,
+      "y0": 35,
+      "x1": 27,
+      "y1": 39
+     },
+     "flip": null,
+     "opacity": 0.72,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.06,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_24",
+     "file": "pieces/08_市铺_24.png",
+     "w": 80,
+     "h": 80,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       192,
+       576,
+       272,
+       656
+      ]
+     },
+     "board_cells": {
+      "x0": 3,
+      "y0": 42,
+      "x1": 7,
+      "y1": 46
+     },
+     "flip": null,
+     "opacity": 0.848,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 1.0,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_25",
+     "file": "pieces/08_市铺_25.png",
+     "w": 96,
+     "h": 80,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       288,
+       576,
+       384,
+       656
+      ]
+     },
+     "board_cells": {
+      "x0": 10,
+      "y0": 42,
+      "x1": 15,
+      "y1": 46
+     },
+     "flip": null,
+     "opacity": 0.708,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.84,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_26",
+     "file": "pieces/08_市铺_26.png",
+     "w": 80,
+     "h": 77,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       0,
+       690,
+       80,
+       767
+      ]
+     },
+     "board_cells": {
+      "x0": 19,
+      "y0": 42,
+      "x1": 23,
+      "y1": 46
+     },
+     "flip": null,
+     "opacity": 0.788,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.4,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_27",
+     "file": "pieces/08_市铺_27.png",
+     "w": 96,
+     "h": 90,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       192,
+       677,
+       288,
+       767
+      ]
+     },
+     "board_cells": {
+      "x0": 26,
+      "y0": 42,
+      "x1": 31,
+      "y1": 47
+     },
+     "flip": null,
+     "opacity": 0.705,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.32,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_28",
+     "file": "pieces/08_市铺_28.png",
+     "w": 80,
+     "h": 78,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       0,
+       594,
+       80,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": -11,
+      "y0": 43,
+      "x1": -7,
+      "y1": 47
+     },
+     "flip": null,
+     "opacity": 0.787,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.2,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_29",
+     "file": "pieces/08_市铺_29.png",
+     "w": 80,
+     "h": 78,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       96,
+       594,
+       176,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": -4,
+      "y0": 43,
+      "x1": 0,
+      "y1": 47
+     },
+     "flip": null,
+     "opacity": 0.792,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.05,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_30",
+     "file": "pieces/08_市铺_30.png",
+     "w": 96,
+     "h": 79,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       288,
+       673,
+       384,
+       752
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": 50,
+      "x1": -7,
+      "y1": 54
+     },
+     "flip": null,
+     "opacity": 0.718,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.84,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "08_市铺_31",
+     "file": "pieces/08_市铺_31.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       384,
+       672,
+       480,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": -3,
+      "y0": 51,
+      "x1": 2,
+      "y1": 56
+     },
+     "flip": null,
+     "opacity": 0.816,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.02,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_32",
+     "file": "pieces/08_市铺_32.png",
+     "w": 96,
+     "h": 96,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       480,
+       672,
+       576,
+       768
+      ]
+     },
+     "board_cells": {
+      "x0": 6,
+      "y0": 51,
+      "x1": 11,
+      "y1": 56
+     },
+     "flip": null,
+     "opacity": 0.825,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.02,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_33",
+     "file": "pieces/08_市铺_33.png",
+     "w": 96,
+     "h": 88,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       576,
+       672,
+       672,
+       760
+      ]
+     },
+     "board_cells": {
+      "x0": 14,
+      "y0": 51,
+      "x1": 19,
+      "y1": 56
+     },
+     "flip": null,
+     "opacity": 0.826,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.09,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "08_市铺_34",
+     "file": "pieces/08_市铺_34.png",
+     "w": 64,
+     "h": 64,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-02.png",
+      "box": [
+       688,
+       688,
+       752,
+       752
+      ]
+     },
+     "board_cells": {
+      "x0": 22,
+      "y0": 52,
+      "x1": 25,
+      "y1": 55
+     },
+     "flip": null,
+     "opacity": 0.493,
+     "checks": {
+      "w16": true,
+      "h16": true,
+      "bottom_anchor": 0.72,
+      "bottom_ok": true
+     }
+    }
+   ],
+   "issues": []
+  },
+  "09_风月楼": {
+   "kind": "venue",
+   "status": "pending_material",
+   "pieces": [
+    {
+     "id": "09_风月楼_01",
+     "file": "pieces/09_风月楼_01.png",
+     "w": 168,
+     "h": 47,
+     "class": "name_placeholder",
+     "source": null,
+     "flip": null,
+     "opacity": null,
+     "checks": null
+    }
+   ],
+   "issues": []
+  },
+  "10_军营": {
+   "kind": "military",
+   "status": "pending_material",
+   "pieces": [
+    {
+     "id": "10_军营_01",
+     "file": "pieces/10_军营_01.png",
+     "w": 150,
+     "h": 47,
+     "class": "name_placeholder",
+     "source": null,
+     "flip": null,
+     "opacity": null,
+     "checks": null
+    }
+   ],
+   "issues": []
+  },
+  "11_街饰过渡": {
+   "kind": "transition",
+   "status": "ok",
+   "pieces": [
+    {
+     "id": "11_街饰过渡_01",
+     "file": "pieces/11_街饰过渡_01.png",
+     "w": 191,
+     "h": 44,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       576,
+       124,
+       767,
+       168
+      ]
+     },
+     "board_cells": {
+      "x0": 10,
+      "y0": -16,
+      "x1": 12,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.539,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.01,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "11_街饰过渡_02",
+     "file": "pieces/11_街饰过渡_02.png",
+     "w": 44,
+     "h": 52,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       722,
+       214,
+       766,
+       266
+      ]
+     },
+     "board_cells": {
+      "x0": 6,
+      "y0": -14,
+      "x1": 8,
+      "y1": -11
+     },
+     "flip": null,
+     "opacity": 0.579,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.27,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_03",
+     "file": "pieces/11_街饰过渡_03.png",
+     "w": 84,
+     "h": 71,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-05.png",
+      "box": [
+       486,
+       593,
+       570,
+       664
+      ]
+     },
+     "board_cells": {
+      "x0": -16,
+      "y0": -12,
+      "x1": -11,
+      "y1": -8
+     },
+     "flip": null,
+     "opacity": 0.592,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.12,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "11_街饰过渡_04",
+     "file": "pieces/11_街饰过渡_04.png",
+     "w": 94,
+     "h": 64,
+     "class": "unit",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-05.png",
+      "box": [
+       384,
+       608,
+       478,
+       672
+      ]
+     },
+     "board_cells": {
+      "x0": -1,
+      "y0": -11,
+      "x1": 4,
+      "y1": -8
+     },
+     "flip": null,
+     "opacity": 0.453,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.01,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "11_街饰过渡_05",
+     "file": "pieces/11_街饰过渡_05.png",
+     "w": 41,
+     "h": 53,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       675,
+       213,
+       716,
+       266
+      ]
+     },
+     "board_cells": {
+      "x0": 6,
+      "y0": -8,
+      "x1": 8,
+      "y1": -5
+     },
+     "flip": null,
+     "opacity": 0.523,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.17,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_06",
+     "file": "pieces/11_街饰过渡_06.png",
+     "w": 28,
+     "h": 26,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       706,
+       548,
+       734,
+       574
+      ]
+     },
+     "board_cells": {
+      "x0": 17,
+      "y0": -5,
+      "x1": 18,
+      "y1": -4
+     },
+     "flip": null,
+     "opacity": 0.729,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.54,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_07",
+     "file": "pieces/11_街饰过渡_07.png",
+     "w": 42,
+     "h": 39,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-04.png",
+      "box": [
+       483,
+       630,
+       525,
+       669
+      ]
+     },
+     "board_cells": {
+      "x0": -16,
+      "y0": -3,
+      "x1": -14,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.786,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.69,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_08",
+     "file": "pieces/11_街饰过渡_08.png",
+     "w": 39,
+     "h": 39,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-04.png",
+      "box": [
+       532,
+       628,
+       571,
+       667
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": -3,
+      "x1": -10,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.749,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.62,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_09",
+     "file": "pieces/11_街饰过渡_09.png",
+     "w": 322,
+     "h": 41,
+     "class": "scene_board",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-04.png",
+      "box": [
+       342,
+       628,
+       664,
+       669
+      ]
+     },
+     "board_cells": {
+      "x0": -8,
+      "y0": -3,
+      "x1": 0,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.421,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.1,
+      "bottom_ok": false
+     }
+    },
+    {
+     "id": "11_街饰过渡_10",
+     "file": "pieces/11_街饰过渡_10.png",
+     "w": 36,
+     "h": 43,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-05.png",
+      "box": [
+       726,
+       195,
+       762,
+       238
+      ]
+     },
+     "board_cells": {
+      "x0": 2,
+      "y0": -3,
+      "x1": 4,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.742,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.33,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_11",
+     "file": "pieces/11_街饰过渡_11.png",
+     "w": 48,
+     "h": 44,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jiangnan/tile-B-05.png",
+      "box": [
+       720,
+       99,
+       768,
+       143
+      ]
+     },
+     "board_cells": {
+      "x0": 6,
+      "y0": -3,
+      "x1": 8,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.458,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.31,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_12",
+     "file": "pieces/11_街饰过渡_12.png",
+     "w": 15,
+     "h": 25,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       481,
+       695,
+       496,
+       720
+      ]
+     },
+     "board_cells": {
+      "x0": 16,
+      "y0": -2,
+      "x1": 16,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.752,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.8,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_13",
+     "file": "pieces/11_街饰过渡_13.png",
+     "w": 16,
+     "h": 27,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       496,
+       693,
+       512,
+       720
+      ]
+     },
+     "board_cells": {
+      "x0": 18,
+      "y0": -2,
+      "x1": 18,
+      "y1": -1
+     },
+     "flip": null,
+     "opacity": 0.634,
+     "checks": {
+      "w16": true,
+      "h16": false,
+      "bottom_anchor": 0.62,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_14",
+     "file": "pieces/11_街饰过渡_14.png",
+     "w": 33,
+     "h": 44,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       154,
+       532,
+       187,
+       576
+      ]
+     },
+     "board_cells": {
+      "x0": 16,
+      "y0": 2,
+      "x1": 18,
+      "y1": 4
+     },
+     "flip": null,
+     "opacity": 0.725,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.55,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_15",
+     "file": "pieces/11_街饰过渡_15.png",
+     "w": 33,
+     "h": 43,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       101,
+       533,
+       134,
+       576
+      ]
+     },
+     "board_cells": {
+      "x0": 16,
+      "y0": 6,
+      "x1": 18,
+      "y1": 8
+     },
+     "flip": null,
+     "opacity": 0.7,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.18,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_16",
+     "file": "pieces/11_街饰过渡_16.png",
+     "w": 43,
+     "h": 43,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       725,
+       578,
+       768,
+       621
+      ]
+     },
+     "board_cells": {
+      "x0": -16,
+      "y0": 10,
+      "x1": -14,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.641,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.19,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_17",
+     "file": "pieces/11_街饰过渡_17.png",
+     "w": 44,
+     "h": 46,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       674,
+       625,
+       718,
+       671
+      ]
+     },
+     "board_cells": {
+      "x0": -12,
+      "y0": 10,
+      "x1": -10,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.742,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.2,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_18",
+     "file": "pieces/11_街饰过渡_18.png",
+     "w": 45,
+     "h": 40,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       722,
+       628,
+       767,
+       668
+      ]
+     },
+     "board_cells": {
+      "x0": -8,
+      "y0": 10,
+      "x1": -6,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.583,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.16,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_19",
+     "file": "pieces/11_街饰过渡_19.png",
+     "w": 42,
+     "h": 48,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       480,
+       672,
+       522,
+       720
+      ]
+     },
+     "board_cells": {
+      "x0": -4,
+      "y0": 10,
+      "x1": -2,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.258,
+     "checks": {
+      "w16": false,
+      "h16": true,
+      "bottom_anchor": 0.02,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_20",
+     "file": "pieces/11_街饰过渡_20.png",
+     "w": 40,
+     "h": 46,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       532,
+       674,
+       572,
+       720
+      ]
+     },
+     "board_cells": {
+      "x0": 0,
+      "y0": 10,
+      "x1": 2,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.798,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.25,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_21",
+     "file": "pieces/11_街饰过渡_21.png",
+     "w": 36,
+     "h": 38,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       630,
+       679,
+       666,
+       717
+      ]
+     },
+     "board_cells": {
+      "x0": 4,
+      "y0": 10,
+      "x1": 6,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.398,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.11,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_22",
+     "file": "pieces/11_街饰过渡_22.png",
+     "w": 34,
+     "h": 38,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-01.png",
+      "box": [
+       583,
+       679,
+       617,
+       717
+      ]
+     },
+     "board_cells": {
+      "x0": 8,
+      "y0": 10,
+      "x1": 10,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.318,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.18,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_23",
+     "file": "pieces/11_街饰过渡_23.png",
+     "w": 33,
+     "h": 45,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       4,
+       530,
+       37,
+       575
+      ]
+     },
+     "board_cells": {
+      "x0": 12,
+      "y0": 10,
+      "x1": 14,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.399,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.48,
+      "bottom_ok": true
+     }
+    },
+    {
+     "id": "11_街饰过渡_24",
+     "file": "pieces/11_街饰过渡_24.png",
+     "w": 33,
+     "h": 45,
+     "class": "prop",
+     "source": {
+      "sheet": "downloaded_assets/comshadow_bundle/jingcheng/tile-B-03.png",
+      "box": [
+       59,
+       530,
+       92,
+       575
+      ]
+     },
+     "board_cells": {
+      "x0": 16,
+      "y0": 10,
+      "x1": 18,
+      "y1": 12
+     },
+     "flip": null,
+     "opacity": 0.398,
+     "checks": {
+      "w16": false,
+      "h16": false,
+      "bottom_anchor": 0.48,
+      "bottom_ok": true
+     }
+    }
+   ],
+   "issues": [
+    "盖章簇含 2 张表的贴邻件（板 -9,-13 附近），已按表分件",
+    "盖章簇含 3 张表的贴邻件（板 -19,-3 附近），已按表分件",
+    "盖章区域全透明（源表 downloaded_assets/comshadow_bundle/modern_residential/tile-B-02.png box [464, 48, 592, 144]）——疑误盖，未出件",
+    "盖章区域全透明（源表 downloaded_assets/comshadow_bundle/wuxia_dlc/tile-B-01.png box [624, 384, 640, 400]）——疑误盖，未出件",
+    "盖章区域全透明（源表 downloaded_assets/comshadow_bundle/modern_residential/tile-B-02.png box [432, 32, 576, 160]）——疑误盖，未出件"
+   ]
+  },
+  "12_城防": {
+   "kind": "citywall",
+   "status": "pending_material",
+   "pieces": [
+    {
+     "id": "12_城防_01",
+     "file": "pieces/12_城防_01.png",
+     "w": 150,
+     "h": 47,
+     "class": "name_placeholder",
+     "source": null,
+     "flip": null,
+     "opacity": null,
+     "checks": null
+    }
+   ],
+   "issues": []
+  }
+ }
+}
