@@ -70,3 +70,6 @@ docs/参考/sckr_official_demo/
 # 用户策展材质库（京城包派生散件，license 禁再分发；仅 README 入库）
 素材库/*
 !素材库/README.md
+!素材库/*/
+素材库/*/*
+!素材库/*/board.tmx
