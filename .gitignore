@@ -66,3 +66,7 @@ docs/shots/pack_*_overview.png
 
 # SCKR 官方示例图（itch.io 作者版权图，仅本地考古参照，禁入库/再分发）
 docs/参考/sckr_official_demo/
+
+# 用户策展材质库（京城包派生散件，license 禁再分发；仅 README 入库）
+素材库/*
+!素材库/README.md
