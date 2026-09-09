@@ -310,15 +310,6 @@ ROT_TILES = [
     ("wall_band_v_e2", "wall_band_body_a", Image.ROTATE_270),   # 124 东墙·内列
 ]
 
-# ---- 竖墙砖身横向错缝派生 tile（2026-09-09 用户拍板 B1 方案）：body_c 水平循环移位 +4px ----
-# 竖墙内两列弃用旋转砖面（4px 横皮转成竖条纹=砖立砌反重力），改未旋转 body_c 纵叠，
-# 奇偶行与本件交替：丁缝实测 x≡3,6 (mod 8) 周期 8px → 移位 4=半砖长=标准跑缝（移位 8 与原图同相无效）。
-# 循环移位保左右边可平铺对接；像素只重排、色板零新增。外列垛口肩带仍用 v_w0/v_e0 旋转件。
-SHIFT_TILES = [
-    ("wall_band_body_c_s4", "wall_band_body_c", 4),   # 125 竖墙砖身·错缝行（与 body_c 逐行交替）
-]
-SHIFTED_FROM = {}   # 移位派生件 → (源切片名, dx)（main 里填充，manifest 登记用）
-
 # ---- 合成 tile：竖向三段 vstack（顶盖/墙身/墙脚）→ 16×16 ----
 # 条带=(box, 高px, rot)；rot=90 时墙身先旋转（横缝变竖缝，供 E/W 走向竖墙用），顶盖不转（垛口恒在顶）
 # 坊墙 = 白灰墙身（江南院墙）+ 灰瓦顶 + 砖脚；宫墙 = 金瓦顶 + 红墙身 + 灰石基
@@ -527,18 +518,6 @@ def main():
         im.save(os.path.join(OUT_TILES, name + ".png"))
         made.append((name, im, "tile"))
         ROTATED_FROM[name] = src
-    # 竖墙砖身错缝派生 tile（依赖 wall_band_body_c 已切出）：水平循环移位 dx，末 dx 列绕到前面
-    for name, src, dx in SHIFT_TILES:
-        if only and name not in only and src not in only:
-            continue
-        s = Image.open(os.path.join(OUT_TILES, src + ".png")).convert("RGBA")
-        assert s.size == (16, 16), f"{name}: 移位源 tile 必须16x16, got {s.size}"
-        im = Image.new("RGBA", s.size, (0, 0, 0, 0))
-        im.paste(s.crop((s.width - dx, 0, s.width, s.height)), (0, 0))
-        im.paste(s.crop((0, 0, s.width - dx, s.height)), (dx, 0))
-        im.save(os.path.join(OUT_TILES, name + ".png"))
-        made.append((name, im, "tile"))
-        SHIFTED_FROM[name] = (src, dx)
     if not only or "foot" in only:
         make_foot_tile().save(os.path.join(OUT_TILES, "foot.png"))
         made.append(("foot", make_foot_tile(), "tile"))
@@ -694,11 +673,6 @@ def main():
             assets.append({"name": name, "kind": src_e["kind"], "category": cat_of(name),
                            "sheet": src_e["sheet"], "box": src_e["box"], "rotated_from": src,
                            "note": "90°整数旋转派生件（像素无损）"})
-        for name, (src, dx) in SHIFTED_FROM.items():
-            src_e = next(a for a in assets if a["name"] == src)
-            assets.append({"name": name, "kind": src_e["kind"], "category": cat_of(name),
-                           "sheet": src_e["sheet"], "box": src_e["box"], "shifted_from": src, "shift_x": dx,
-                           "note": "水平循环移位派生件（像素重排无损；竖墙砖身错缝行，与源件逐行交替）"})
         for name, rel, strips, weights in COMPOSITES:
             assets.append({"name": name, "kind": "composite_tile", "category": "wall",
                            "sheet": rel, "strips": [list(s) for s in strips]})
