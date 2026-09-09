@@ -9,17 +9,46 @@ signal exit_requested(gate_id: String)   # 玩家触碰城门出城触发区（c
 signal interior_requested(ref: String)   # 接口兼容声明（灰盒无内景，永不发射）
 
 const TilesetGen = preload("res://scripts/tileset_generator.gd")
+const TextureGen = preload("res://scripts/texture_generator.gd")
 
-# ---- 瓦片 ID（复用现有注册表；材质后期整体替换，ID 语义不变）----
+# ---- 瓦片 ID（灰盒回退用：素材库 00_地面 切件缺失时退回这些源）----
 const T_GRASS = 0        # 城外/预留空地
 const T_GATE_OPEN = 67   # 城门豁口（无碰撞）
-const T_ZHUQUE = 71      # 朱雀大街御道
-const T_MAIN_ROAD = 72   # 主干街/环城街
-const T_LANE = 74        # 街区夯土地坪
-const T_PAVE = 101       # 方砖（宫/皇/市/县署）
+const T_MAIN_ROAD = 72   # 主干街/环城街（回退路砖）
+const T_LANE = 74        # 街区夯土地坪（回退坊砖）
+const T_PAVE = 101       # 方砖（回退：宫/皇/市/县署）
 const T_OUTER_WALL = 70  # 外郭城墙（带碰撞）
 
 const COLLIDING := [70]
+
+# ---- 地面区带（用户规矩 2026-09-09：路砖全城统一；坊内地砖按区统一且与路砖不同）----
+const Z_GRASS := 0    # 城外/预留
+const Z_ROAD := 1     # 全部道路（环城/主干/朱雀/门下路）
+const Z_ADMIN := 2    # 宫城/东宫/皇城官署/县署
+const Z_MARKET := 3   # 东西市
+const Z_TEMPLE := 4   # 寺观
+const Z_CIVIC := 5    # 民居/贵戚/亲王/官宅（宅邸区）
+const Z_LANE := 6     # 风月楼/军营（材质待补，回退灰盒夯土）
+
+const KIND_ZONE := {
+	"palace": Z_ADMIN, "palace_east": Z_ADMIN, "office": Z_ADMIN, "yamen": Z_ADMIN,
+	"market": Z_MARKET, "temple": Z_TEMPLE, "taoist": Z_TEMPLE,
+	"residential": Z_CIVIC, "noble": Z_CIVIC,
+	"venue": Z_LANE, "military": Z_LANE,
+	"royal_reserve": Z_GRASS, "reserve_empty": Z_GRASS,
+}
+# 区带 → 素材库 00_地面 切件挑选键（宽px, 高px，精确匹配首个；找不到退回灰盒瓦片）
+const ZONE_SWATCH := {
+	Z_ROAD: [96, 96],      # 方整石板坪——全城统一路砖
+	Z_ADMIN: [96, 192],    # 蓝灰人字砖
+	Z_MARKET: [64, 160],   # 米白淡砖
+	Z_TEMPLE: [64, 144],   # 灰石板野径
+	Z_CIVIC: [384, 96],    # 野外土路（车辙土面）
+}
+const ZONE_FALLBACK := {   # 素材缺失时退回 TilesetGen 单格瓦片源
+	Z_ROAD: T_MAIN_ROAD, Z_ADMIN: T_PAVE, Z_MARKET: T_PAVE,
+	Z_TEMPLE: T_LANE, Z_CIVIC: T_LANE, Z_LANE: T_LANE, Z_GRASS: T_GRASS,
+}
 
 # ---- 文字占位配色（按 kind；同色=同视觉等级，用户选材质时对照）----
 const KIND_COLORS := {
@@ -31,9 +60,6 @@ const KIND_COLORS := {
 	"market": Color(0.50, 0.85, 0.54), "residential": Color(0.96, 0.96, 0.96),
 	"reserve_empty": Color(0.60, 0.60, 0.60),
 }
-# 方砖地面（其余街区=T_LANE 夯土，预留类=草）
-const KIND_PAVE := ["palace", "palace_east", "office", "market", "yamen"]
-
 # ---- 网格参数（JSON 解析后类型化）----
 var bw := 20
 var bh := 20
@@ -55,10 +81,21 @@ var done := false
 var stats := {}
 var bfs_failures: Array = []
 var tile_map: TileMap = null
+var zone_tiles := {}   # 区带 → {sid, vars[]}（素材库 00_地面 切件图集；缺失走 ZONE_FALLBACK）
 var labels_node: Node2D = null
 var label_count := 0
 var gate_info := {}   # side -> {name, gap_cells, inside}
 var portals_node: Node2D = null
+var materials_count := -1   # -1=素材库缺件保持灰盒
+
+
+# ---- 材质层（评估稿）：素材库切件按 kind_qc/import_qc 铺设，缺件自动回灰盒 ----
+func _spawn_materials():
+	var mat = load("res://scripts/changan_v2_materials.gd").new()
+	mat.name = "Materials"
+	add_child(mat)
+	mat.setup(self)
+	materials_count = mat.placed
 
 
 func _ready():
@@ -128,6 +165,7 @@ func _build():
 	_paint_layout()
 	var painted := _fill_tilemap()
 	_spawn_labels()
+	_spawn_materials()
 	_build_portals()
 	_run_bfs()
 	var ms := Time.get_ticks_msec() - t0
@@ -135,9 +173,10 @@ func _build():
 		"size": "%dx%d" % [W, H], "ms": ms, "blocks": blocks.size(),
 		"labels": label_count, "bfs_fail": bfs_failures.size(), "gates": gate_info.size(),
 		"ground_cells": painted[0], "decor_cells": painted[1],
+		"materials": materials_count,
 	}
-	print("[ChangAnV2] %s 生成 %dms 街区=%d 标签=%d 城门=%d BFS未达=%d" %
-			[stats["size"], ms, blocks.size(), label_count, gate_info.size(), bfs_failures.size()])
+	print("[ChangAnV2] %s 生成 %dms 街区=%d 标签=%d 城门=%d BFS未达=%d 材质件=%d" %
+			[stats["size"], ms, blocks.size(), label_count, gate_info.size(), bfs_failures.size(), materials_count])
 	done = true
 	generation_done.emit()
 
@@ -147,31 +186,27 @@ func _paint_layout():
 	ground.resize(W * H)   # 默认 0=草（城外 margin/预留空地）
 	decor = PackedByteArray()
 	decor.resize(W * H)
-	# 环城街（贴城墙内侧，宽 ring）
+	# 环城街（贴城墙内侧，宽 ring）——路砖全城统一（用户规矩 2026-09-09）
 	var m := margin + wall
-	_set_rect(ground, m, m, W - m * 2, ring, T_MAIN_ROAD)
-	_set_rect(ground, m, H - m - ring, W - m * 2, ring, T_MAIN_ROAD)
-	_set_rect(ground, m, m, ring, H - m * 2, T_MAIN_ROAD)
-	_set_rect(ground, W - m - ring, m, ring, H - m * 2, T_MAIN_ROAD)
-	# 横向街缝先铺（j=2 东西贯通=金光门·春明门大街；j=4 城南横街）——
-	# 先横后纵：朱雀御道最后压上，连续穿过所有路口不被横街盖断
+	_set_rect(ground, m, m, W - m * 2, ring, Z_ROAD)
+	_set_rect(ground, m, H - m - ring, W - m * 2, ring, Z_ROAD)
+	_set_rect(ground, m, m, ring, H - m * 2, Z_ROAD)
+	_set_rect(ground, W - m - ring, m, ring, H - m * 2, Z_ROAD)
+	# 横向街缝（j=2 东西贯通=金光门·春明门大街；j=4 城南横街）
 	for j in range(1, rows):
-		_set_rect(ground, _origin().x, seam_y(j), block_span_x(), main_s, T_MAIN_ROAD)
-	# 纵向街缝：axis_col=朱雀大街（中轴 3 宽御道+两翼夯土），其余主干 4 宽
+		_set_rect(ground, _origin().x, seam_y(j), block_span_x(), main_s, Z_ROAD)
+	# 纵向街缝（朱雀同一路砖：宽度仍 6，铺装不分御道/主干）
 	for i in range(1, cols):
-		if i == axis_col:
-			_set_rect(ground, seam_x(i), _origin().y, zq_s, block_span_y(), T_MAIN_ROAD)
-			_set_rect(ground, seam_x(i) + zq_s / 2 - 1, _origin().y, 3, block_span_y(), T_ZHUQUE)
-		else:
-			_set_rect(ground, seam_x(i), _origin().y, main_s, block_span_y(), T_MAIN_ROAD)
-	# 街区地坪（合并格吸收缝：宫城/皇城跨朱雀轴，朱雀大街止于皇城南缘）
+		var sw := zq_s if i == axis_col else main_s
+		_set_rect(ground, seam_x(i), _origin().y, sw, block_span_y(), Z_ROAD)
+	# 街区地坪：按 kind 区带（区域内统一、与路砖不同）
 	for b in blocks:
 		var rect := _block_rect(b)
 		var kind := String(b["kind"])
 		if kind == "royal_reserve" or kind == "reserve_empty":
 			continue   # 预留地保持草地
-		var tile := T_PAVE if KIND_PAVE.has(kind) else T_LANE
-		_set_rect(ground, rect.position.x, rect.position.y, rect.size.x, rect.size.y, tile)
+		_set_rect(ground, rect.position.x, rect.position.y, rect.size.x, rect.size.y,
+				KIND_ZONE.get(kind, Z_LANE))
 	# 外郭城墙（厚 wall 的 70 环）+ 四城门豁口
 	_paint_walls()
 	_carve_gates()
@@ -224,7 +259,7 @@ func _load_gate_names() -> Dictionary:
 func _carve_gate_ns(side: String, gname: String, cx: int):
 	var y_wall := H - margin - wall if side == "S" else margin
 	_set_rect(decor, cx - 1, y_wall, 3, wall, T_GATE_OPEN)
-	_set_rect(ground, cx - 1, y_wall - 1, 3, wall + 2, T_MAIN_ROAD)   # 门下+贴邻铺路
+	_set_rect(ground, cx - 1, y_wall - 1, 3, wall + 2, Z_ROAD)   # 门下+贴邻铺路
 	var inside := Vector2i(cx, H - margin - wall - 2 if side == "S" else margin + wall + 2)
 	var gaps: Array = []
 	for i in range(-1, 2):
@@ -235,7 +270,7 @@ func _carve_gate_ns(side: String, gname: String, cx: int):
 func _carve_gate_ew(side: String, gname: String, cy: int):
 	var x_wall := W - margin - wall if side == "E" else margin
 	_set_rect(decor, x_wall, cy - 1, wall, 3, T_GATE_OPEN)
-	_set_rect(ground, x_wall - 1, cy - 1, wall + 2, 3, T_MAIN_ROAD)
+	_set_rect(ground, x_wall - 1, cy - 1, wall + 2, 3, Z_ROAD)
 	var inside := Vector2i(W - margin - wall - 2 if side == "E" else margin + wall + 2, cy)
 	var gaps: Array = []
 	for i in range(-1, 2):
@@ -263,7 +298,9 @@ func _tile_at(arr: PackedByteArray, x: int, y: int) -> int:
 func _fill_tilemap() -> Array:
 	tile_map = TileMap.new()
 	tile_map.name = "TileMap"
-	tile_map.tile_set = TilesetGen.build_tileset()
+	var ts := TilesetGen.build_tileset()
+	zone_tiles = _build_ground_sources(ts)
+	tile_map.tile_set = ts
 	tile_map.add_layer(1)   # 0=地面，1=城墙/豁口
 	tile_map.y_sort_enabled = true
 	add_child(tile_map)
@@ -272,14 +309,73 @@ func _fill_tilemap() -> Array:
 	for yy in range(H):
 		var base := yy * W
 		for xx in range(W):
-			var gid := ground[base + xx]
-			tile_map.set_cell(0, Vector2i(xx, yy), gid, Vector2i(0, 0))
+			var zone: int = ground[base + xx]
+			var zt: Dictionary = zone_tiles.get(zone, {})
+			if zt.has("sid"):
+				# 确定性伪随机变体（去拼接缝感）
+				var vars: Array = zt["vars"]
+				var hsh: int = absi(xx * 73856093 ^ yy * 19349663) % vars.size()
+				tile_map.set_cell(0, Vector2i(xx, yy), int(zt["sid"]), vars[hsh])
+			else:
+				tile_map.set_cell(0, Vector2i(xx, yy), ZONE_FALLBACK.get(zone, T_LANE), Vector2i(0, 0))
 			gnd += 1
 			var d := decor[base + xx]
 			if d != 0:
 				tile_map.set_cell(1, Vector2i(xx, yy), d, Vector2i(0, 0))
 				dcr += 1
 	return [gnd, dcr]
+
+
+# ---- 地面区带图集：素材库 00_地面 切件 → 16px 图集源（路砖/坊砖按区统一，变体铺）----
+func _build_ground_sources(ts: TileSet) -> Dictionary:
+	var out := {}
+	var f := FileAccess.open("res://data/material_library.json", FileAccess.READ)
+	if f == null:
+		return out
+	var parsed = JSON.parse_string(f.get_as_text())
+	if parsed == null or not parsed["categories"].has("00_地面"):
+		return out
+	var pieces: Array = parsed["categories"]["00_地面"]["pieces"]
+	for zone: int in ZONE_SWATCH:
+		var want: Array = ZONE_SWATCH[zone]
+		var rec: Dictionary = {}
+		for p in pieces:
+			if int(p["w"]) == want[0] and int(p["h"]) == want[1] and String(p["class"]) == "ground":
+				rec = p
+				break
+		if rec.is_empty():
+			continue
+		var tex: Texture2D = TextureGen.load_png_texture("res://素材库/00_地面/%s" % String(rec["file"]))
+		if tex == null:
+			continue   # 切件不在本机——退回灰盒瓦片
+		var src := TileSetAtlasSource.new()
+		src.texture = tex
+		src.texture_region_size = Vector2i(16, 16)
+		var tw := tex.get_width() / 16
+		var th := tex.get_height() / 16
+		var vars: Array = []
+		for vy in range(1, max(2, th - 1)):
+			for vx in range(1, max(2, tw - 1)):
+				vars.append(Vector2i(vx, vy))
+		if vars.is_empty():
+			continue
+		# 最多取 6 个变体（确定性均匀取样）
+		var step := maxi(1, vars.size() / 6)
+		var picked: Array = []
+		for i in range(0, vars.size(), step):
+			src.create_tile(vars[i])
+			picked.append(vars[i])
+			if picked.size() >= 6:
+				break
+		var sid := 200 + zone
+		ts.add_source(src, sid)
+		out[zone] = {"sid": sid, "vars": picked, "swatch": String(rec["id"])}
+	if not out.is_empty():
+		var names := []
+		for z in out:
+			names.append("Z%d=%s" % [z, out[z]["swatch"]])
+		print("[ChangAnV2地面] 路砖/坊砖图集 %s" % ", ".join(names))
+	return out
 
 
 # ---- 文字占位标签（灰盒核心交付：坊名+场景列举；材质到位后整层退役）----
