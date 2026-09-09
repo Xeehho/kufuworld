@@ -6,7 +6,7 @@
 
 ## 怎么放材质（推荐：切件板 board.tmx）
 
-每类文件夹里已建好 `board.tmx`（16px 网格 / infinite / base64，**源表已按类别预挂好**——生成工具 `tools/gen_material_boards.py`，2026-09-09 盖章渲染冒烟测试 PASS）：
+每类文件夹里已建好 `board.tmx`（16px 网格 / infinite / base64，**61 张源表全挂**——所有素材包随便混搭，不用对着类别找表；**类别=你盖章所在的文件夹**。生成工具 `tools/gen_material_boards.py`，2026-09-09 盖章渲染冒烟测试 PASS）：
 
 1. Tiled 打开对应文件夹的 `board.tmx` → 图块面板选源表 → **框选一个件碰到的所有格子，盖章到板上**
 2. 件与件之间**至少留 1 格空白**（AI 按连通域切件）
