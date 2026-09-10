@@ -332,15 +332,18 @@ func _paint_qujiang_water() -> void:
 		if String(b["id"]) != "qujiang":
 			continue
 		var rect := _block_rect(b)
-		_set_rect(ground, rect.position.x + 1, rect.position.y + 2, 9, rect.size.y - 4, T_BANK)
-		_set_rect(ground, rect.position.x + 2, rect.position.y + 3, 7, rect.size.y - 6, T_WATER)
-		# 四角各收一格，避免水面读成编辑器矩形色块；岸石仍完整包边。
-		for p in [Vector2i(rect.position.x + 2, rect.position.y + 3),
-				Vector2i(rect.position.x + 8, rect.position.y + 3),
-				Vector2i(rect.position.x + 2, rect.position.y + rect.size.y - 4),
-				Vector2i(rect.position.x + 8, rect.position.y + rect.size.y - 4)]:
-			ground[p.y * W + p.x] = T_BANK
-		_set_rect(ground, rect.position.x + 1, rect.position.y + 9, 9, 2, Z_TEMPLE)
+		# 岸基先铺成十格宽，再用逐行变宽的水面雕出折岸；中部两行石桥切断水面。
+		# 这仍完全落在曲江坊内部，不改变冻结街网和外部 BFS。
+		_set_rect(ground, rect.position.x + 1, rect.position.y + 2, 10, rect.size.y - 4, T_BANK)
+		var water_rows := [
+			[3, 3, 5], [4, 2, 7], [5, 2, 7], [6, 2, 7], [7, 2, 7],
+			[8, 2, 6], [11, 2, 6], [12, 3, 6], [13, 3, 6], [14, 3, 6],
+			[15, 4, 5], [16, 4, 5],
+		]
+		for row in water_rows:
+			_set_rect(ground, rect.position.x + int(row[1]), rect.position.y + int(row[0]),
+					int(row[2]), 1, T_WATER)
+		_set_rect(ground, rect.position.x + 1, rect.position.y + 9, 10, 2, Z_TEMPLE)
 		return
 
 

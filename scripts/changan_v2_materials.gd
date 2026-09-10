@@ -626,13 +626,24 @@ func _layout_office(cat: String, rect: Rect2i, rng: RandomNumberGenerator):
 	var w := rect.size.x
 	# 皇城横跨两坊：优先采用清流官宅的完整连续院落带，形成统一天际线与院墙，
 	# 不再把两三个 96px 官署件均匀撒在 704px 大地坪上。
+	var compound_placed := false
 	if rect.size.x >= 40:
 		var compounds := _pool("02_官宅清流", 450, 500, 180, 210, "scene_board")
 		if not compounds.is_empty() and _put("02_官宅清流", compounds[0],
 				Vector2i(x0 + 7, y0 + 4), y0 + 17, rect):
-			return
+			compound_placed = true
 	var units := _pool(cat, 75, 110, 80, 110)
 	if units.is_empty():
+		return
+	if compound_placed:
+		# 大院本体只占中段；四个侧署填满东西肩部，形成连续皇城公廨界面，
+		# 同时用上下两排的脚线差表达“外署—内院”的进深。
+		var right_x := rect.end.x - 7
+		for entry in [[Vector2i(x0 + 1, y0 + 2), y0 + 7, false],
+				[Vector2i(right_x, y0 + 2), y0 + 7, true],
+				[Vector2i(x0 + 1, y0 + 13), y0 + 18, true],
+				[Vector2i(right_x, y0 + 13), y0 + 18, false]]:
+			_put(cat, _pick(units, rng), entry[0], entry[1], rect, entry[2])
 		return
 	var i := 0
 	var xx := x0 + 3

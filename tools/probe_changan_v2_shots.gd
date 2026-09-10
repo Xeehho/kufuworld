@@ -50,6 +50,7 @@ func _run():
 		["zhuque", Vector2i(city.seam_x(city.axis_col) + city.zq_s / 2, city.row_y(3) + 4), 2.0],
 		["xishi", Vector2i(city.col_x(0) + 10, city.row_y(2) + 10), 2.0],
 		["gongcheng", Vector2i(city.col_x(2) + 23, city.row_y(0) + 14), 2.0],
+		["huangcheng", Vector2i(city.col_x(2) + 22, city.row_y(1) + 10), 2.0],
 		["pingkang", Vector2i(city.col_x(5) + 10, city.row_y(1) + 10), 2.0],
 		["tongji", Vector2i(city.col_x(1) + 10, city.row_y(4) + 10), 2.0],
 		["qujiang", Vector2i(city.col_x(5) + 10, city.row_y(4) + 10), 2.0],
