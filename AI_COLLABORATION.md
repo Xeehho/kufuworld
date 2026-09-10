@@ -205,6 +205,18 @@
 
 当前无待处理接口请求。
 
+### REQ-20260910-01：`game_manager.gd` reputation 兼容转发（共享热点最小补丁）
+
+- 提出方：玩法叙事线
+- 状态：待评估
+- 使用场景：P1-2 兼容桥接——旧单轨 `reputation` 的读写入口转发到新四轨声望系统（`scripts/gameplay/reputation_system.gd`，commit `337011a`，58 项聚焦测试全绿），兼容期旧调用方与视觉线零改动。
+- 希望提供的 ref、信号、方法或数据字段：
+  1. `var reputation` 改 computed property（`get`/`set`）：set 转发 bridge 写入民心轨（缺省，设计§5.1 旧道德值+悬赏≈民心语义）；get 返回兼容视图（公式待拍板：总声望/42 或 民心/100）
+  2. `modify_reputation()` 移除钳制 ≥0（新系统自带 [-1000,10000] 边界与敌对阈值），内部同样转发
+  3. `apply_story_effects` 的 `reputation` 效果键支持可选 `track` 字段（缺省民心）
+- 不应修改的既有行为：旧调用方签名与效果数值不变；`modify_morality` 等邻接函数不动；此文件其余逻辑（门派/时间/天气/生存）不触碰
+- 验收方式：`tools/test_reputation_bridge.gd`（待建）聚焦测试 + 主场景 headless 1200 帧零报错 + `python tools/run_changan_e2e.py` 视觉 E2E 不回归
+
 ## 九、每次交接必须更新的内容
 
 任一模型结束一个可交付阶段时，在本文末尾追加一条记录，并同步自己的任务交接文件：
