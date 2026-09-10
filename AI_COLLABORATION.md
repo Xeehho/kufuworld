@@ -300,3 +300,14 @@
 - 另一条线需要知道：REQ-20260910-01 已登记（`game_manager.gd` reputation 改 computed property 的最小补丁），贵线如对 game_manager 有并行计划请在队列回复；玩法线本轮占用已全部释放。
 - 下一步：拍板兼容视图公式/scale 标定/死亡 reskin 三决策 → REQ 评估 → 接线 game_manager → P1-3 天命面板/商城/轮盘。
 - Git commit：`17d4d79`（REQ 登记）、`14f34bc`（桥接模块）。
+
+### 2026-09-10 17:33｜玩法叙事线｜P1-3 先行件天命轮盘核心（按 17:55 截时停止）
+
+- 状态：完成（本日时段收工）。
+- 改动文件：`scripts/gameplay/destiny_wheel.gd`、`data/destiny_wheel_config.json`、`tools/test_destiny_wheel.gd`（新增）。
+- 完成内容：设计§6.3 轮盘逻辑核心——五品级权重抽取、绝品硬保底 60 抽（计数入档）、十连至少一珍、四奖池随舞台解锁、产物绑定不可交易、扣费走钱包（不足整段拒绝）。
+- 稳定接口变化：无运行时接线；玩法线内部新增 DestinyWheel 模块。
+- 验证命令与结果：`--script res://tools/test_destiny_wheel.gd` → PASS 26 / FAIL 0；本日玩法线三套测试累计 58+20+26=104 项全绿。
+- 另一条线需要知道：玩法线本轮全部占用已释放（7 个新文件 + 2 份 JSON 已入库）；REQ-20260910-01 仍在队列待评估。
+- 下一步：P1-2 步②拍板三决策后接 `game_manager.gd`；P1-3 续做商城数据层、天命面板 UI 与糖糖演出。
+- Git commit：`5658c37`。
