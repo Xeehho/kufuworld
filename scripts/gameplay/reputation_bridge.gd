@@ -57,12 +57,35 @@ func apply_legacy(amount: float, track: String = "", reason: String = "legacy") 
 	return rep.add_reputation(target, scaled, reason)
 
 
-## 旧写入口（绝对赋值语义，REQ 复查口径②）：旧代码三种写法
-## `reputation = x` / `reputation += x` / `reputation = max(reputation * 0.3, 0)`
-## 都是"读旧值→算新值→绝对 set"，桥接按 value 与当前视图的差额换算写入默认轨，
-## 视图层面精确到达 value。禁止把 value 当增量传 apply_legacy（死亡惩罚会变加分）。
-func set_legacy_value(value: float, track: String = "", reason: String = "legacy_set") -> float:
-	return apply_legacy(value - legacy_value(), track, reason)
+## 旧写入口（绝对赋值语义，REQ 二次复验口径）：面向"目标总兼容值"的可达求解。
+## 旧代码三种写法 `reputation = x` / `reputation += x` / `reputation = max(*0.3, 0)`
+## 都是把旧值设到绝对目标；本函数把兼容视图精确设到 value（目标总声望 = value×scale）：
+## 1. 差额优先压默认轨（权重 1.0，Δ轨 = Δ总）；
+## 2. 默认轨触 [-1000,10000] 边界后，按各轨权重换算依次溢出（朝纲→军功→文名）；
+## 3. 目标超出全局可达界 [Σmin×w, Σmax×w] = [-4200, 42000] 时钳制到最近可达值；
+## 4. track 参数已移除——旧代码绝对赋值从不指定轨道，轨道定向属增量语义（apply_legacy）。
+## 返回视图实际到达值（调用方据此断言）。仅公式A（total_normalized）口径下有意义。
+func set_legacy_value(value: float, reason: String = "legacy_set") -> float:
+	var scale := float(legacy_config["scale"])
+	var target_total := value * scale
+	var lo := 0.0
+	var hi := 0.0
+	for t in RepSysScript.TRACKS:
+		var w := float(rep.config["track_weights"].get(t, 1.0))
+		lo += float(rep.config["value_min"]) * w
+		hi += float(rep.config["value_max"]) * w
+	target_total = clampf(target_total, lo, hi)
+	var remaining := target_total - rep.get_total()
+	remaining -= rep.add_reputation(String(legacy_config["default_track"]), remaining, reason)
+	for t in RepSysScript.TRACKS:
+		if is_equal_approx(remaining, 0.0):
+			break
+		if t == String(legacy_config["default_track"]):
+			continue
+		var w := float(rep.config["track_weights"].get(t, 1.0))
+		var applied := rep.add_reputation(t, remaining / w, reason)
+		remaining -= applied * w
+	return legacy_value()
 
 
 ## 旧读入口：reputation getter 的兼容视图。负值轨同样参与（透支可见）。

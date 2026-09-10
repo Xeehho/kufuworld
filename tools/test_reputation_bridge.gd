@@ -60,26 +60,60 @@ func _test_view_formula() -> void:
 
 
 func _test_set_legacy_value() -> void:
-	# REQ 复查口径②：绝对赋值差额语义，覆盖旧代码三种写法
+	# REQ 二次复验口径：面向"目标总兼容值"的可达求解，任何场景视图精确到达
+	# 基础三写法（=x / +=x / =max(*0.3,0)）
 	var b := Bridge.new()
-	# 写法1：reputation = x（death_system/oath 等直赋值）
 	b.set_legacy_value(100.0)
 	_check(is_equal_approx(b.legacy_value(), 100.0), "=x 绝对赋值视图到100")
 	_check(is_equal_approx(b.rep.get_value("minxin"), 4200.0), "民心承担全额4200")
-	# 写法2：reputation += x（npc_spawner/oath 直加）
 	b.set_legacy_value(b.legacy_value() + 30.0)
 	_check(is_equal_approx(b.legacy_value(), 130.0), "+=30 视图到130")
-	# 写法3：reputation = max(reputation * 0.3, 0)（death_system:153 死亡惩罚）
 	b.set_legacy_value(maxf(b.legacy_value() * 0.3, 0.0))
 	_check(is_equal_approx(b.legacy_value(), 39.0), "死亡×0.3 视图到39（惩罚不反向）")
-	# 回升到高位再压半，覆盖跨段位场景的绝对语义
-	b.set_legacy_value(200.0)
-	b.set_legacy_value(maxf(b.legacy_value() * 0.3, 0.0))
-	_check(is_equal_approx(b.legacy_value(), 60.0), "高位压半视图60")
-	# 指定轨道的绝对赋值（写文名视图到同值）
+	# 组1：多轨降值——民心余量足额承担，其余轨不动
+	var b1 := Bridge.new()
+	b1.apply_legacy(200.0, "minxin")
+	b1.apply_legacy(100.0, "chaogang")
+	b1.apply_legacy(100.0, "jungong")
+	b1.apply_legacy(100.0, "wenming")
+	# 总 = 8400 + 5040 + 5040 + 3360 = 21840 → 视图 520
+	_check(is_equal_approx(b1.legacy_value(), 520.0), "多轨基准视图520")
+	b1.set_legacy_value(300.0)
+	_check(is_equal_approx(b1.legacy_value(), 300.0), "组1 多轨降值精确到达300")
+	_check(is_equal_approx(b1.rep.get_value("minxin"), -840.0), "组1 民心降9240至-840（下界内）")
+	_check(is_equal_approx(b1.rep.get_value("chaogang"), 4200.0), "组1 其余轨不动（朝纲）")
+	# 组2：民心触顶后继续 +=——溢出按权重换算到其余轨
 	var b2 := Bridge.new()
-	b2.set_legacy_value(50.0, "wenming")
-	_check(is_equal_approx(b2.legacy_value(), 50.0 * 0.8), "文名承担全额但视图按权重0.8")
+	b2.rep.add_reputation("minxin", 10000.0)
+	var before := b2.legacy_value()
+	b2.set_legacy_value(before + 10.0)
+	_check(is_equal_approx(b2.legacy_value(), before + 10.0), "组2 民心触顶后+=仍精确到达")
+	_check(is_equal_approx(b2.rep.get_value("minxin"), 10000.0), "组2 民心保持10000")
+	_check(b2.rep.get_value("chaogang") > 0.0, "组2 差额溢出至朝纲（÷1.2换算）")
+	# 组3：满总声望 = current*0.3（跨多轨降值，死亡高惩罚场景）
+	var b3 := Bridge.new()
+	for t in b3.rep.TRACKS:
+		b3.rep.add_reputation(t, 10000.0)
+	var v := b3.legacy_value()
+	_check(is_equal_approx(v, 1000.0), "组3 满轨视图1000")
+	b3.set_legacy_value(maxf(v * 0.3, 0.0))
+	_check(is_equal_approx(b3.legacy_value(), 300.0), "组3 满轨压0.3跨多轨精确到达300")
+	_check(is_equal_approx(b3.rep.get_value("minxin"), -1000.0), "组3 民心触下限-1000")
+	_check(is_equal_approx(b3.rep.get_value("chaogang"), -1000.0), "组3 朝纲触下限-1000")
+	_check(is_equal_approx(b3.rep.get_value("jungong"), 10000.0 - 5200.0 / 1.2), "组3 军功承担尾差5666.67")
+	_check(is_equal_approx(b3.rep.get_value("wenming"), 10000.0), "组3 文名不动")
+	# 组4：非1权重轨——track 参数已移除（绝对赋值面向总兼容值，轨道定向属增量语义）
+	var b4 := Bridge.new()
+	b4.apply_legacy(50.0, "wenming")
+	_check(is_equal_approx(b4.legacy_value(), 50.0 * 0.8), "组4 增量语义文名贡献×0.8（视图40）")
+	b4.set_legacy_value(50.0)
+	_check(is_equal_approx(b4.legacy_value(), 50.0), "组4 绝对赋值面向总视图精确到50（不再受权重缩放）")
+	# 组5：全局不可达目标钳制（视图可达界 [-100, 1000]）
+	var b5 := Bridge.new()
+	b5.set_legacy_value(2000.0)
+	_check(is_equal_approx(b5.legacy_value(), 1000.0), "组5 超上限钳制到1000")
+	b5.set_legacy_value(-500.0)
+	_check(is_equal_approx(b5.legacy_value(), -100.0), "组5 低于下限钳制到-100")
 
 
 func _test_scale_override() -> void:
