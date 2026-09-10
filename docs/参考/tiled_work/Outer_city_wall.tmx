@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="100" height="60" tilewidth="16" tileheight="16" infinite="0" nextlayerid="5" nextobjectid="1">
+ <tileset firstgid="1" source="ts_00.tsx"/>
+ <tileset firstgid="2161" source="ts_01.tsx"/>
+ <tileset firstgid="4321" source="ts_02.tsx"/>
+ <tileset firstgid="6625" source="ts_03.tsx"/>
+ <tileset firstgid="8929" source="ts_04.tsx"/>
+ <tileset firstgid="11233" source="ts_05.tsx"/>
+ <tileset firstgid="13537" source="ts_06.tsx"/>
+ <tileset firstgid="15841" source="ts_07.tsx"/>
+ <tileset firstgid="18145" source="ts_08.tsx"/>
+ <tileset firstgid="20449" source="ts_09.tsx"/>
+ <tileset firstgid="22609" source="ts_10.tsx"/>
+ <tileset firstgid="24913" source="ts_11.tsx"/>
+ <tileset firstgid="27217" source="ts_12.tsx"/>
+ <tileset firstgid="29521" source="ts_13.tsx"/>
+ <tileset firstgid="31825" source="ts_14.tsx"/>
+ <layer id="1" name="地面" width="100" height="60">
+  <data encoding="base64" compression="zlib">
+   eJzt2TdMW1EYhuEDu8E2RfJA3ak7dTdtp+7U3bQ9dadKpMq0HVJ2qkSqTNupO5DXQiiR4jjYl+RcuN8rPZuH4/+TFzBGKaWUUkoppZRSSimllFJKKaXc35HfmGOc4BRnOPfbfpV3KwgYU4giFKMEpQHbr/JuYW7fhGa0oBVt2sNaEW4/jBGMYgzj2sNaUW4/jwUsYgnL2sNaMW6/iz3s4wCH2sNavqAxWciGHwEEg7Zf5d1quH0t6lCPBjRqD2v1cvs+9GMAgxjSHtaa4PaTmMI0ZjCrPay1xu3XsYFNbGFbe1jrgttf4iq+QY4xGcjMsf0q71bG7ctRgUpUoVp7WKud23egE13oRo/2uLOiodQ+/4jbP8YTPMUzPNcejrvZ4dc9brPNCrdfxTu8xwd81B6Oi9/+T5J1xO2PcYJTnOFce9xJ6exRkGtMIYpQjBKU5v6f9z7k0v19hLl9E5rRgla0aQ9HJdvib3tEuP0wRjCKMYxrD0c52SPK7eexgEUsYVl7OC7dPWLcfhd72McBDrXHb82Frr3AS7zCa7zB2wQ3TrTBbTbx5RmThWz4EUAw7998p/vcTujnJqnukko13L4WdahHAxq1R8Lim+yksUkq9XL7PvRjAIMY0h5Ju9nlEz7jC77iG7473GOC209iCtOYwaz2sNYat1/HBjaxhW3tYa0Lbn+Jq/gG+cZkIDPf9quuC3vw/2Jl3L4cFahEFapdskfEg3u0c/sOdKIL3ehxyR5RD+7h5mLaw1X59Hd/pZRSSimllFLq3vYD9a2vow==
+  </data>
+ </layer>
+ <layer id="2" name="建筑" width="100" height="60">
+  <data encoding="base64" compression="zlib">
+   eJztlslSFEEUAOvqijQuAYj79iuuuHvt31ABd/2NvqLiivotgPv6G2YRc+kJrvN4hpkReanL1MTrqspSREREREREREREREREpLLQlPYFfsbN3ksmVprSLeJNjPzdeeawhJ+cR49V5vAUbwXPY445PMePzqPHGnN4hreD58Hvtfxuu+Y8evB9dnyn3VzwPDiPLeeyXXUePbi/O+7xbj54HrxXLe9Wu+I8etA3HZ3TLQTPw77aGPsqF/ZVLuyrXNhXubCvcmFf5cK+yoV9lQv7Khf2VS7sq1zYV7mwr3JhX+XCvsqFfZUL+yoX9lUu7Ktc2Fe5sK9y8T/01WRTyhRO436cwQN4EA/hYTyCR/EYHscTeBJPNaPeXZ8MfXWB/zxKT+MZPIvn8PxgfRYv4iW8jFfwKl7D63hjxPvayE3sqzCZfT2P9Y6s71ZtifX1O3gX7+F9fIAP8RE+xieBexw2Gr6BMDmHhbux8F4V7uayNFh/ia/wNb7Bt7iM7/A9fgjc47DRcC7D5E6sHVnbpb6X9Y5eX/+CX/Ebfscf+BN/4W/8E7jHYaPZORHnFtyK23A77hisj+EuHMcGJ3A37sG9uC9wj8OKiIiIiIiIyL/LX1JUp3Q=
+  </data>
+ </layer>
+ <layer id="3" name="道具" width="100" height="60">
+  <data encoding="base64" compression="zlib">
+   eJztwQENAAAAwqD3T+3sARQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADddwAAB
+  </data>
+ </layer>
+ <objectgroup color="#ff0000" id="4" name="标注"/>
+</map>

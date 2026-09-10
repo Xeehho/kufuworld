@@ -73,3 +73,15 @@ docs/参考/sckr_official_demo/
 !素材库/*/
 素材库/*/*
 !素材库/*/board.tmx
+
+# Tiled 工作区过程产物（QC渲染图含SCKR派生像素，license禁入库；tmx/tsx/py纯文本另行入库）
+docs/参考/tiled_work/*.png
+docs/参考/tiled_work/*.png.import
+docs/参考/tiled_work/_ingest_smoke/
+docs/参考/tiled_work/_probe_b/
+docs/参考/tiled_work/export_log.txt
+docs/参考/tiled_work/v.txt
+
+# 长安QC裁切对比图（SCKR派生像素，仅本地品控用）
+docs/shots/_qc/
+docs/shots/_qc_crops/

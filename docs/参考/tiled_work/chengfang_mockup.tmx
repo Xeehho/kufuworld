@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="100" height="60" tilewidth="16" tileheight="16" infinite="1" nextlayerid="5" nextobjectid="1">
+ <tileset firstgid="1" source="ts_00.tsx"/>
+ <tileset firstgid="2161" source="ts_01.tsx"/>
+ <tileset firstgid="4321" source="ts_02.tsx"/>
+ <tileset firstgid="6625" source="ts_03.tsx"/>
+ <tileset firstgid="8929" source="ts_04.tsx"/>
+ <tileset firstgid="11233" source="ts_05.tsx"/>
+ <tileset firstgid="13537" source="ts_06.tsx"/>
+ <tileset firstgid="15841" source="ts_07.tsx"/>
+ <tileset firstgid="18145" source="ts_08.tsx"/>
+ <tileset firstgid="20449" source="ts_09.tsx"/>
+ <tileset firstgid="22609" source="ts_10.tsx"/>
+ <tileset firstgid="24913" source="ts_11.tsx"/>
+ <tileset firstgid="27217" source="ts_12.tsx"/>
+ <tileset firstgid="29521" source="ts_13.tsx"/>
+ <tileset firstgid="31825" source="ts_14.tsx"/>
+ <tileset firstgid="34129" source="ts_15.tsx"/>
+ <tileset firstgid="36289" source="ts_16.tsx"/>
+ <tileset firstgid="38017" source="ts_17.tsx"/>
+ <tileset firstgid="39745" source="ts_18.tsx"/>
+ <tileset firstgid="41473" source="ts_19.tsx"/>
+ <tileset firstgid="43777" source="ts_20.tsx"/>
+ <tileset firstgid="46081" source="ts_21.tsx"/>
+ <tileset firstgid="48385" source="ts_22.tsx"/>
+ <tileset firstgid="50689" source="ts_23.tsx"/>
+ <tileset firstgid="52993" source="ts_24.tsx"/>
+ <tileset firstgid="55153" source="ts_25.tsx"/>
+ <tileset firstgid="57457" source="ts_26.tsx"/>
+ <tileset firstgid="59761" source="ts_27.tsx"/>
+ <tileset firstgid="62065" source="ts_28.tsx"/>
+ <tileset firstgid="64369" source="ts_29.tsx"/>
+ <tileset firstgid="66673" source="ts_30.tsx"/>
+ <tileset firstgid="68977" source="ts_31.tsx"/>
+ <tileset firstgid="71281" source="ts_32.tsx"/>
+ <tileset firstgid="73585" source="ts_33.tsx"/>
+ <tileset firstgid="75745" source="ts_34.tsx"/>
+ <tileset firstgid="77905" source="ts_35.tsx"/>
+ <tileset firstgid="80209" source="ts_36.tsx"/>
+ <tileset firstgid="82513" source="ts_37.tsx"/>
+ <tileset firstgid="84817" source="ts_38.tsx"/>
+ <tileset firstgid="87121" source="ts_39.tsx"/>
+ <tileset firstgid="89425" source="ts_40.tsx"/>
+ <tileset firstgid="91729" source="ts_41.tsx"/>
+ <tileset firstgid="94033" source="ts_42.tsx"/>
+ <tileset firstgid="96337" source="ts_43.tsx"/>
+ <tileset firstgid="98641" source="ts_44.tsx"/>
+ <tileset firstgid="100945" source="ts_45.tsx"/>
+ <tileset firstgid="103249" source="ts_46.tsx"/>
+ <tileset firstgid="105553" source="ts_47.tsx"/>
+ <tileset firstgid="107713" source="ts_48.tsx"/>
+ <tileset firstgid="109873" source="ts_49.tsx"/>
+ <tileset firstgid="112033" source="ts_50.tsx"/>
+ <tileset firstgid="114337" source="ts_51.tsx"/>
+ <tileset firstgid="116641" source="ts_52.tsx"/>
+ <tileset firstgid="118945" source="ts_53.tsx"/>
+ <tileset firstgid="121249" source="ts_54.tsx"/>
+ <tileset firstgid="123553" source="ts_55.tsx"/>
+ <tileset firstgid="125713" source="ts_56.tsx"/>
+ <tileset firstgid="128017" source="ts_57.tsx"/>
+ <tileset firstgid="130321" source="ts_58.tsx"/>
+ <tileset firstgid="132625" source="ts_59.tsx"/>
+ <tileset firstgid="134929" source="ts_60.tsx"/>
+ <layer id="1" name="地面" width="100" height="60">
+  <data encoding="base64" compression="zlib">
+
+   <chunk x="0" y="0" width="100" height="60">
+eJztwQENAAAAwqD3T+3sARQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADddwAAB
+   </chunk>
+
+  </data>
+ </layer>
+ <layer id="2" name="建筑" width="100" height="60">
+  <data encoding="base64" compression="zlib">
+
+   <chunk x="0" y="0" width="100" height="60">
+eJztwQENAAAAwqD3T+3sARQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADddwAAB
+   </chunk>
+
+  </data>
+ </layer>
+ <layer id="3" name="道具" width="100" height="60">
+  <data encoding="base64" compression="zlib">
+
+   <chunk x="0" y="0" width="100" height="60">
+eJztwQENAAAAwqD3T+3sARQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADddwAAB
+   </chunk>
+
+  </data>
+ </layer>
+ <objectgroup id="4" name="标注" color="#ff0000"/>
+</map>

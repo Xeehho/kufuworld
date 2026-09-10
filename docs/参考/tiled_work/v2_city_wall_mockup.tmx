@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="168" height="142" tilewidth="16" tileheight="16" infinite="0" nextlayerid="11" nextobjectid="4">
+ <tileset firstgid="1" source="ts_02.tsx"/>
+ <layer id="1" name="地面" width="168" height="142">
+  <data encoding="base64" compression="zlib">eNrt1TdsE3gYxmEnJFIW6p7GTt2pe+oOJOzUPXVP3an71T0FJLpC26/uqVKoAu5FNxy6E0mcAPpL9zzyb7Bl2dKnV3alQunO1lUGe1NPOpNOp1Opms+Ya/jv+x/ltYfpQbqf7qW76c4nrTZU9z38/0xmixNpPI2l0TRSt7XdrLfNVdtkg25ni7fSbJpJ02lqi/t8m+29Sa/Tq/QyvbBLNmElW1xOS2kxLaT5OhuiDHvrK4OtqSU1p6bUWG+flKE7W+xKnakjtac2+6QQw9niUBpMA6k/9dknAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEDRtqcdaWfalXanPc5CIY6ko+lYOp5OpJPOQiHOpfPpQrqYLqXLzkIhrqSr6Vq6nm6km85CIebS4/QkPU3P0nNnoRDv0vv04eOTmjxSbY27UIZ92eL+dCAdTIfSYfukEKeyxdPpTOpJvemsfVKIkWxxNI2l8TSRJu2TQkxli9NpJs2mW+m2fVKI+WxxIS2mpbScVuyTQjTWVipNqTm1pNa0t9ZdKENbttieOlJn6krd9kkh+rLF/jSQBtNQGrZPvpK5hure/122+H36If2Yfko/2ydfaZef7nMjW/0lW/w1/ZZ+T3+kP+2Tr7DPz7WW7dsqlR1pZ9qVdqc929yTb7fRtRzJFo+mY+l4OpFO2ieF/H6eyxbPpwvpYrqULtsn32ib6+3zSrZ4NV1L19ONdNM+KWSfc9ni4/QkPU3P0nP7pJD/93fZ4vv04eMm6yqVmlRb556s7U7D391N99L99CA9TI8a1t/nv1/7nH3Z4v50IB1Mh9Jh+2Qdqw3/bLTanVbjVLZ4Op1JPak3nbVPNrjR1U1stBoj2eJoGkvjaSJN2ieb2OmL9DK9Sq/Tm/R2i/ucyhan00yaTbfSbfukEPPZ4kJaTEtpOa3YJ4VorK9UmlJzakmtaW+9u1CGtmyxPXWkztSVuu2TQvRli/1pIA2moTRsnwAAAAAAAPBF/QUzhvf1</data>
+ </layer>
+ <layer id="2" name="建筑" width="168" height="142">
+  <data encoding="base64" compression="zlib">eNrt2NduVFcYQOGxac9C7yB6L48xt/QOt7wGhDL0Z0khdHgWSICsQXORWLIU2WMpcr4lrZujc8bHW7+395rBAAAAAAAAAAD+PadnBrdP5ck8kcfzWB7NI3k4D+XBPJD7c1/uzT35X/k9LvYuXJ7eypt5I6/ntbyaV/JyXprcdyHP57k8m2eW4F0WOp8PepbL0xf5PJ/l03ySj/NRjvLh5L77eS9/yrt5ZwneZaHz+XvPcnn6KT/mh3yf7/JtvsnX+Wpy38v8LX/NX/LnJXiXhc7nt57l8nTN7OD26lyVK3NFzuZMDvL75L6v+Wf+kV/y8xK8y0Lns3192N/OsPcbbuqduXzcnbtyZ+7I7bktt+aW3Dy5b2NuyPW5LtdO6ec376P25FHnhtFC57Nnh33GsM8aql5Mk/a8UXvf6N4i5rPz8LAzx/CL+cSU6dww6mw7ur+I+azVhp2Hh5/NJ6ZM585RbTR6sIj57NlhnzH8Zj4xZdrzRu19ozuLmM/23mF78PCr+cSU6cw46uw4uruI+fx7v1tRTBP9Dv0O6Hfod/0O/Q7od+h3QL9Dv+t36HdAv0O/A/od+l2/Q78D+h36HdDv0O/6Hfod0O/Q7+YT+h36Xb9DvwP6Hfpdv0O/Q7/rd+h3QL9Dv+t36Hfod/0O/Q7od+h3/Q79Dv2u36HfAf0O/a7fod8B/Q79Duh36Hf9Dv0O6Hfod0C/Q7/rd+h3QL9DvwP6Hfpdv0O/A/od+h3Q79Dv+h36HdDv0O/mE/od+l2/Q78D+h36Xb9Dv0O/63fod0C/Q7/rd+h36Hf9Dv0O6Hfod/0O/Q79rt+h3wH9Dv2u36HfAf0O/Q7od+h3/Q79Duh36HdAv0O/63fod0C/Q78D+h36Xb9DvwP6Hfod0O/Q7/od+h3Q79Dv5hP6Hfpdvy+OPTODwd7cl/vzQB7MQ3k4j+TRPJbH80SezFN5esb6LVW/X2xtORicybN5Ls/nhcn1S3k5r+TVvJbX80bezFvW7h9Oqd85x/5mx/9Xxmef8fl83JA/rj/MUT7Kx/kkn+azfJ4vrN28LpTmm3Ps/8mgM8+gc/mg89Pg5eT6q3ydb/Jtvsv3+SE/5idrN6+L+A6Vc+ysM/5uZNyf4zP++Bz14/r38TrPDgYzOZsrcmWuytW5ZtbazedC2TTLua7Ndbk+N+TGyfXNuSW35rbcnjtyZ+7K3dZuXgEAAAAAAADg/8hfKKO+LQ==</data>
+ </layer>
+ <layer id="3" name="道具" width="168" height="142">
+  <data encoding="base64" compression="zlib">eNrtwQENAAAAwqD3T20PBxQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAM8GdM8AAQ==</data>
+ </layer>
+ <objectgroup id="10" name="标注">
+  <object id="1" x="320" y="2176" width="1" height="1">   <text fontfamily="sans-serif" pixelssize="14" color="#e0b040">南墙·明德门（你的模板原版，宽 168 格按文档）</text>  </object>
+  <object id="2" x="320" y="288" width="1" height="1">   <text fontfamily="sans-serif" pixelssize="14" color="#e0b040">北墙·玄武门（模板镜像对折）</text>  </object>
+  <object id="3" x="192" y="1120" width="1" height="1">   <text fontfamily="sans-serif" pixelssize="14" color="#a0a0a0">东西墙=你的竖墙序列纵贯；E/W 门暂未放（等你拍板）</text>  </object>
+ </objectgroup>
+</map>
