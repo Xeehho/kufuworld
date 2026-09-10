@@ -34,20 +34,22 @@ func _ready() -> void:
 			portal_cnt += 1
 	if portal_cnt != 4:
 		fails.append("出城触发区=%d≠4" % portal_cnt)
-	# 街区与文字标签：28 街区块、标签数 ≥ 坊名+场景两层+城门+街道
+	# 街区：正式材质展示时不叠加灰盒文字；素材缺失回退时才保留标签说明层。
 	if city.blocks.size() != 28:
 		fails.append("街区数=%d≠28" % city.blocks.size())
 	var label_cnt: int = city.labels_node.get_child_count()
-	if label_cnt < 28 * 2 + 4 + 5:
-		fails.append("标签数=%d < 下限66" % label_cnt)
+	if city.materials_count > 0 and label_cnt != 0:
+		fails.append("正式材质展示仍有灰盒标签=%d" % label_cnt)
+	if city.materials_count <= 0 and label_cnt < 28 * 2 + 4 + 5:
+		fails.append("灰盒回退标签数=%d < 下限66" % label_cnt)
 	# BFS：明德门内可达全部街区中心+四门落点
 	if not city.bfs_failures.is_empty():
 		fails.append("BFS未达%d处：%s" % [city.bfs_failures.size(), str(city.bfs_failures.slice(0, 5))])
 	# 朱雀大街御道抽检：轴心3宽连续（row2~row4 段）
 	var zx: int = city.seam_x(city.axis_col) + city.zq_s / 2
 	for y in range(city.row_y(2), city.row_y(4)):
-		if int(city.ground[y * city.W + (zx - 1)]) != city.T_ZHUQUE:
-			fails.append("朱雀御道中断 y=%d" % y)
+		if int(city.ground[y * city.W + (zx - 1)]) != city.Z_ROAD:
+			fails.append("朱雀道路中断 y=%d" % y)
 			break
 	# 灰盒图导出（tile 底色 + 街区块 kind 描边 + 标签落点白点）
 	_export_graybox(city)

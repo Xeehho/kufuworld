@@ -43,7 +43,7 @@ const ZONE_SWATCH := {
 	Z_ADMIN: [96, 192],    # 蓝灰人字砖
 	Z_MARKET: [64, 160],   # 米白淡砖
 	Z_TEMPLE: [64, 144],   # 灰石板野径
-	Z_CIVIC: [384, 96],    # 野外土路（车辙土面）
+	Z_CIVIC: [48, 48],     # 内坊青灰石坪：避免将带草石边缘的 00_地面_13 全屏平铺成荒地
 }
 const ZONE_FALLBACK := {   # 素材缺失时退回 TilesetGen 单格瓦片源
 	Z_ROAD: T_MAIN_ROAD, Z_ADMIN: T_PAVE, Z_MARKET: T_PAVE,
@@ -164,8 +164,14 @@ func _build():
 	var t0 := Time.get_ticks_msec()
 	_paint_layout()
 	var painted := _fill_tilemap()
-	_spawn_labels()
 	_spawn_materials()
+	# 材质已在场时，坊名标签只会遮住建筑与街景；灰盒/素材缺失时才作为回退说明层。
+	if materials_count <= 0:
+		_spawn_labels()
+	else:
+		labels_node = Node2D.new()
+		labels_node.name = "Labels"
+		add_child(labels_node)
 	_build_portals()
 	_run_bfs()
 	var ms := Time.get_ticks_msec() - t0

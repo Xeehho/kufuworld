@@ -41,6 +41,7 @@ func setup(host: Node2D) -> void:
 	if not _load_manifest():
 		return
 	var t0 := Time.get_ticks_msec()
+	_layout_zhuque_axis()
 	for b in gen.blocks:
 		var cat: String = CAT_BY_BLOCK.get(String(b["id"]), "")
 		if cat == "" or not lib.has(cat):
@@ -58,6 +59,38 @@ func setup(host: Node2D) -> void:
 			"market": _layout_market(cat, rect, rng)
 	print("[ChangAnV2材质] 建模 %d 件（占位拒入 %d）%dms" %
 			[placed, rejected, Time.get_ticks_msec() - t0])
+
+
+# ---- 城市构图层：朱雀大街不是两侧坊的空隙，而是贯穿全城的礼制轴 ----
+# 只使用用户已进件的 11_街饰过渡_12（小型灯柱），不写入碰撞、不占用道路中央两格；
+# 成对、定距、确定性摆放让玩家沿轴移动时得到连续节奏，而非面对一条纯地砖走廊。
+func _layout_zhuque_axis() -> void:
+	var lamps := _pool("11_街饰过渡", 12, 20, 20, 30, "prop")
+	if lamps.is_empty():
+		return
+	var lamp: Dictionary = lamps[0]
+	var sx: int = gen.seam_x(gen.axis_col)
+	for r in range(gen.rows):
+		for yy in range(gen.row_y(r) + 4, gen.row_y(r) + gen.bh - 2, 8):
+			_put_axis_prop("11_街饰过渡", lamp, Vector2i(sx + 1, yy))
+			_put_axis_prop("11_街饰过渡", lamp, Vector2i(sx + gen.zq_s - 2, yy), true)
+
+
+func _put_axis_prop(cat: String, p: Dictionary, cell: Vector2i, flip := false) -> void:
+	var tex: Texture2D = _tex.get(p["file"])
+	if tex == null:
+		tex = TextureGen.load_png_texture("res://素材库/%s/%s" % [cat, p["file"]])
+		if tex == null:
+			return
+		_tex[p["file"]] = tex
+	var h_px := int(p["h"])
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	sp.flip_h = flip
+	sp.position = Vector2(cell.x * 16 + 8, (cell.y + 2) * 16)
+	sp.offset = Vector2(0, -h_px / 2.0)
+	add_child(sp)
+	placed += 1
 
 
 func _load_manifest() -> bool:
