@@ -10,6 +10,8 @@ signal interior_requested(ref: String)   # 接口兼容声明（灰盒无内景�
 
 const TilesetGen = preload("res://scripts/tileset_generator.gd")
 const TextureGen = preload("res://scripts/texture_generator.gd")
+const NPCScene = preload("res://scenes/npc.tscn")
+const NPCDataRes = preload("res://scripts/npc_data.gd")
 
 # ---- 瓦片 ID（灰盒回退用：素材库 00_地面 切件缺失时退回这些源）----
 const T_GRASS = 0        # 城外/预留空地
@@ -18,8 +20,29 @@ const T_MAIN_ROAD = 72   # 主干街/环城街（回退路砖）
 const T_LANE = 74        # 街区夯土地坪（回退坊砖）
 const T_PAVE = 101       # 方砖（回退：宫/皇/市/县署）
 const T_OUTER_WALL = 70  # 外郭城墙（带碰撞）
+const T_PALACE_WALL = 69 # 宫城围墙（横向）
+const T_WARD_WALL = 100  # 官署/院落灰墙（横向）
+const T_CITY_WALL_V = 103
+const T_PALACE_WALL_V = 104
+const T_WARD_WALL_V = 105
+const T_CITY_CAP_W = 108
+const T_CITY_CAP_E = 109
+const T_BANK = 111       # 曲江岸石（可走）
+const T_WATER = 112      # 曲江水面（碰撞）
+# SCKR 外郭城墙整带：横墙 5 层、竖墙 3 列，与 v1 范式 v3 同源。
+const T_WB_CREST = 114
+const T_WB_BODY_A = 115
+const T_WB_BODY_B = 116
+const T_WB_BODY_C = 117
+const T_WB_BASE = 118
+const T_WB_V_W0 = 119
+const T_WB_V_W1 = 120
+const T_WB_V_W2 = 121
+const T_WB_V_E0 = 122
+const T_WB_V_E1 = 123
+const T_WB_V_E2 = 124
 
-const COLLIDING := [70]
+const COLLIDING := [69, 70, 100, 103, 104, 105, 108, 109, 112, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124]
 
 # ---- 地面区带（用户规矩 2026-09-09：路砖全城统一；坊内地砖按区统一且与路砖不同）----
 const Z_GRASS := 0    # 城外/预留
@@ -34,16 +57,17 @@ const KIND_ZONE := {
 	"palace": Z_ADMIN, "palace_east": Z_ADMIN, "office": Z_ADMIN, "yamen": Z_ADMIN,
 	"market": Z_MARKET, "temple": Z_TEMPLE, "taoist": Z_TEMPLE,
 	"residential": Z_CIVIC, "noble": Z_CIVIC,
-	"venue": Z_LANE, "military": Z_LANE,
-	"royal_reserve": Z_GRASS, "reserve_empty": Z_GRASS,
+	"venue": Z_MARKET, "military": Z_CIVIC,
+	"royal_reserve": Z_ADMIN, "reserve_empty": Z_TEMPLE,
 }
-# 区带 → 素材库 00_地面 切件挑选键（宽px, 高px，精确匹配首个；找不到退回灰盒瓦片）
+# 区带 → 素材库 00_地面切件 id。必须按语义 id 取材，不能再靠尺寸碰运气；
+# 同尺寸的木板/石砖用途完全不同，旧版把 00_03 木板误当道路正是满屏条纹的根因。
 const ZONE_SWATCH := {
-	Z_ROAD: [96, 96],      # 方整石板坪——全城统一路砖
-	Z_ADMIN: [96, 192],    # 蓝灰人字砖
-	Z_MARKET: [64, 160],   # 米白淡砖
-	Z_TEMPLE: [64, 144],   # 灰石板野径
-	Z_CIVIC: [48, 48],     # 内坊青灰石坪：避免将带草石边缘的 00_地面_13 全屏平铺成荒地
+	Z_ROAD: "00_地面_11",    # 米白规整石砖：主街视觉安静，承托连续街面
+	Z_ADMIN: "00_地面_11",   # 宫署同城内石色，用围墙/殿堂体量表达等级，禁大蓝色块
+	Z_MARKET: "00_地面_11",  # 市坊同城内石色，用连续店面和人群表达密度
+	Z_TEMPLE: "00_地面_09",  # 苔石野径：寺观保留绿意
+	Z_CIVIC: "00_地面_08",   # 青灰石坪：住宅院落的低噪声底
 }
 const ZONE_FALLBACK := {   # 素材缺失时退回 TilesetGen 单格瓦片源
 	Z_ROAD: T_MAIN_ROAD, Z_ADMIN: T_PAVE, Z_MARKET: T_PAVE,
@@ -87,6 +111,9 @@ var label_count := 0
 var gate_info := {}   # side -> {name, gap_cells, inside}
 var portals_node: Node2D = null
 var materials_count := -1   # -1=素材库缺件保持灰盒
+var material_shadows := 0
+var material_collisions := 0
+var population_count := 0
 
 
 # ---- 材质层（评估稿）：素材库切件按 kind_qc/import_qc 铺设，缺件自动回灰盒 ----
@@ -96,6 +123,8 @@ func _spawn_materials():
 	add_child(mat)
 	mat.setup(self)
 	materials_count = mat.placed
+	material_shadows = mat.shadow_count
+	material_collisions = mat.collision_count
 
 
 func _ready():
@@ -173,18 +202,64 @@ func _build():
 		labels_node.name = "Labels"
 		add_child(labels_node)
 	_build_portals()
+	_spawn_population()
 	_run_bfs()
 	var ms := Time.get_ticks_msec() - t0
 	stats = {
 		"size": "%dx%d" % [W, H], "ms": ms, "blocks": blocks.size(),
 		"labels": label_count, "bfs_fail": bfs_failures.size(), "gates": gate_info.size(),
 		"ground_cells": painted[0], "decor_cells": painted[1],
-		"materials": materials_count,
+		"materials": materials_count, "material_shadows": material_shadows,
+		"material_collisions": material_collisions, "population": population_count,
 	}
 	print("[ChangAnV2] %s 生成 %dms 街区=%d 标签=%d 城门=%d BFS未达=%d 材质件=%d" %
 			[stats["size"], ms, blocks.size(), label_count, gate_info.size(), bfs_failures.size(), materials_count])
 	done = true
 	generation_done.emit()
+
+
+# ---- 城市人口层：主街/横街/两市布置 24 名静态生活 NPC ----
+# NPC 复用既有角色帧、脚底阴影与碰撞分层；先用 idle 日程保证不穿越水面/建筑，
+# 后续在城市寻路图接入后再升级为巡市路线。
+func _spawn_population() -> void:
+	var population := Node2D.new()
+	population.name = "Population"
+	population.z_index = 2
+	population.y_sort_enabled = true
+	add_child(population)
+	var cells: Array[Vector2i] = []
+	var zx := seam_x(axis_col) + zq_s / 2
+	for r in range(rows):
+		cells.append(Vector2i(zx - 1, row_y(r) + 8))
+		cells.append(Vector2i(zx + 1, row_y(r) + 14))
+	for j in range(1, rows):
+		var sy := seam_y(j) + main_s / 2
+		for c in [0, 2, 4]:
+			cells.append(Vector2i(col_x(c) + 10, sy))
+	for b in blocks:
+		if String(b["kind"]) != "market":
+			continue
+		var rect := _block_rect(b)
+		cells.append(Vector2i(rect.position.x + 5, rect.position.y + 10))
+		cells.append(Vector2i(rect.position.x + 15, rect.position.y + 11))
+	var types := ["warrior", "scholar", "merchant", "elder", "guard",
+			"tavern_f", "matron_f", "peasant_f", "herbalist_f", "seamstress_f"]
+	var names := ["行商", "书生", "脚夫", "香客", "坊民", "侍女", "货郎", "老者"]
+	for i in range(mini(24, cells.size())):
+		var npc = NPCScene.instantiate()
+		var pos := cell_to_px(cells[i])
+		var data = NPCDataRes.new()
+		data.npc_id = "changan_v2_citizen_%02d" % i
+		data.npc_name = "%s·%02d" % [names[i % names.size()], i + 1]
+		data.personality = "市侩" if i % 3 == 0 else "儒雅"
+		data.home_position = pos
+		data.work_position = pos
+		data.custom_schedule = [{"start": 0, "end": 24, "state": "idle", "pos": pos}]
+		npc.npc_data = data
+		npc.npc_type = types[i % types.size()]
+		npc.position = pos
+		population.add_child(npc)
+		population_count += 1
 
 
 func _paint_layout():
@@ -209,11 +284,14 @@ func _paint_layout():
 	for b in blocks:
 		var rect := _block_rect(b)
 		var kind := String(b["kind"])
-		if kind == "royal_reserve" or kind == "reserve_empty":
-			continue   # 预留地保持草地
 		_set_rect(ground, rect.position.x, rect.position.y, rect.size.x, rect.size.y,
 				KIND_ZONE.get(kind, Z_LANE))
-	# 外郭城墙（厚 wall 的 70 环）+ 四城门豁口
+	# 坊内通道属于视觉/行走层级，不改变冻结的外部街网：
+	# 主街 → 坊内巷 → 门前空间。这样同类建筑不再漂在一整块地坪上。
+	_paint_block_access_lanes()
+	_paint_district_enclosures()
+	_paint_qujiang_water()
+	# 外郭城墙物理环 + 完整立面由 Materials 层的 wall_run 连续组装
 	_paint_walls()
 	_carve_gates()
 
@@ -231,11 +309,68 @@ func _block_rect(b: Dictionary) -> Rect2i:
 	return Rect2i(x0, y0, col_x(c + sx - 1) + bw - x0, row_y(r + sy - 1) + bh - y0)
 
 
-func _paint_walls():
+# ---- 坊内空间骨架：仅重铺已有路砖，不新增碰撞也不侵入外部道路 ----
+# 住宅/府邸/官署的北、南建筑带中间留两格横巷；它既是门前缓冲，也是
+# 让玩家读出“街 → 院 → 屋”的层级。市集和寺观各有自身中央空间，故不套此规则。
+func _paint_block_access_lanes() -> void:
+	for b in blocks:
+		var kind := String(b["kind"])
+		if kind not in ["residential", "noble", "office", "yamen"]:
+			continue
+		var rect := _block_rect(b)
+		if rect.size.y < 14 or rect.size.x < 6:
+			continue
+		_set_rect(ground, rect.position.x + 1, rect.position.y + 10,
+				rect.size.x - 2, 2, Z_ROAD)
+
+
+# ---- 曲江水岸：左侧园池+两格桥面，形成概念图中的水绿边界 ----
+# 使用 TilesetGen 已注册的 111 岸石/112 水面；桥面重铺寺观地坪，保证玩家可过。
+func _paint_qujiang_water() -> void:
+	for b in blocks:
+		if String(b["id"]) != "qujiang":
+			continue
+		var rect := _block_rect(b)
+		_set_rect(ground, rect.position.x + 1, rect.position.y + 2, 9, rect.size.y - 4, T_BANK)
+		_set_rect(ground, rect.position.x + 2, rect.position.y + 3, 7, rect.size.y - 6, T_WATER)
+		# 四角各收一格，避免水面读成编辑器矩形色块；岸石仍完整包边。
+		for p in [Vector2i(rect.position.x + 2, rect.position.y + 3),
+				Vector2i(rect.position.x + 8, rect.position.y + 3),
+				Vector2i(rect.position.x + 2, rect.position.y + rect.size.y - 4),
+				Vector2i(rect.position.x + 8, rect.position.y + rect.size.y - 4)]:
+			ground[p.y * W + p.x] = T_BANK
+		_set_rect(ground, rect.position.x + 1, rect.position.y + 9, 9, 2, Z_TEMPLE)
+		return
+
+
+# ---- 礼制组团围合：宫城/东宫/皇城不再是地坪上的散件。----
+# 横墙、侧墙使用同一套灰瓦/宫墙语汇；南北各留 3 格门洞，确保剧情锚点与 BFS 可达。
+func _paint_district_enclosures() -> void:
+	for b in blocks:
+		var id := String(b["id"])
+		if id not in ["gongcheng", "donggong", "huangcheng"]:
+			continue
+		var rect := _block_rect(b)
+		var h_id := T_PALACE_WALL if id != "huangcheng" else T_WARD_WALL
+		var v_id := T_PALACE_WALL_V if id != "huangcheng" else T_WARD_WALL_V
+		_set_rect(decor, rect.position.x, rect.position.y, rect.size.x, 1, h_id)
+		_set_rect(decor, rect.position.x, rect.end.y - 1, rect.size.x, 1, h_id)
+		_set_rect(decor, rect.position.x, rect.position.y, 1, rect.size.y, v_id)
+		_set_rect(decor, rect.end.x - 1, rect.position.y, 1, rect.size.y, v_id)
+		var cx := rect.position.x + rect.size.x / 2
+		_set_rect(decor, cx - 1, rect.position.y, 3, 1, T_GATE_OPEN)
+		_set_rect(decor, cx - 1, rect.end.y - 1, 3, 1, T_GATE_OPEN)
+
+
+func _paint_walls() -> void:
+	# TileMap 只承担稳定的两格厚物理环；可见高墙由整张 wall_run 立面连续铺，
+	# 避免把 crest/body/base 五张横条直接平铺成“铁路轨道”。
 	_set_rect(decor, margin, margin, W - margin * 2, wall, T_OUTER_WALL)
 	_set_rect(decor, margin, H - margin - wall, W - margin * 2, wall, T_OUTER_WALL)
-	_set_rect(decor, margin, margin, wall, H - margin * 2, T_OUTER_WALL)
-	_set_rect(decor, W - margin - wall, margin, wall, H - margin * 2, T_OUTER_WALL)
+	_set_rect(decor, margin, margin, 1, H - margin * 2, T_CITY_CAP_W)
+	_set_rect(decor, margin + 1, margin, 1, H - margin * 2, T_CITY_WALL_V)
+	_set_rect(decor, W - margin - wall, margin, 1, H - margin * 2, T_CITY_WALL_V)
+	_set_rect(decor, W - margin - 1, margin, 1, H - margin * 2, T_CITY_CAP_E)
 
 
 # 城门对齐：S=朱雀轴心；N=东纵街(col4|col5缝)；E/W=金光春明大街(row1|row2缝)
@@ -263,24 +398,26 @@ func _load_gate_names() -> Dictionary:
 
 
 func _carve_gate_ns(side: String, gname: String, cx: int):
-	var y_wall := H - margin - wall if side == "S" else margin
-	_set_rect(decor, cx - 1, y_wall, 3, wall, T_GATE_OPEN)
-	_set_rect(ground, cx - 1, y_wall - 1, 3, wall + 2, Z_ROAD)   # 门下+贴邻铺路
+	var band_y := H - margin - 2 if side == "S" else margin - 3
+	_set_rect(decor, cx - 1, band_y, 3, 5, T_GATE_OPEN)
+	_set_rect(ground, cx - 1, band_y - 1, 3, 7, Z_ROAD)   # 门下+墙带两侧接路
 	var inside := Vector2i(cx, H - margin - wall - 2 if side == "S" else margin + wall + 2)
 	var gaps: Array = []
+	var gap_y := H - margin - 1 if side == "S" else margin
 	for i in range(-1, 2):
-		gaps.append(Vector2i(cx + i, y_wall + wall / 2))
+		gaps.append(Vector2i(cx + i, gap_y))
 	gate_info[side] = {"name": gname, "gap_cells": gaps, "inside": inside}
 
 
 func _carve_gate_ew(side: String, gname: String, cy: int):
-	var x_wall := W - margin - wall if side == "E" else margin
-	_set_rect(decor, x_wall, cy - 1, wall, 3, T_GATE_OPEN)
-	_set_rect(ground, x_wall - 1, cy - 1, wall + 2, 3, Z_ROAD)
+	var band_x := W - margin - 2 if side == "E" else margin - 1
+	_set_rect(decor, band_x, cy - 1, 3, 3, T_GATE_OPEN)
+	_set_rect(ground, band_x - 1, cy - 1, 5, 3, Z_ROAD)
 	var inside := Vector2i(W - margin - wall - 2 if side == "E" else margin + wall + 2, cy)
 	var gaps: Array = []
+	var gap_x := W - margin - 1 if side == "E" else margin
 	for i in range(-1, 2):
-		gaps.append(Vector2i(x_wall + wall / 2, cy + i))
+		gaps.append(Vector2i(gap_x, cy + i))
 	gate_info[side] = {"name": gname, "gap_cells": gaps, "inside": inside}
 
 
@@ -316,12 +453,21 @@ func _fill_tilemap() -> Array:
 		var base := yy * W
 		for xx in range(W):
 			var zone: int = ground[base + xx]
+			if zone == T_BANK or zone == T_WATER:
+				tile_map.set_cell(0, Vector2i(xx, yy), zone, Vector2i(0, 0))
+				gnd += 1
+				var raw_d := decor[base + xx]
+				if raw_d != 0:
+					tile_map.set_cell(1, Vector2i(xx, yy), raw_d, Vector2i(0, 0))
+					dcr += 1
+				continue
 			var zt: Dictionary = zone_tiles.get(zone, {})
 			if zt.has("sid"):
-				# 确定性伪随机变体（去拼接缝感）
-				var vars: Array = zt["vars"]
-				var hsh: int = absi(xx * 73856093 ^ yy * 19349663) % vars.size()
-				tile_map.set_cell(0, Vector2i(xx, yy), int(zt["sid"]), vars[hsh])
+				# 按原图邻接关系周期铺装。旧版随机抽 16px 子格会打散砖缝/木纹，
+				# 技术上“无重复”，视觉上却成为最醒目的噪点。
+				var pattern: Vector2i = zt["pattern"]
+				var atlas := Vector2i(posmod(xx, pattern.x) + 1, posmod(yy, pattern.y) + 1)
+				tile_map.set_cell(0, Vector2i(xx, yy), int(zt["sid"]), atlas)
 			else:
 				tile_map.set_cell(0, Vector2i(xx, yy), ZONE_FALLBACK.get(zone, T_LANE), Vector2i(0, 0))
 			gnd += 1
@@ -343,10 +489,10 @@ func _build_ground_sources(ts: TileSet) -> Dictionary:
 		return out
 	var pieces: Array = parsed["categories"]["00_地面"]["pieces"]
 	for zone: int in ZONE_SWATCH:
-		var want: Array = ZONE_SWATCH[zone]
+		var want_id: String = ZONE_SWATCH[zone]
 		var rec: Dictionary = {}
 		for p in pieces:
-			if int(p["w"]) == want[0] and int(p["h"]) == want[1] and String(p["class"]) == "ground":
+			if String(p["id"]) == want_id and String(p["class"]) == "ground":
 				rec = p
 				break
 		if rec.is_empty():
@@ -359,23 +505,16 @@ func _build_ground_sources(ts: TileSet) -> Dictionary:
 		src.texture_region_size = Vector2i(16, 16)
 		var tw := tex.get_width() / 16
 		var th := tex.get_height() / 16
-		var vars: Array = []
-		for vy in range(1, max(2, th - 1)):
-			for vx in range(1, max(2, tw - 1)):
-				vars.append(Vector2i(vx, vy))
-		if vars.is_empty():
+		# 去掉切件外沿一格（通常是边界/排水沟），保留完整连续的内部图案。
+		var pattern := Vector2i(tw - 2, th - 2)
+		if pattern.x <= 0 or pattern.y <= 0:
 			continue
-		# 最多取 6 个变体（确定性均匀取样）
-		var step := maxi(1, vars.size() / 6)
-		var picked: Array = []
-		for i in range(0, vars.size(), step):
-			src.create_tile(vars[i])
-			picked.append(vars[i])
-			if picked.size() >= 6:
-				break
+		for vy in range(1, th - 1):
+			for vx in range(1, tw - 1):
+				src.create_tile(Vector2i(vx, vy))
 		var sid := 200 + zone
 		ts.add_source(src, sid)
-		out[zone] = {"sid": sid, "vars": picked, "swatch": String(rec["id"])}
+		out[zone] = {"sid": sid, "pattern": pattern, "swatch": String(rec["id"])}
 	if not out.is_empty():
 		var names := []
 		for z in out:

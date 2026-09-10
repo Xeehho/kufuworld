@@ -6,6 +6,11 @@ func _ready() -> void:
 	var t0 := Time.get_ticks_msec()
 	var city = load("res://scenes/changan_v2.tscn").instantiate()
 	add_child(city)
+	# 本探针只审计城市场景，不会挂载主世界的 Player/UI；静态人口在这种孤立
+	# 环境下没有可查询的鼠标/玩家对象，因此禁用其调度，避免把场景外依赖误报成城市错误。
+	var population = city.get_node_or_null("Population")
+	if population != null:
+		population.process_mode = Node.PROCESS_MODE_DISABLED
 	while not city.done and Time.get_ticks_msec() - t0 < 30000:
 		await get_tree().process_frame
 	var total := Time.get_ticks_msec() - t0
@@ -42,6 +47,27 @@ func _ready() -> void:
 		fails.append("正式材质展示仍有灰盒标签=%d" % label_cnt)
 	if city.materials_count <= 0 and label_cnt < 28 * 2 + 4 + 5:
 		fails.append("灰盒回退标签数=%d < 下限66" % label_cnt)
+	if city.materials_count > 0:
+		if int(city.stats.get("material_shadows", 0)) < 40:
+			fails.append("建筑接地阴影=%d < 下限40" % int(city.stats.get("material_shadows", 0)))
+		if int(city.stats.get("material_collisions", 0)) < 40:
+			fails.append("建筑碰撞体=%d < 下限40" % int(city.stats.get("material_collisions", 0)))
+		var bodies := get_tree().get_nodes_in_group("changan_building_collision").size()
+		if bodies != int(city.stats.get("material_collisions", -1)):
+			fails.append("建筑碰撞统计=%d，实际节点=%d" % [int(city.stats.get("material_collisions", -1)), bodies])
+		if get_tree().get_nodes_in_group("changan_city_gate").size() != 4:
+			fails.append("城门楼素材节点数≠4")
+	if int(city.stats.get("population", 0)) != 24:
+		fails.append("城市人口=%d≠24" % int(city.stats.get("population", 0)))
+	# 城墙用完整 wall_run 立面连续铺设；TileMap 仍保留两格厚碰撞环。
+	if city.materials_count > 0 and get_tree().get_nodes_in_group("changan_outer_wall_facade").size() < 50:
+		fails.append("外郭高墙连续立面不足50段")
+	var water_cells := 0
+	for d in city.ground:
+		if int(d) == city.T_WATER:
+			water_cells += 1
+	if water_cells < 60:
+		fails.append("曲江水面=%d格 < 下限60" % water_cells)
 	# BFS：明德门内可达全部街区中心+四门落点
 	if not city.bfs_failures.is_empty():
 		fails.append("BFS未达%d处：%s" % [city.bfs_failures.size(), str(city.bfs_failures.slice(0, 5))])

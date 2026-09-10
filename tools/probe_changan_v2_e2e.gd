@@ -43,6 +43,25 @@ func _ready() -> void:
 	var ch = cv.changan
 	await _settle(6)
 	await _shot("changan_v2_e2e_mingde.png")
+	# 角色接地/碰撞与城市建筑脚印：这些是视觉层和物理层的共同验收契约。
+	_check(p.collision_layer == 2 and (p.collision_mask & 1) != 0,
+			"玩家碰撞层可阻挡地形/建筑")
+	_check(p.get_node_or_null("CollisionShape2D") != null and p.get_node_or_null("GroundShadow") != null,
+			"玩家脚部碰撞盒与接地阴影齐备")
+	var population = ch.get_node_or_null("Population")
+	_check(population != null and population.get_child_count() == 24, "城内人口24名")
+	var materials = ch.get_node_or_null("Materials")
+	_check(materials != null and materials.z_index == p.z_index and population != null and population.z_index == p.z_index,
+			"玩家/建筑/NPC同层递归Y-sort，人物可在建筑前后穿行")
+	if population != null:
+		for npc in population.get_children():
+			if npc.get_node_or_null("CollisionShape2D") == null or npc.get_node_or_null("GroundShadow") == null:
+				_fail("城内NPC缺脚部碰撞盒或接地阴影：%s" % npc.name)
+				break
+	_check(get_tree().get_nodes_in_group("changan_building_collision").size() >= 40,
+			"建筑/树木脚印碰撞体不少于40处")
+	_check(get_tree().get_nodes_in_group("changan_city_gate").size() == 4, "四城门楼素材齐备")
+	_check(_main_streets_clear(ch, cv, p), "朱雀与两条横向主街保留可连续穿行的中央通道")
 	# 2) 落点 3×3 可通行
 	var spawn_cell := Vector2i(int((p.global_position.x - cv.CITY_OFFSET.x) / TILE), int((p.global_position.y - cv.CITY_OFFSET.y) / TILE))
 	_check(ch.is_spawn_clear(spawn_cell), "明德门内落点3×3可通行 %s" % spawn_cell)
@@ -94,6 +113,40 @@ func _block_center(ch, bid: String) -> Vector2i:
 
 func _in_city_space(p, cv) -> bool:
 	return p.global_position.y > cv.CITY_OFFSET.y
+
+
+# 主街不能把静态 NPC 或建筑脚印摆成横向人墙。以玩家同尺寸（12×8 的脚部盒）
+# 查询三条礼制道路的中线；保留 NPC 在两侧/街口制造生活感，但中心线必须连续。
+func _main_streets_clear(ch, cv, player) -> bool:
+	var cells: Array[Vector2i] = []
+	var zhuque_x: int = ch.seam_x(ch.axis_col) + ch.zq_s / 2
+	for row in [1, 2, 3, 4]:
+		cells.append(Vector2i(zhuque_x, ch.row_y(row) + 3))
+		cells.append(Vector2i(zhuque_x, ch.row_y(row) + 11))
+	for seam in [1, 2, 3]:
+		var y: int = ch.seam_y(seam) + ch.main_s / 2
+		cells.append(Vector2i(ch.col_x(1) + 8, y))
+		cells.append(Vector2i(ch.col_x(3) + 8, y))
+		cells.append(Vector2i(ch.col_x(5) - 3, y))
+	for cell in cells:
+		if not _footprint_clear(cv.CITY_OFFSET + ch.cell_to_px(cell), player):
+			_fail("主街中央通道被实体碰撞占用：%s" % cell)
+			return false
+	return true
+
+
+func _footprint_clear(pos: Vector2, player) -> bool:
+	var shape := RectangleShape2D.new()
+	shape.size = Vector2(12, 8)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = shape
+	# Player 的 CollisionShape2D 在脚底上方4px，查询需采用相同中心。
+	query.transform = Transform2D(0, pos + Vector2(0, -4))
+	query.collision_mask = 1 | 4
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	query.exclude = [player.get_rid()]
+	return player.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 func _tp(p, pos: Vector2):

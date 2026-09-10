@@ -51,6 +51,8 @@ func _run():
 		["xishi", Vector2i(city.col_x(0) + 10, city.row_y(2) + 10), 2.0],
 		["gongcheng", Vector2i(city.col_x(2) + 23, city.row_y(0) + 14), 2.0],
 		["pingkang", Vector2i(city.col_x(5) + 10, city.row_y(1) + 10), 2.0],
+		["tongji", Vector2i(city.col_x(1) + 10, city.row_y(4) + 10), 2.0],
+		["qujiang", Vector2i(city.col_x(5) + 10, city.row_y(4) + 10), 2.0],
 	]
 	var count := 0
 	for s in spots:

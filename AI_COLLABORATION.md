@@ -208,7 +208,7 @@
 ### REQ-20260910-01：`game_manager.gd` reputation 兼容转发（共享热点最小补丁）
 
 - 提出方：玩法叙事线
-- 状态：待评估
+- 状态：需修正后接受（2026-09-10 复查）
 - 使用场景：P1-2 兼容桥接——旧单轨 `reputation` 的读写入口转发到新四轨声望系统（`scripts/gameplay/reputation_system.gd`，commit `337011a`，58 项聚焦测试全绿），兼容期旧调用方与视觉线零改动。
 - 希望提供的 ref、信号、方法或数据字段：
   1. `var reputation` 改 computed property（`get`/`set`）：set 转发 bridge 写入民心轨（缺省，设计§5.1 旧道德值+悬赏≈民心语义）；get 返回兼容视图（公式待拍板：总声望/42 或 民心/100）
@@ -216,6 +216,18 @@
   3. `apply_story_effects` 的 `reputation` 效果键支持可选 `track` 字段（缺省民心）
 - 不应修改的既有行为：旧调用方签名与效果数值不变；`modify_morality` 等邻接函数不动；此文件其余逻辑（门派/时间/天气/生存）不触碰
 - 验收方式：`tools/test_reputation_bridge.gd`（待建）聚焦测试 + 主场景 headless 1200 帧零报错 + `python tools/run_changan_e2e.py` 视觉 E2E 不回归
+
+**复查结论与已拍板口径（2026-09-10）**：
+
+1. 兼容视图固定为 `total_normalized`：`旧 reputation = 总声望 / 42`；旧写入固定为 `amount × 42` 写入默认民心轨。这样旧门槛 10/30/50、誓约 500 与商店 600 仍分别落在合理的全局舞台，避免 `minxin / 100` 下无法达到后两者的问题。
+2. `GameManager.reputation` 的 **setter 是绝对赋值语义，不是增量**：桥接须新增类似 `set_legacy_value(value)` 的接口，以 `value - legacy_value()` 换算差额后写入默认轨。必须覆盖 `reputation = x`、`reputation += x` 与 `reputation = max(reputation * 0.3, 0)` 三种回归，禁止 setter 直接调用 `apply_legacy(value)`。
+3. 死亡重构采用设计稿 §4.2/§6.2：默认“天道回响”扣 100 天命点（不足则清零）并使各正值声望轨各衰减 5%，负值轨不自动变化；在原地或村落复活。一次性“回响保险”使两项惩罚减半。死亡系统完整 reskin 归 P1-3（商城服务接线后）完成，P1-2 只保持旧行为的绝对 setter 兼容。
+
+**接线前必须修正的复查问题**：
+
+- `DestinyWheel._init()` 目前把 `_load_config()` 错放在测试种子分支，生产构造不读取 JSON；应无条件加载配置，随机种子仅作为测试注入。
+- 设计稿规定十连 `900` 天命点，现逻辑按 `10 × 100 = 1000` 扣费；新增 `cost_ten_draw=900` 配置与测试后再接 UI。
+- 设计稿规定天命轮盘在糖糖 Lv3（总声望 3000）才开放；当前稼穑池在舞台 0 可直接抽。应新增独立的 `system_unlock_total=3000` 功能门槛，池的章节解锁只在功能已开放后判断。
 
 ## 九、每次交接必须更新的内容
 

@@ -124,6 +124,7 @@ func _ready():
 	# 画面改造P2.1：脚底软阴影（rebuild 后 anim.offset=(0,-16) 脚线=节点原点，影贴脚跟；
 	# 初版误按画布脚线放 y+14 造成"人影分离悬空"——已修）
 	var shadow := TextureGen.make_shadow_sprite(24.0, 0.30)
+	shadow.name = "GroundShadow"
 	shadow.position = Vector2(0, 0)
 	add_child(shadow)
 	# 碰撞分层表（地形/建筑StaticBody=层1）：玩家=层2，NPC=层4，敌人=层8
