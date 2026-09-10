@@ -1,5 +1,7 @@
 {
 	"cost_per_draw": 100,
+	"cost_ten_draw": 900,
+	"system_unlock_total": 3000.0,
 	"qualities": {
 		"fanpin": {"name": "凡品", "weight": 60.0},
 		"liangpin": {"name": "良品", "weight": 25.0},

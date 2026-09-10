@@ -23,5 +23,6 @@
 		{"name": "国之柱石", "threshold": 20000.0, "unlock": "天可汗体系、十六卫"},
 		{"name": "青史留名", "threshold": 40000.0, "unlock": "终幕抉择"}
 	],
-	"stage_rewards": [0, 500, 1200, 2500, 5000, 10000]
+	"stage_rewards": [0, 500, 1200, 2500, 5000, 10000],
+	"legacy": {"view_mode": "total_normalized", "scale": 42.0, "default_track": "minxin"}
 }

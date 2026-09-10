@@ -6,9 +6,10 @@ extends RefCounted
 ## 旧调用方（任务/奇遇/誓约/商店/NPC/死亡）零改动自动进新系统。
 ## REQ 评估通过前本模块独立存在，不改任何现有文件。
 ##
-## 兼容视图两种候选（公式拍板前并存，bridge 配置切换）：
-## - TOTAL_NORMALIZED：旧值 = 总声望/42（全局声望语义，旧门槛≈全局进度）
-## - MINXIN_SCALED：旧值 = 民心/100（单轨语义，设计§5.1 旧道德值+悬赏≈民心）
+## 兼容视图公式（REQ-20260910-01 复查口径①拍板）：
+## - TOTAL_NORMALIZED（默认）：旧值 = 总声望/42、写入 ×42 进默认轨——
+##   旧门槛 10/30/50、誓约 500、商店折扣 600 均落在合理全局舞台
+## - MINXIN_SCALED（备选保留）：旧值 = 民心/100——誓约 500 与折扣 600 不可达，勿用于生产
 
 const RepSysScript := preload("res://scripts/gameplay/reputation_system.gd")
 const DWalletScript := preload("res://scripts/gameplay/destiny_wallet.gd")
@@ -25,7 +26,7 @@ var rep: RepSysScript
 var wallet: DWalletScript
 var legacy_config: Dictionary = {
 	"view_mode": VIEW_TOTAL_NORMALIZED,
-	"scale": 1.0,  # 写入放大系数：旧 +10 × scale 进新轨（标定待拍板，默认 1:1）
+	"scale": 42.0,  # 写入放大系数：与视图公式联动（总/42 ↔ 写×42，写读一致）
 	"default_track": "minxin",
 }
 
@@ -48,12 +49,20 @@ func _load_legacy_config(path: String) -> void:
 				legacy_config[key] = parsed["legacy"][key]
 
 
-## 旧写入口：modify_reputation 与 reputation setter 的转发目标。
+## 旧写入口（增量语义）：modify_reputation 与 += 形态的转发目标。
 ## 返回实际轨道变化量。缺省轨道=民心（设计§5.1）。
 func apply_legacy(amount: float, track: String = "", reason: String = "legacy") -> float:
 	var target := track if rep.is_valid_track(track) else String(legacy_config["default_track"])
 	var scaled := amount * float(legacy_config["scale"])
 	return rep.add_reputation(target, scaled, reason)
+
+
+## 旧写入口（绝对赋值语义，REQ 复查口径②）：旧代码三种写法
+## `reputation = x` / `reputation += x` / `reputation = max(reputation * 0.3, 0)`
+## 都是"读旧值→算新值→绝对 set"，桥接按 value 与当前视图的差额换算写入默认轨，
+## 视图层面精确到达 value。禁止把 value 当增量传 apply_legacy（死亡惩罚会变加分）。
+func set_legacy_value(value: float, track: String = "", reason: String = "legacy_set") -> float:
+	return apply_legacy(value - legacy_value(), track, reason)
 
 
 ## 旧读入口：reputation getter 的兼容视图。负值轨同样参与（透支可见）。

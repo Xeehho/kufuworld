@@ -18,9 +18,13 @@ const CONFIG_PATH := "res://data/destiny_wheel_config.json"
 const QUALITY_ORDER: PackedStringArray = ["fanpin", "liangpin", "zhenpin", "juepin", "chuanshi"]
 
 ## 内置默认：与 JSON 同源维护；缺失回退（保运行可用）。
-## 奖池条目为占位 item_id（物品系统接线时统一命名登记）。
+## item_id 为占位命名（物品系统接线时统一命名登记）。
+## cost_ten_draw：设计§4.2 规定十连 900（低于 10×100 凑单优惠）。
+## system_unlock_total：设计§4.2 糖糖成长表——轮盘为 Lv3 功能（总声望 3000 解锁）。
 const DEFAULT_CONFIG: Dictionary = {
 	"cost_per_draw": 100,
+	"cost_ten_draw": 900,
+	"system_unlock_total": 3000.0,
 	"qualities": {
 		"fanpin": {"name": "凡品", "weight": 60.0},
 		"liangpin": {"name": "良品", "weight": 25.0},
@@ -78,6 +82,16 @@ func cost_per_draw() -> int:
 	return int(config["cost_per_draw"])
 
 
+func cost_ten_draw() -> int:
+	return int(config.get("cost_ten_draw", cost_per_draw() * 10))
+
+
+## 轮盘功能门槛：糖糖 Lv3（总声望 ≥ system_unlock_total）才开放，设计§4.2。
+## 与池的舞台解锁是两级门槛：功能未开时任何池都不可抽。
+func is_wheel_unlocked(total_reputation: float) -> bool:
+	return total_reputation >= float(config.get("system_unlock_total", 0.0))
+
+
 func pool_ids() -> Array:
 	return config["pools"].map(func(p): return String(p["id"]))
 
@@ -88,8 +102,10 @@ func is_pool_unlocked(pool_id: String, stage: int) -> bool:
 	return not pool.is_empty() and stage >= int(pool.get("unlock_stage", 0))
 
 
-## 单抽。池不存在/未解锁/余额不足：返回空数组且不扣费。
-func draw_once(pool_id: String, stage: int = 0) -> Array:
+## 单抽。功能未解锁/池不存在或未解锁/余额不足：返回空数组且不扣费。
+func draw_once(pool_id: String, stage: int = 0, total_reputation: float = 0.0) -> Array:
+	if not is_wheel_unlocked(total_reputation):
+		return []
 	var pool := _find_pool(pool_id)
 	if pool.is_empty() or not is_pool_unlocked(pool_id, stage):
 		return []
@@ -101,12 +117,14 @@ func draw_once(pool_id: String, stage: int = 0) -> Array:
 	return results
 
 
-## 十连：整段扣费 10×单抽；十连至少一珍（无珍品+ 则末抽强制珍品）。
-func draw_ten(pool_id: String, stage: int = 0) -> Array:
+## 十连：整段扣费 cost_ten_draw（900，设计§4.2）；十连至少一珍（无珍品+ 则末抽强制珍品）。
+func draw_ten(pool_id: String, stage: int = 0, total_reputation: float = 0.0) -> Array:
+	if not is_wheel_unlocked(total_reputation):
+		return []
 	var pool := _find_pool(pool_id)
 	if pool.is_empty() or not is_pool_unlocked(pool_id, stage):
 		return []
-	if not wallet.spend(cost_per_draw() * 10, "天命轮盘·%s十连" % pool["name"]):
+	if not wallet.spend(cost_ten_draw(), "天命轮盘·%s十连" % pool["name"]):
 		return []
 	var results: Array = []
 	for i in 10:
