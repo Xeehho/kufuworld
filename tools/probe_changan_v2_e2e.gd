@@ -49,7 +49,7 @@ func _ready() -> void:
 	_check(p.get_node_or_null("CollisionShape2D") != null and p.get_node_or_null("GroundShadow") != null,
 			"玩家脚部碰撞盒与接地阴影齐备")
 	var population = ch.get_node_or_null("Population")
-	_check(population != null and population.get_child_count() == 24, "城内人口24名")
+	_check(population != null and population.get_child_count() == 40, "城内人口40名")
 	var materials = ch.get_node_or_null("Materials")
 	_check(materials != null and materials.z_index == p.z_index and population != null and population.z_index == p.z_index,
 			"玩家/建筑/NPC同层递归Y-sort，人物可在建筑前后穿行")

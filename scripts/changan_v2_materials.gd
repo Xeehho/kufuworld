@@ -120,19 +120,27 @@ func _layout_outer_wall_facade() -> void:
 			continue
 		var cells: Array = gen.gate_info[side]["gap_cells"]
 		var gate_cx := (float(cells[0].x + cells[cells.size() - 1].x) * 0.5 + 0.5) * 16.0
+		var gate_name := "gate_tower_big" if side == "S" else "gate_tower_mid"
+		var gate_half := 55.0
+		if _pack_assets.has(gate_name):
+			gate_half = float(_pack_assets[gate_name]["w"]) * 0.5
 		var x_start := float(gen.margin * 16)
 		var x_end := float((gen.W - gen.margin) * 16)
 		var bottom := float((gen.margin + gen.wall) * 16 - 1) if side == "N" \
 				else float((gen.H - gen.margin) * 16 - 1)
-		_spawn_wall_interval(tex, x_start, gate_cx - 55.0, bottom, side)
-		_spawn_wall_interval(tex, gate_cx + 55.0, x_end, bottom, side)
+		# 从门楼边缘反向铺墙，把不可整除的余量赶到城角外侧；门墙接缝始终零缝。
+		_spawn_wall_interval(tex, x_start, gate_cx - gate_half, bottom, side, true)
+		_spawn_wall_interval(tex, gate_cx + gate_half, x_end, bottom, side, false)
 
 
-func _spawn_wall_interval(tex: Texture2D, x0: float, x1: float, bottom: float, side: String) -> void:
+func _spawn_wall_interval(tex: Texture2D, x0: float, x1: float, bottom: float, side: String,
+		align_right: bool) -> void:
 	var step := float(tex.get_width())
-	var x := x0
+	var x := x1 if align_right else x0
 	var index := 0
-	while x + step <= x1 + 1.0:
+	while (x > x0 + 0.5) if align_right else (x < x1 - 0.5):
+		if align_right:
+			x -= step
 		var sp := Sprite2D.new()
 		sp.name = "OuterWall_%s_%02d" % [side, index]
 		sp.texture = tex
@@ -142,7 +150,8 @@ func _spawn_wall_interval(tex: Texture2D, x0: float, x1: float, bottom: float, s
 		sp.add_to_group("changan_outer_wall_facade")
 		add_child(sp)
 		placed += 1
-		x += step
+		if not align_right:
+			x += step
 		index += 1
 
 
@@ -190,15 +199,14 @@ func _spawn_pack_free(name: String, foot_cell: Vector2i) -> bool:
 	return true
 
 
-# ---- 四门门楼：复用完整素材包的语义切件，骑在墙带豁口上。----
+# ---- 四门入口：南北门使用与墙带同模数的正面门楼；东西门使用侧向关口组合。----
 # 位置只依赖 gate_info，不占门洞、不另加整块碰撞；实际阻挡由两侧墙带瓦片负责，
 # 中央 48px 净宽可容玩家 24px 碰撞体通过。
 func _layout_city_gates() -> void:
 	var names := {
 		"S": "gate_tower_big", "N": "gate_tower_mid",
-		"E": "gate_tower_mid_v_e", "W": "gate_tower_mid_v_w",
 	}
-	for side in ["S", "N", "E", "W"]:
+	for side in ["S", "N"]:
 		if not gen.gate_info.has(side) or not _pack_assets.has(names[side]):
 			continue
 		var p: Dictionary = _pack_assets[names[side]]
@@ -217,21 +225,62 @@ func _layout_city_gates() -> void:
 		sp.texture = tex
 		sp.set_meta("material_id", names[side])
 		sp.add_to_group("changan_city_gate")
-		if side == "S" or side == "N":
-			var cx := (float(c0.x + c1.x) * 0.5 + 0.5) * 16.0
-			var base_row: int = int(gen.H - gen.margin - 1 if side == "S" else gen.margin + 1)
-			sp.position = Vector2(cx, (base_row + 1) * 16.0 - 1.0)
-			sp.offset = Vector2(0, -tex.get_height() / 2.0)
-		else:
-			var cy := (float(c0.y + c1.y) * 0.5 + 0.5) * 16.0
-			if side == "E":
-				sp.position = Vector2((gen.W - gen.margin + 1) * 16.0 - 1.0, cy)
-				sp.offset = Vector2(-tex.get_width() / 2.0, 0)
-			else:
-				sp.position = Vector2((gen.margin - 1) * 16.0 + 1.0, cy)
-				sp.offset = Vector2(tex.get_width() / 2.0, 0)
+		var cx := (float(c0.x + c1.x) * 0.5 + 0.5) * 16.0
+		var base_row: int = int(gen.H - gen.margin - 1 if side == "S" else gen.margin + 1)
+		sp.position = Vector2(cx, (base_row + 1) * 16.0 - 1.0)
+		sp.offset = Vector2(0, -tex.get_height() / 2.0)
 		add_child(sp)
 		placed += 1
+	for side in ["E", "W"]:
+		_layout_side_gate_checkpoint(side)
+
+
+# 素材包没有真正的东西向城门/城墙透视件。旧版把正面门楼旋转 90°，瓦顶、
+# 门洞与重力方向一起侧翻，视觉必然穿帮。本组合保留三格侧向通道，用原生朝向的
+# 守望楼贴在关口北肩，城内侧以门灯和石兽标出门线；既不伪造侧门，也不挡横向通行。
+func _layout_side_gate_checkpoint(side: String) -> void:
+	if not gen.gate_info.has(side):
+		return
+	var cells: Array = gen.gate_info[side]["gap_cells"]
+	var cy := (float(cells[0].y + cells[cells.size() - 1].y) * 0.5 + 0.5) * 16.0
+	var wall_x := float((gen.W - gen.margin - gen.wall) * 16) if side == "E" \
+			else float((gen.margin + gen.wall) * 16)
+	var inward := -1.0 if side == "E" else 1.0
+	var root := Node2D.new()
+	root.name = "CityGate_%s" % side
+	root.position = Vector2(wall_x, cy)
+	root.y_sort_enabled = true
+	root.set_meta("material_id", "side_gate_checkpoint")
+	root.add_to_group("changan_city_gate")
+	add_child(root)
+	var tower := "bell_tower" if side == "E" else "drum_tower"
+	_spawn_gate_piece(root, tower, Vector2(inward * 24.0, -32.0), side == "W")
+	_spawn_gate_piece(root, "lamp_red", Vector2(inward * 34.0, -18.0))
+	_spawn_gate_piece(root, "lamp_red2", Vector2(inward * 34.0, 72.0), true)
+	_spawn_gate_piece(root, "lion_stone_a", Vector2(inward * 58.0, -18.0))
+	_spawn_gate_piece(root, "lion_stone_b", Vector2(inward * 58.0, 64.0), true)
+
+
+func _spawn_gate_piece(parent: Node2D, name: String, bottom: Vector2, flip := false) -> void:
+	if not _pack_assets.has(name):
+		return
+	var p: Dictionary = _pack_assets[name]
+	var path := String(p["file"])
+	var tex: Texture2D = _tex.get(path)
+	if tex == null:
+		tex = TextureGen.load_png_texture(path)
+		if tex == null:
+			return
+		_tex[path] = tex
+	var sp := Sprite2D.new()
+	sp.name = "GatePiece_%s" % name
+	sp.texture = tex
+	sp.flip_h = flip
+	sp.position = bottom
+	sp.offset = Vector2(0, -tex.get_height() * 0.5)
+	sp.set_meta("material_id", name)
+	parent.add_child(sp)
+	placed += 1
 
 
 func _load_manifest() -> bool:
@@ -488,25 +537,33 @@ func _layout_residential(cat: String, rect: Rect2i, rng: RandomNumberGenerator, 
 	var y0 := rect.position.y
 	var small := _pool(cat, 80, 110, 80, 110)
 	var estate := _pool(cat, 140, 200, 140, 200, "estate")
+	var tall := _pool(cat, 80, 110, 150, 180)
 	if not estate.is_empty() and hash(id) % 2 == 0:
 		_put(cat, estate[rng.randi_range(0, estate.size() - 1)],
 				Vector2i(x0 + 4, y0 + 1), y0 + 12, rect)
-		_try_tree(rect, Vector2i(x0 + 1, y0 + 2), rng)
-		_try_tree(rect, Vector2i(x0 + 16, y0 + 2), rng)
-		_put("11_街饰过渡", _pick(_pool("11_街饰过渡", 30, 50, 24, 38, "prop"), rng),
-				Vector2i(x0 + 7, y0 + 16), y0 + 18, rect)
+		# 后院大合院 + 南侧临街双门面，建立“后院—巷—前店”的纵深关系。
+		if not small.is_empty():
+			_put(cat, _pick(small, rng), Vector2i(x0 + 1, y0 + 13), y0 + 18, rect)
+			_put(cat, _pick(small, rng), Vector2i(x0 + 13, y0 + 13), y0 + 18, rect, true)
+		_try_tree(rect, Vector2i(x0 + 1, y0 + 3), rng)
 		_try_tree(rect, Vector2i(x0 + 16, y0 + 14), rng)
+	elif not tall.is_empty() and posmod(hash(id), 3) == 1:
+		# 一座二层街楼压住坊心天际线，南侧三开间连续门面承接人流。
+		_put(cat, _pick(tall, rng), Vector2i(x0 + 7, y0 + 1), y0 + 11, rect)
+		for xx in [x0 + 1, x0 + 7, x0 + 13]:
+			_put(cat, _pick(small, rng), Vector2i(xx, y0 + 13), y0 + 18, rect,
+					xx == x0 + 7)
+		_try_tree(rect, Vector2i(x0 + 1, y0 + 4), rng)
+		_try_tree(rect, Vector2i(x0 + 16, y0 + 4), rng)
 	else:
+		# 两条连续街面各三开间，北排略退、南排贴街；六栋形成真正的坊巷界面。
 		var last := ""
-		var s := _pick(small, rng)
-		_put(cat, s, Vector2i(x0 + 1, y0 + 2), y0 + 7, rect)
-		last = String(s["id"])
-		_put(cat, _pick(small, rng, last), Vector2i(x0 + 8, y0 + 2), y0 + 7, rect, true)
-		var s2 := _pick(small, rng, last)
-		_put(cat, s2, Vector2i(x0 + 1, y0 + 13), y0 + 18, rect, true)
-		_put(cat, _pick(small, rng, String(s2["id"])), Vector2i(x0 + 8, y0 + 13), y0 + 18, rect)
-		_try_tree(rect, Vector2i(x0 + 15, y0 + 3), rng)
-		_try_tree(rect, Vector2i(x0 + 16, y0 + 13), rng)
+		for row in [[y0 + 2, y0 + 7, false], [y0 + 13, y0 + 18, true]]:
+			for xx in [x0 + 1, x0 + 7, x0 + 13]:
+				var s := _pick(small, rng, last)
+				last = String(s.get("id", ""))
+				_put(cat, s, Vector2i(xx, int(row[0])), int(row[1]), rect,
+						bool(row[2]) != (xx == x0 + 7))
 
 
 # ---- noble：estate 坊=府邸居北+前庭；其余用 04 亲王门面件（南北两排+中庭）----
@@ -548,22 +605,18 @@ func _layout_palace(cat: String, rect: Rect2i):
 	var pav := _pool(cat, 80, 110, 80, 100)
 	if gate.is_empty():
 		return
-	_put(cat, gate[0], Vector2i(cx_cell - 4, y0 + 13), y0 + 18, rect)
-	if gate.size() >= 2:
-		_put(cat, gate[1], Vector2i(cx_cell - 4, y0 + 3), y0 + 8, rect)
-	# 对称配殿：左右同款镜像，边缘距按像素对齐（北排一对+南排一对）
-	if not pav.is_empty():
-		var margin_px := 48.0
-		for row_bottom in [y0 + 8, y0 + 17]:
-			var pi := 0 if row_bottom == y0 + 8 else mini(1, pav.size() - 1)
-			var p: Dictionary = pav[pi]
-			var w_p := float(p["w"])
-			var bottom_px: float = (float(row_bottom) + 1.0) * 16.0
-			var top_px: float = bottom_px - float(p["h"])
-			var lx := x0 * 16.0 + margin_px
-			var rx := x0 * 16.0 + w_px - margin_px - w_p
-			_put(cat, p, Vector2i(int(lx / 16.0), int(top_px / 16.0)), row_bottom, rect)
-			_put(cat, p, Vector2i(int(rx / 16.0), int(top_px / 16.0)), row_bottom, rect, true)
+	# 三进中轴：南门—中殿—北殿，逐排换型；大宫城每进再配左右殿，形成天际线级差。
+	var rows := [y0 + 6, y0 + 12, y0 + 18]
+	for ri in range(rows.size()):
+		var main: Dictionary = gate[ri % gate.size()]
+		var main_cells := int(ceil(float(main["w"]) / 16.0))
+		_put(cat, main, Vector2i(cx_cell - main_cells / 2, rows[ri] - 5), rows[ri], rect,
+				ri == 1)
+		if rect.size.x >= 40 and not pav.is_empty():
+			var wing: Dictionary = pav[ri % pav.size()]
+			var wing_cells := int(ceil(float(wing["w"]) / 16.0))
+			_put(cat, wing, Vector2i(x0 + 4, rows[ri] - 5), rows[ri], rect)
+			_put(cat, wing, Vector2i(rect.end.x - 4 - wing_cells, rows[ri] - 5), rows[ri], rect, true)
 
 
 # ---- office/yamen：临街门面排 + 中央开放；步进留白+树打破机械连排 ----
@@ -634,24 +687,29 @@ func _layout_temple(cat: String, rect: Rect2i, rng: RandomNumberGenerator, id: S
 func _layout_market(cat: String, rect: Rect2i, rng: RandomNumberGenerator):
 	var x0 := rect.position.x
 	var y0 := rect.position.y
-	# 三间店面以 6 格步距排入 20 格坊：只取原生 96px 级门面，
-	# 避免 110px 变体发生像素级相交后被占位检测拒入。
-	var shops := _pool(cat, 75, 96, 60, 100)
+	# 一座双开间大铺 + 一座单开间门面组成每条街面，南北错位，避免六个小方块陈列感。
+	var shops := _pool(cat, 75, 100, 60, 100)
+	var wide_shops := _pool(cat, 150, 195, 75, 100)
 	var last := ""
-	# 三间一排（x=1/7/13）刚好贴合 20 格坊宽；门面各自面对中央市场。
-	for xx in [x0 + 1, x0 + 7, x0 + 13]:
-		var north: Dictionary = _pick(shops, rng, last)
-		last = String(north.get("id", ""))
-		_put(cat, north, Vector2i(xx, y0 + 2), y0 + 7, rect)
-	for xx in [x0 + 1, x0 + 7, x0 + 13]:
-		var south: Dictionary = _pick(shops, rng, last)
-		last = String(south.get("id", ""))
-		_put(cat, south, Vector2i(xx, y0 + 13), y0 + 18, rect, true)
+	if not wide_shops.is_empty():
+		var north_wide := _pick(wide_shops, rng)
+		_put(cat, north_wide, Vector2i(x0 + 1, y0 + 2), y0 + 7, rect)
+		_put(cat, _pick(shops, rng), Vector2i(x0 + 13, y0 + 2), y0 + 7, rect, true)
+		_put(cat, _pick(shops, rng), Vector2i(x0 + 1, y0 + 13), y0 + 18, rect)
+		_put(cat, _pick(wide_shops, rng, String(north_wide["id"])),
+				Vector2i(x0 + 7, y0 + 13), y0 + 18, rect, true)
+	else:
+		for row in [[y0 + 2, y0 + 7], [y0 + 13, y0 + 18]]:
+			for xx in [x0 + 1, x0 + 7, x0 + 13]:
+				var shop := _pick(shops, rng, last)
+				last = String(shop.get("id", ""))
+				_put(cat, shop, Vector2i(xx, int(row[0])), int(row[1]), rect)
 	# 中央摊位带 y+9..12：小件横向错开，保持东/西两端进出集市的视觉开口。
 	var stalls := _pool("11_街饰过渡", 36, 50, 40, 56, "prop")
 	last = ""
-	for c in [Vector2i(x0 + 2, y0 + 10), Vector2i(x0 + 6, y0 + 10),
-			Vector2i(x0 + 10, y0 + 10), Vector2i(x0 + 14, y0 + 10)]:
+	for c in [Vector2i(x0 + 1, y0 + 10), Vector2i(x0 + 4, y0 + 10),
+			Vector2i(x0 + 7, y0 + 10), Vector2i(x0 + 10, y0 + 10),
+			Vector2i(x0 + 13, y0 + 10), Vector2i(x0 + 16, y0 + 10)]:
 		if not stalls.is_empty():
 			var st: Dictionary = _pick(stalls, rng, last)
 			last = String(st["id"])

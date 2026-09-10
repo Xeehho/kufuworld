@@ -57,8 +57,8 @@ func _ready() -> void:
 			fails.append("建筑碰撞统计=%d，实际节点=%d" % [int(city.stats.get("material_collisions", -1)), bodies])
 		if get_tree().get_nodes_in_group("changan_city_gate").size() != 4:
 			fails.append("城门楼素材节点数≠4")
-	if int(city.stats.get("population", 0)) != 24:
-		fails.append("城市人口=%d≠24" % int(city.stats.get("population", 0)))
+	if int(city.stats.get("population", 0)) != 40:
+		fails.append("城市人口=%d≠40" % int(city.stats.get("population", 0)))
 	# 城墙用完整 wall_run 立面连续铺设；TileMap 仍保留两格厚碰撞环。
 	if city.materials_count > 0 and get_tree().get_nodes_in_group("changan_outer_wall_facade").size() < 50:
 		fails.append("外郭高墙连续立面不足50段")

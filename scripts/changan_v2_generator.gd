@@ -15,7 +15,7 @@ const NPCDataRes = preload("res://scripts/npc_data.gd")
 
 # ---- 瓦片 ID（灰盒回退用：素材库 00_地面 切件缺失时退回这些源）----
 const T_GRASS = 0        # 城外/预留空地
-const T_GATE_OPEN = 67   # 城门豁口（无碰撞）
+const T_GATE_OPEN = 0    # 真正的空装饰格；旧 67 是“坊门开”黑色门扇，不能拿来填门洞
 const T_MAIN_ROAD = 72   # 主干街/环城街（回退路砖）
 const T_LANE = 74        # 街区夯土地坪（回退坊砖）
 const T_PAVE = 101       # 方砖（回退：宫/皇/市/县署）
@@ -218,7 +218,7 @@ func _build():
 	generation_done.emit()
 
 
-# ---- 城市人口层：主街/横街/两市布置 24 名静态生活 NPC ----
+# ---- 城市人口层：主街/横街/两市布置 40 名静态生活 NPC ----
 # NPC 复用既有角色帧、脚底阴影与碰撞分层；先用 idle 日程保证不穿越水面/建筑，
 # 后续在城市寻路图接入后再升级为巡市路线。
 func _spawn_population() -> void:
@@ -234,18 +234,19 @@ func _spawn_population() -> void:
 		cells.append(Vector2i(zx + 1, row_y(r) + 14))
 	for j in range(1, rows):
 		var sy := seam_y(j) + main_s / 2
-		for c in [0, 2, 4]:
-			cells.append(Vector2i(col_x(c) + 10, sy))
+		for c in range(cols):
+			# 人群停在横街两侧车道，中心线继续留给玩家/NPC 主通道探针。
+			cells.append(Vector2i(col_x(c) + 10, sy - 1 if c % 2 == 0 else sy + 1))
 	for b in blocks:
 		if String(b["kind"]) != "market":
 			continue
 		var rect := _block_rect(b)
-		cells.append(Vector2i(rect.position.x + 5, rect.position.y + 10))
-		cells.append(Vector2i(rect.position.x + 15, rect.position.y + 11))
+		for p in [Vector2i(3, 9), Vector2i(7, 11), Vector2i(12, 9), Vector2i(16, 11)]:
+			cells.append(rect.position + p)
 	var types := ["warrior", "scholar", "merchant", "elder", "guard",
 			"tavern_f", "matron_f", "peasant_f", "herbalist_f", "seamstress_f"]
 	var names := ["行商", "书生", "脚夫", "香客", "坊民", "侍女", "货郎", "老者"]
-	for i in range(mini(24, cells.size())):
+	for i in range(mini(40, cells.size())):
 		var npc = NPCScene.instantiate()
 		var pos := cell_to_px(cells[i])
 		var data = NPCDataRes.new()
@@ -399,6 +400,8 @@ func _load_gate_names() -> Dictionary:
 
 func _carve_gate_ns(side: String, gname: String, cx: int):
 	var band_y := H - margin - 2 if side == "S" else margin - 3
+	# 门洞必须是装饰层真空格。旧版写入 tile 67（坊门开）会在道路上叠出
+	# 连续黑色门扇，既像深坑又破坏门楼与城墙的接地关系。
 	_set_rect(decor, cx - 1, band_y, 3, 5, T_GATE_OPEN)
 	_set_rect(ground, cx - 1, band_y - 1, 3, 7, Z_ROAD)   # 门下+墙带两侧接路
 	var inside := Vector2i(cx, H - margin - wall - 2 if side == "S" else margin + wall + 2)
