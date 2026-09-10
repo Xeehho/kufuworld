@@ -1,0 +1,29 @@
+{
+	"cost_per_draw": 100,
+	"qualities": {
+		"fanpin": {"name": "凡品", "weight": 60.0},
+		"liangpin": {"name": "良品", "weight": 25.0},
+		"zhenpin": {"name": "珍品", "weight": 10.0},
+		"juepin": {"name": "绝品", "weight": 4.0},
+		"chuanshi": {"name": "传世", "weight": 1.0}
+	},
+	"pity": {"juepin_hard": 60, "ten_pull_zhenpin": true},
+	"pools": [
+		{"id": "jiase", "name": "稼穑池", "unlock_stage": 0, "items": {
+			"fanpin": ["liangzhong_changgui"], "liangpin": ["zhancheng_daozhong"],
+			"zhenpin": ["shuangji_daozhong"], "juepin": ["hongshu_zhongzi"],
+			"chuanshi": ["yumi_zhongzi"]}},
+		{"id": "wenhua", "name": "文华池", "unlock_stage": 2, "items": {
+			"fanpin": ["suanxue_rumen"], "liangpin": ["wuxin_canjuan_a"],
+			"zhenpin": ["wangxizhi_moben"], "juepin": ["xiyu_shanglutub"],
+			"chuanshi": ["wenzhang_zhen"]}},
+		{"id": "beifa", "name": "北伐池", "unlock_stage": 3, "items": {
+			"fanpin": ["bingxue_rumen"], "liangpin": ["quyuanli_tuzhi"],
+			"zhenpin": ["masuo_shu"], "juepin": ["sheshu_jichu"],
+			"chuanshi": ["huoyao_peifang"]}},
+		{"id": "haifang", "name": "海防池", "unlock_stage": 4, "items": {
+			"fanpin": ["chuanhai_rumen"], "liangpin": ["huochong_tuzhi"],
+			"zhenpin": ["qishu_tuzhi"], "juepin": ["qijia_changdao"],
+			"chuanshi": ["zhengqi_ji"]}}
+	]
+}
