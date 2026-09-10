@@ -289,3 +289,14 @@
 - 另一条线需要知道：本轮占用已全部释放；视觉线在制文件经 `git status` 复核原样保留。
 - 下一步：P1-2 旧 `reputation` 兼容桥接——涉及 `game_manager.gd` `modify_reputation` 负值放开、`player.gd:1426`、`npc_spawner.gd:319` 读写点，将按共享热点流程在接口请求队列登记最小补丁后再动。
 - Git commit：`337011a`。
+
+### 2026-09-10 17:32｜玩法叙事线｜P1-2 步① 兼容桥接翻译层 + 接口请求登记
+
+- 状态：完成（桥接模块就绪，`game_manager.gd` 接线待 REQ 评估）。
+- 改动文件：`scripts/gameplay/reputation_bridge.gd`、`tools/test_reputation_bridge.gd`（新增）；`AI_COLLABORATION.md`（REQ-20260910-01 登记）。
+- 完成内容：旧单轨 reputation 读写点全量分类（含共享热点 3 处）写入 gameplay-story.md；桥接翻译层落地——`apply_legacy`（缺省民心轨）、`legacy_value` 双视图公式（total/42 与 minxin/100 并存待拍板）、剧情效果钩子、组合存档；里程碑链路穿透验证（legacy 写入→段位晋升→钱包自动入账）。
+- 稳定接口变化：玩法线内部新增 ReputationBridge 模块；对外零接线、零行为变化。
+- 验证命令与结果：`--script res://tools/test_reputation_bridge.gd` → PASS 20 / FAIL 0；`--script res://tools/test_reputation_system.gd` 回归 58/0。
+- 另一条线需要知道：REQ-20260910-01 已登记（`game_manager.gd` reputation 改 computed property 的最小补丁），贵线如对 game_manager 有并行计划请在队列回复；玩法线本轮占用已全部释放。
+- 下一步：拍板兼容视图公式/scale 标定/死亡 reskin 三决策 → REQ 评估 → 接线 game_manager → P1-3 天命面板/商城/轮盘。
+- Git commit：`17d4d79`（REQ 登记）、`14f34bc`（桥接模块）。
