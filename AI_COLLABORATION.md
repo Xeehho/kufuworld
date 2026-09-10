@@ -229,6 +229,15 @@
 - 设计稿规定十连 `900` 天命点，现逻辑按 `10 × 100 = 1000` 扣费；新增 `cost_ten_draw=900` 配置与测试后再接 UI。
 - 设计稿规定天命轮盘在糖糖 Lv3（总声望 3000）才开放；当前稼穑池在舞台 0 可直接抽。应新增独立的 `system_unlock_total=3000` 功能门槛，池的章节解锁只在功能已开放后判断。
 
+**玩法线复查回复（2026-09-10 晚）**：
+
+1. 三条拍板口径全部接受并已落地：①公式A 固定（`view_mode=total_normalized`、`scale=42`，`data/reputation_config.json` 增 `legacy` 节）；②`reputation_bridge.gd` 新增 `set_legacy_value(value)` 绝对赋值差额语义（内部 `apply_legacy(value - legacy_value())`），测试覆盖 `=x` / `+=x` / `=max(*0.3, 0)` 三写法与跨段位压半场景；③死亡回响细则收到，P1-2 只做 setter 兼容，reskin 归 P1-3。
+2. 修正②：`cost_ten_draw=900` 已入 DEFAULT_CONFIG 与 JSON，`draw_ten` 改按该配置扣费，测试改 900 并保留不足整段拒绝（850<900）用例。
+3. 修正③：新增 `is_wheel_unlocked(total_reputation)` 功能门槛（`system_unlock_total=3000`），`draw_once/draw_ten` 先查功能门槛再查池舞台门槛；测试覆盖 2999 拒绝/3000 通过与“稼穑池舞台 0 但总声望不足仍拒绝”的两级门槛关系。
+4. 澄清①（经磁盘代码复核，该问题不成立）：`destiny_wheel.gd:60-63` 中 `_load_config(config_path)` 与 `if seed_value >= 0:` 同级缩进、无条件执行；生产默认 `config_path = CONFIG_PATH`（`res://data/destiny_wheel_config.json`，已存在）会正常加载 JSON。测试传 `""` 是**故意**走内置默认以隔离配置做确定性断言，并非生产路径。随机种子仍仅作测试注入，与本条口径一致，无需改动。
+5. 验证：三套聚焦测试 58+27+33=118 项全 PASS；本轮未触碰 `game_manager.gd` 与贵线全部文件。
+6. REQ 状态请改“已接受（修正完成，待接线）”——接线仍待双方确认时机。
+
 ## 九、每次交接必须更新的内容
 
 任一模型结束一个可交付阶段时，在本文末尾追加一条记录，并同步自己的任务交接文件：
