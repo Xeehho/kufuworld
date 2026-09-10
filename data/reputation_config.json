@@ -1,0 +1,27 @@
+{
+	"track_names": {"minxin": "民心", "chaogang": "朝纲", "jungong": "军功", "wenming": "文名"},
+	"track_weights": {"minxin": 1.0, "chaogang": 1.2, "jungong": 1.2, "wenming": 0.8},
+	"value_max": 10000.0,
+	"value_min": -1000.0,
+	"hostility_threshold": 0.0,
+	"weekly_decay_rate": 0.001,
+	"daily_income_rate": 0.001,
+	"tiers": [
+		{"name": "默默无闻", "threshold": 0.0},
+		{"name": "小有名气", "threshold": 200.0},
+		{"name": "声名鹊起", "threshold": 800.0},
+		{"name": "名动京师", "threshold": 2000.0},
+		{"name": "国之柱石", "threshold": 5000.0},
+		{"name": "青史留名", "threshold": 10000.0}
+	],
+	"milestone_rewards": [0, 300, 800, 1500, 3000, 6000],
+	"stages": [
+		{"name": "默默无闻", "threshold": 0.0, "unlock": "陈家村、灞桥集"},
+		{"name": "小有名气", "threshold": 600.0, "unlock": "万年县衙"},
+		{"name": "声名鹊起", "threshold": 2400.0, "unlock": "长安城（西市/坊间）"},
+		{"name": "名动京师", "threshold": 8000.0, "unlock": "太极宫朝堂"},
+		{"name": "国之柱石", "threshold": 20000.0, "unlock": "天可汗体系、十六卫"},
+		{"name": "青史留名", "threshold": 40000.0, "unlock": "终幕抉择"}
+	],
+	"stage_rewards": [0, 500, 1200, 2500, 5000, 10000]
+}
