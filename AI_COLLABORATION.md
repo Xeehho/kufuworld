@@ -255,3 +255,14 @@
 - 另一条线需要知道：历史署名保留；新提交完成后按实际工具用 `git log -1 --format="%B"` 检查对应 trailer。
 - 下一步：后续所有 Codex 开发提交遵守该格式。
 - Git commit：本条随当前提交落库。
+
+### 2026-09-10 17:07｜玩法叙事线｜P1-0 首轮审计 + 死代码清理
+
+- 状态：完成。
+- 改动文件：删除 `scripts/game.gd`+uid、`scenes/star.gd`+uid、`scenes/star.tscn`、`scripts/dialogue_tree.gd`/`dialogue_entry.gd`/`dialogue_response.gd`+uid、`scripts/character_sheet.gd`+uid、`scripts/inventory_hud.gd`+uid、`scripts/retile_gen.gd`+uid、`tools/` 17 个已跟踪日志 txt（保留 `godot_path.txt`）。
+- 完成内容：全库引用审计确认零依赖后清理被取代实现；旧 `reputation` 依赖图谱与系统处置矩阵写入 `.zcode/tasks/gameplay-story.md`。
+- 稳定接口变化：无（未修改任何存活运行时代码）。
+- 验证命令与结果：headless 启动 1200 帧零报错；关键脚本 check-only OK。
+- 另一条线需要知道：①`retile_gen.gd`（旧瓦片生成器）已删，现行 texture_generator 管线不受影响；②路径限定提交把贵线当时已暂存的条目退回了未暂存态（工作区内容零丢失），下次提交前请重新暂存；③v1 长安链（`changan.tscn`/`changan_generator.gd`/`changan_interior.gd`）与 `town_demo_kit.gd`、资源生成器管线全部保留未动。
+- 下一步：P1-1 四轨声望+天命点自包含核心（全新文件，不触共享热点）。
+- Git commit：`e4c98a7`。
