@@ -266,3 +266,14 @@
 - 另一条线需要知道：①`retile_gen.gd`（旧瓦片生成器）已删，现行 texture_generator 管线不受影响；②路径限定提交把贵线当时已暂存的条目退回了未暂存态（工作区内容零丢失），下次提交前请重新暂存；③v1 长安链（`changan.tscn`/`changan_generator.gd`/`changan_interior.gd`）与 `town_demo_kit.gd`、资源生成器管线全部保留未动。
 - 下一步：P1-1 四轨声望+天命点自包含核心（全新文件，不触共享热点）。
 - Git commit：`e4c98a7`。
+
+### 2026-09-10 17:30｜玩法叙事线｜P1-1 四轨声望+天命点自包含核心
+
+- 状态：完成。
+- 改动文件：`scripts/gameplay/reputation_system.gd`、`scripts/gameplay/destiny_wallet.gd`、`data/reputation_config.json`、`tools/test_reputation_system.gd`（全部新增，零接线）。
+- 完成内容：四轨声望（民心/朝纲/军功/文名，允许负值敌对）+ 加权总声望 + 六段位/六舞台 + 周衰减 0.1% + 段位/舞台里程碑水位制（防衰减降级回升重复领取）+ 天命点钱包（绑定声望系统自动入账、日结）+ 存档序列化；配置 JSON 驱动，缺失回退内置默认。未触碰 GameManager、Autoload、主场景、UI 与贵线全部在制文件。
+- 稳定接口变化：无运行时接线；`scripts/gameplay/` 为玩法线新目录（class_name `ReputationSystem`/`DestinyWallet`，headless --script 场景需 preload 引用——.godot 全局类缓存不含新类）。
+- 验证命令与结果：`godot --headless --path . --script res://tools/test_reputation_system.gd` → PASS 58 / FAIL 0；主场景 1200 帧冒烟零报错。
+- 另一条线需要知道：本轮占用已全部释放；视觉线在制文件经 `git status` 复核原样保留。
+- 下一步：P1-2 旧 `reputation` 兼容桥接——涉及 `game_manager.gd` `modify_reputation` 负值放开、`player.gd:1426`、`npc_spawner.gd:319` 读写点，将按共享热点流程在接口请求队列登记最小补丁后再动。
+- Git commit：`337011a`。
