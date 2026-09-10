@@ -6,7 +6,7 @@
 
 一个需求/里程碑完成（代码改完、验证通过、`.zcode/gameWork.md` 已按《需求变更自动记录规则》记录）后，自动依次执行：
 
-1. **自动调用「保存代码zcode」技能**——按本次会话全部改动总结 commit，提交到当前分支（feat），必须携带 Codex 协作署名：`Co-authored-by: Codex <codex@openai.com>`；
+1. **自动调用「保存代码zcode」技能**——按本次会话全部改动总结 commit，提交到当前分支（feat）。若本次开发由 Codex 执行，携带 `Co-authored-by: Codex <codex@openai.com>`；若由其他编辑工具执行，继续携带原有 `Co-authored-by: GLM <noreply@z.ai>`；
 2. **自动调用「提交代码zcode」技能**——多条记录压缩合并到需求分支；该技能自带的"是否推送远程"选择环节**保留交互**，推送永远经用户确认，禁止静默推送；
 3. **自动续跑下一阶段**——按交接文件/设计文档的里程碑顺序直接开工下一阶段，开工即同步滚动更新：
    - `.zcode/tasks/<slug>.md`（已完成/未完成清单，按《长任务交接规则》）

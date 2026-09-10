@@ -4,7 +4,7 @@
 >
 > 本文件是视觉世界线与玩法叙事线的共同交接入口。任何模型开始相关任务前，必须完整阅读本文件、`AGENTS.md`、`.zcode/rules/` 和自己任务对应的 `.zcode/tasks/*.md`。
 >
-> **Codex 提交格式（2026-09-10 起）**：凡由 Codex 在本项目中产生的提交，提交说明使用 `feat:`、`fix:`、`refactor:`、`docs:`、`test:`、`chore:` 等清晰类型前缀，并在正文末尾携带一行 `Co-authored-by: Codex <codex@openai.com>`。这只约束 Git 提交元数据；头像、网页显示的提交时间和账号名称由托管平台决定。历史提交不重写。
+> **按工具区分提交署名（2026-09-10 起）**：由 Codex 在本项目中产生的提交，提交说明使用 `feat:`、`fix:`、`refactor:`、`docs:`、`test:`、`chore:` 等清晰类型前缀，并在正文末尾携带 `Co-authored-by: Codex <codex@openai.com>`；由其他编辑工具产生的提交继续使用 `Co-authored-by: GLM <noreply@z.ai>`。这只约束 Git 提交元数据；头像、网页显示的提交时间和账号名称由托管平台决定。历史提交不重写。
 
 ## 一、协作目标
 
@@ -79,12 +79,12 @@
 5. 实现并运行聚焦测试；需要接主场景、Autoload、角色/NPC 或长安地图时，先完成独立模块，再通过接口请求交给对应负责人接线。
 6. 阶段结束时更新自己的任务文件：已完成、未完成、关键决策、测试结果、当前占用/已释放文件、commit。稳定里程碑再在本文“协作变更记录”追加一条，不必把每个小步骤都写进本文。
 7. 提交时只精确暂存自己的文件；提交后再次执行 `git status --short`，确认另一条线的修改仍原样存在。
-8. 每个 Codex 提交必须检查 `git log -1 --format="%B"`，确认包含精确 trailer：`Co-authored-by: Codex <codex@openai.com>`。
+8. 提交后必须检查 `git log -1 --format="%B"`：Codex 会话确认 `Co-authored-by: Codex <codex@openai.com>`，其他编辑工具确认 `Co-authored-by: GLM <noreply@z.ai>`。
 
 可直接发给另一模型的开工指令：
 
 ```text
-你负责本项目的“玩法叙事线”。先完整阅读 AGENTS.md、.zcode/rules/ 下全部规则、AI_COLLABORATION.md、docs/大唐穿越重构-剧情与玩法设计-2026-09-04.md，以及 .zcode/tasks/gameplay-story.md。先执行 git status --short，只读盘点现有玩法实现并更新 gameplay-story.md；不要触碰 AI_COLLABORATION.md 中视觉线当前占用的文件。领取任务后先在 gameplay-story.md 声明本轮精确修改文件。可以和视觉线在同一工作树并行，但文件不得重叠；共享热点先登记接口请求。提交时只能精确 git add 自己的文件，提交说明使用 feat:/fix:/refactor:/docs:/test:/chore: 前缀，并携带 Co-authored-by: Codex <codex@openai.com>；完成后记录改动、测试、commit、剩余工作和已释放文件。
+你负责本项目的“玩法叙事线”。先完整阅读 AGENTS.md、.zcode/rules/ 下全部规则、AI_COLLABORATION.md、docs/大唐穿越重构-剧情与玩法设计-2026-09-04.md，以及 .zcode/tasks/gameplay-story.md。先执行 git status --short，只读盘点现有玩法实现并更新 gameplay-story.md；不要触碰 AI_COLLABORATION.md 中视觉线当前占用的文件。领取任务后先在 gameplay-story.md 声明本轮精确修改文件。可以和视觉线在同一工作树并行，但文件不得重叠；共享热点先登记接口请求。提交时只能精确 git add 自己的文件，提交说明使用 feat:/fix:/refactor:/docs:/test:/chore: 前缀；如果你是 Codex，携带 Co-authored-by: Codex <codex@openai.com>，如果你是其他编辑工具，继续携带 Co-authored-by: GLM <noreply@z.ai>；完成后记录改动、测试、commit、剩余工作和已释放文件。
 ```
 
 ### 玩法首批任务（按顺序）
@@ -249,9 +249,9 @@
 
 - 状态：完成。
 - 改动文件：`.zcode/rules/autoflow.md`、`AI_COLLABORATION.md`；本地玩法/视觉交接文件同步补充规则。
-- 完成内容：从本阶段起，Codex 产生的 Git 提交统一使用类型前缀（`feat:`/`fix:`/`refactor:`/`docs:`/`test:`/`chore:` 等），并携带 `Co-authored-by: Codex <codex@openai.com>`。
+- 完成内容：从本阶段起按工具来源区分 Git 署名；Codex 提交使用 `Co-authored-by: Codex <codex@openai.com>`，其他编辑工具继续使用 `Co-authored-by: GLM <noreply@z.ai>`，两者均使用清晰类型前缀。
 - 稳定接口变化：无。
 - 验证命令与结果：`git diff --check` 通过；未触碰长安在制代码和样张。
-- 另一条线需要知道：历史 `GLM` 署名保留；新提交完成后用 `git log -1 --format="%B"` 检查 trailer。
+- 另一条线需要知道：历史署名保留；新提交完成后按实际工具用 `git log -1 --format="%B"` 检查对应 trailer。
 - 下一步：后续所有 Codex 开发提交遵守该格式。
 - Git commit：本条随当前提交落库。
