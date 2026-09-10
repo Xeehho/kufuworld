@@ -12,20 +12,20 @@
 	"pity": {"juepin_hard": 60, "ten_pull_zhenpin": true},
 	"pools": [
 		{"id": "jiase", "name": "稼穑池", "unlock_stage": 0, "items": {
-			"fanpin": ["liangzhong_changgui"], "liangpin": ["zhancheng_daozhong"],
-			"zhenpin": ["shuangji_daozhong"], "juepin": ["hongshu_zhongzi"],
+			"fanpin": ["liangzhong_changgui"], "liangpin": ["zhancheng_dao"],
+			"zhenpin": ["shuangji_dao"], "juepin": ["hongshu_zhongzi"],
 			"chuanshi": ["yumi_zhongzi"]}},
 		{"id": "wenhua", "name": "文华池", "unlock_stage": 2, "items": {
 			"fanpin": ["suanxue_rumen"], "liangpin": ["wuxin_canjuan_a"],
-			"zhenpin": ["wangxizhi_moben"], "juepin": ["xiyu_shanglutub"],
+			"zhenpin": ["wangxizhi_moben"], "juepin": ["xiyu_shanglu"],
 			"chuanshi": ["wenzhang_zhen"]}},
 		{"id": "beifa", "name": "北伐池", "unlock_stage": 3, "items": {
 			"fanpin": ["bingxue_rumen"], "liangpin": ["quyuanli_tuzhi"],
-			"zhenpin": ["masuo_shu"], "juepin": ["sheshu_jichu"],
-			"chuanshi": ["huoyao_peifang"]}},
+			"zhenpin": ["masuo_shu"], "juepin": ["she_shu"],
+			"chuanshi": ["huoyao_gailiang"]}},
 		{"id": "haifang", "name": "海防池", "unlock_stage": 4, "items": {
 			"fanpin": ["chuanhai_rumen"], "liangpin": ["huochong_tuzhi"],
-			"zhenpin": ["qishu_tuzhi"], "juepin": ["qijia_changdao"],
-			"chuanshi": ["zhengqi_ji"]}}
+			"zhenpin": ["qichuan_tuzhi"], "juepin": ["qi_changdao"],
+			"chuanshi": ["zhengqiji_tuzhi"]}}
 	]
 }

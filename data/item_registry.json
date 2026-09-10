@@ -1,0 +1,43 @@
+{
+	"items": {
+		"zhancheng_dao": {"name": "占城稻种", "category": "seed", "tier": "juepin", "bind": false, "source": ["shop", "wheel"], "effect": "plant_crop"},
+		"shuangji_dao": {"name": "双季稻种", "category": "seed", "tier": "juepin", "bind": false, "source": ["shop", "wheel"], "effect": "plant_crop"},
+		"hongshu_zhongzi": {"name": "红薯种", "category": "seed", "tier": "chuanshi", "bind": false, "source": ["shop", "wheel"], "effect": "plant_crop"},
+		"tudu_zhongzi": {"name": "土豆种", "category": "seed", "tier": "chuanshi", "bind": false, "source": ["shop"], "effect": "plant_crop"},
+		"yumi_zhongzi": {"name": "玉米种", "category": "seed", "tier": "chuanshi", "bind": false, "source": ["shop", "wheel"], "effect": "plant_crop"},
+		"liangzhong_changgui": {"name": "常规粮种", "category": "seed", "tier": "fanpin", "bind": false, "source": ["wheel"], "effect": "plant_crop"},
+
+		"quyuanli_tuzhi": {"name": "曲辕犁图纸", "category": "blueprint", "tier": "liangpin", "bind": false, "source": ["shop", "wheel"], "effect": "unlock_blueprint"},
+		"tongche_tuzhi": {"name": "筒车图纸", "category": "blueprint", "tier": "liangpin", "bind": false, "source": ["shop"], "effect": "unlock_blueprint"},
+		"shuidui_tuzhi": {"name": "水碓图纸", "category": "blueprint", "tier": "zhenpin", "bind": false, "source": ["shop"], "effect": "unlock_blueprint"},
+		"feizao_tuzhi": {"name": "肥皂图纸", "category": "blueprint", "tier": "liangpin", "bind": false, "source": ["shop"], "effect": "unlock_blueprint"},
+		"boli_tuzhi": {"name": "玻璃图纸", "category": "blueprint", "tier": "zhenpin", "bind": false, "source": ["shop"], "effect": "unlock_blueprint"},
+		"shuini_tuzhi": {"name": "水泥图纸", "category": "blueprint", "tier": "zhenpin", "bind": false, "source": ["shop"], "effect": "unlock_blueprint"},
+		"huozijue_tuzhi": {"name": "活字印刷图纸", "category": "blueprint", "tier": "zhenpin", "bind": false, "source": ["shop"], "effect": "unlock_blueprint"},
+		"huoyao_gailiang": {"name": "火药改良图纸", "category": "blueprint", "tier": "juepin", "bind": false, "source": ["shop", "wheel"], "effect": "unlock_blueprint"},
+		"zhengqiji_tuzhi": {"name": "蒸汽机图纸", "category": "blueprint", "tier": "chuanshi", "bind": false, "source": ["shop", "wheel"], "effect": "unlock_blueprint"},
+		"huochong_tuzhi": {"name": "火铳图纸", "category": "blueprint", "tier": "zhenpin", "bind": false, "source": ["wheel"], "effect": "unlock_blueprint"},
+		"qichuan_tuzhi": {"name": "汽船图纸", "category": "blueprint", "tier": "zhenpin", "bind": false, "source": ["wheel"], "effect": "unlock_blueprint"},
+
+		"liejiu_xiaodu": {"name": "烈酒蒸馏消毒残卷", "category": "tome", "tier": "zhenpin", "bind": false, "source": ["shop"], "effect": "unlock_tome"},
+		"zhongdou_fq": {"name": "种痘法残卷", "category": "tome", "tier": "juepin", "bind": false, "source": ["shop"], "effect": "unlock_tome"},
+		"qingmeisu_ct": {"name": "青霉素粗提残卷", "category": "tome", "tier": "juepin", "bind": false, "source": ["shop"], "effect": "unlock_tome"},
+
+		"tuna_daoyin": {"name": "吐纳导引术", "category": "martial", "tier": "zhenpin", "bind": false, "source": ["shop"], "effect": "learn_martial"},
+		"she_shu": {"name": "射术", "category": "martial", "tier": "zhenpin", "bind": false, "source": ["shop", "wheel"], "effect": "learn_martial"},
+		"masuo_shu": {"name": "马槊术", "category": "martial", "tier": "juepin", "bind": false, "source": ["shop", "wheel"], "effect": "learn_martial"},
+		"qi_changdao": {"name": "戚氏长刀（东御彩蛋）", "category": "martial", "tier": "juepin", "bind": false, "source": ["shop", "wheel"], "effect": "learn_martial"},
+		"bingxue_rumen": {"name": "兵学入门", "category": "martial", "tier": "fanpin", "bind": false, "source": ["wheel"], "effect": "learn_martial"},
+		"chuanhai_rumen": {"name": "船海入门", "category": "blueprint", "tier": "fanpin", "bind": false, "source": ["wheel"], "effect": "unlock_blueprint"},
+
+		"wangxizhi_moben": {"name": "王羲之摹本下落", "category": "clue", "tier": "zhenpin", "bind": false, "source": ["shop", "wheel"], "effect": "story_clue"},
+		"xiyu_shanglu": {"name": "西域商路图", "category": "clue", "tier": "zhenpin", "bind": false, "source": ["shop", "wheel"], "effect": "story_clue"},
+		"woguo_bufang": {"name": "倭国布防图", "category": "clue", "tier": "zhenpin", "bind": false, "source": ["shop"], "effect": "story_clue"},
+		"suanxue_rumen": {"name": "算学入门", "category": "clue", "tier": "fanpin", "bind": false, "source": ["wheel"], "effect": "stat_boost"},
+		"wuxin_canjuan_a": {"name": "文心残卷·上", "category": "clue", "tier": "liangpin", "bind": false, "source": ["wheel"], "effect": "wenxin_buff"},
+		"wenzhang_zhen": {"name": "传世文章真迹", "category": "clue", "tier": "chuanshi", "bind": false, "source": ["wheel"], "effect": "wenxin_buff"},
+
+		"cangjie_kuorong": {"name": "仓界扩容+5格", "category": "service", "tier": "liangpin", "bind": true, "source": ["shop"], "effect": "storage_expand"},
+		"huixiang_baoxian": {"name": "回响保险（死亡惩罚减半）", "category": "service", "tier": "liangpin", "bind": true, "source": ["shop"], "effect": "echo_insurance"}
+	}
+}
