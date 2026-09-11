@@ -1,0 +1,1027 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.12.2" orientation="orthogonal" renderorder="right-down" width="168" height="142" tilewidth="16" tileheight="16" infinite="0" nextlayerid="4" nextobjectid="348">
+	<properties>
+		<property name="来源" value="长安v2实机生成导出（tools/export_changan_v2_dump.gd → tools/build_changan_v2_tmx.py）"/>
+		<property name="导出时间" value="2026-09-11T16:01:37"/>
+		<property name="编辑约定" value="物件=底边中心锚(objectalignment=bottom)；16px网格；翻转=水平翻转位"/>
+	</properties>
+	<tileset firstgid="1" name="长安瓦片（单格）" tilewidth="16" tileheight="16" tilecount="113" columns="0">
+		<tile id="0"><image width="16" height="16" source="../../../sprites/tiles_mw22/grass.png"/></tile>
+		<tile id="69"><image width="16" height="16" source="../../../sprites/tiles_changan_sckr/wall_palace.png"/></tile>
+		<tile id="70"><image width="16" height="16" source="../../../sprites/tiles_changan_sckr/wall_city.png"/></tile>
+		<tile id="100"><image width="16" height="16" source="../../../sprites/tiles_changan_sckr/wall_ward.png"/></tile>
+		<tile id="103"><image width="16" height="16" source="../../../sprites/tiles_changan_sckr/wall_city_face_v.png"/></tile>
+		<tile id="104"><image width="16" height="16" source="../../../sprites/tiles_changan_sckr/wall_palace_v.png"/></tile>
+		<tile id="105"><image width="16" height="16" source="../../../sprites/tiles_changan_sckr/wall_ward_v.png"/></tile>
+		<tile id="108"><image width="16" height="16" source="_changan_single_16/wall_city_cap_w_16.png"/></tile>
+		<tile id="109"><image width="16" height="16" source="_changan_single_16/wall_city_cap_e_16.png"/></tile>
+		<tile id="111"><image width="16" height="16" source="../../../sprites/tiles_changan_sckr/quay_stone.png"/></tile>
+		<tile id="112"><image width="16" height="16" source="../../../sprites/tiles_changan_sckr/water_canal.png"/></tile>
+	</tileset>
+	<tileset firstgid="114" name="地面区带Z1_00_地面_11" tilewidth="16" tileheight="16" tilecount="40" columns="4">
+		<image width="64" height="160" source="../../../素材库/00_地面/pieces/00_地面_11.png"/>
+	</tileset>
+	<tileset firstgid="154" name="地面区带Z2_00_地面_11" tilewidth="16" tileheight="16" tilecount="40" columns="4">
+		<image width="64" height="160" source="../../../素材库/00_地面/pieces/00_地面_11.png"/>
+	</tileset>
+	<tileset firstgid="194" name="地面区带Z3_00_地面_11" tilewidth="16" tileheight="16" tilecount="40" columns="4">
+		<image width="64" height="160" source="../../../素材库/00_地面/pieces/00_地面_11.png"/>
+	</tileset>
+	<tileset firstgid="234" name="地面区带Z4_00_地面_09" tilewidth="16" tileheight="16" tilecount="36" columns="4">
+		<image width="64" height="144" source="../../../素材库/00_地面/pieces/00_地面_09.png"/>
+	</tileset>
+	<tileset firstgid="270" name="地面区带Z5_00_地面_08" tilewidth="16" tileheight="16" tilecount="9" columns="3">
+		<image width="48" height="48" source="../../../素材库/00_地面/pieces/00_地面_08.png"/>
+	</tileset>
+	<tileset firstgid="279" name="素材件-00_地面" tilewidth="16" tileheight="16" tilecount="13" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="00_地面_01"/></properties>
+			<image width="64" height="96" source="../../../素材库/00_地面/pieces/00_地面_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="00_地面_02"/></properties>
+			<image width="80" height="144" source="../../../素材库/00_地面/pieces/00_地面_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="00_地面_03"/></properties>
+			<image width="96" height="96" source="../../../素材库/00_地面/pieces/00_地面_03.png"/>
+		</tile>
+		<tile id="3">
+			<properties><property name="slice" value="00_地面_04"/></properties>
+			<image width="92" height="96" source="../../../素材库/00_地面/pieces/00_地面_04.png"/>
+		</tile>
+		<tile id="4">
+			<properties><property name="slice" value="00_地面_05"/></properties>
+			<image width="32" height="208" source="../../../素材库/00_地面/pieces/00_地面_05.png"/>
+		</tile>
+		<tile id="5">
+			<properties><property name="slice" value="00_地面_06"/></properties>
+			<image width="48" height="16" source="../../../素材库/00_地面/pieces/00_地面_06.png"/>
+		</tile>
+		<tile id="6">
+			<properties><property name="slice" value="00_地面_07"/></properties>
+			<image width="48" height="144" source="../../../素材库/00_地面/pieces/00_地面_07.png"/>
+		</tile>
+		<tile id="7">
+			<properties><property name="slice" value="00_地面_08"/></properties>
+			<image width="48" height="48" source="../../../素材库/00_地面/pieces/00_地面_08.png"/>
+		</tile>
+		<tile id="8">
+			<properties><property name="slice" value="00_地面_09"/></properties>
+			<image width="64" height="144" source="../../../素材库/00_地面/pieces/00_地面_09.png"/>
+		</tile>
+		<tile id="9">
+			<properties><property name="slice" value="00_地面_10"/></properties>
+			<image width="96" height="192" source="../../../素材库/00_地面/pieces/00_地面_10.png"/>
+		</tile>
+		<tile id="10">
+			<properties><property name="slice" value="00_地面_11"/></properties>
+			<image width="64" height="160" source="../../../素材库/00_地面/pieces/00_地面_11.png"/>
+		</tile>
+		<tile id="11">
+			<properties><property name="slice" value="00_地面_12"/></properties>
+			<image width="208" height="48" source="../../../素材库/00_地面/pieces/00_地面_12.png"/>
+		</tile>
+		<tile id="12">
+			<properties><property name="slice" value="00_地面_13"/></properties>
+			<image width="384" height="96" source="../../../素材库/00_地面/pieces/00_地面_13.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="292" name="素材件-01_民居坊" tilewidth="16" tileheight="16" tilecount="11" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="01_民居坊_01"/></properties>
+			<image width="192" height="184" source="../../../素材库/01_民居坊/pieces/01_民居坊_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="01_民居坊_02"/></properties>
+			<image width="192" height="192" source="../../../素材库/01_民居坊/pieces/01_民居坊_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="01_民居坊_03"/></properties>
+			<image width="192" height="192" source="../../../素材库/01_民居坊/pieces/01_民居坊_03.png"/>
+		</tile>
+		<tile id="3">
+			<properties><property name="slice" value="01_民居坊_04"/></properties>
+			<image width="192" height="192" source="../../../素材库/01_民居坊/pieces/01_民居坊_04.png"/>
+		</tile>
+		<tile id="4">
+			<properties><property name="slice" value="01_民居坊_05"/></properties>
+			<image width="150" height="155" source="../../../素材库/01_民居坊/pieces/01_民居坊_05.png"/>
+		</tile>
+		<tile id="5">
+			<properties><property name="slice" value="01_民居坊_06"/></properties>
+			<image width="96" height="176" source="../../../素材库/01_民居坊/pieces/01_民居坊_06.png"/>
+		</tile>
+		<tile id="6">
+			<properties><property name="slice" value="01_民居坊_07"/></properties>
+			<image width="96" height="96" source="../../../素材库/01_民居坊/pieces/01_民居坊_07.png"/>
+		</tile>
+		<tile id="7">
+			<properties><property name="slice" value="01_民居坊_08"/></properties>
+			<image width="96" height="96" source="../../../素材库/01_民居坊/pieces/01_民居坊_08.png"/>
+		</tile>
+		<tile id="8">
+			<properties><property name="slice" value="01_民居坊_09"/></properties>
+			<image width="96" height="96" source="../../../素材库/01_民居坊/pieces/01_民居坊_09.png"/>
+		</tile>
+		<tile id="9">
+			<properties><property name="slice" value="01_民居坊_10"/></properties>
+			<image width="96" height="96" source="../../../素材库/01_民居坊/pieces/01_民居坊_10.png"/>
+		</tile>
+		<tile id="10">
+			<properties><property name="slice" value="01_民居坊_11"/></properties>
+			<image width="96" height="96" source="../../../素材库/01_民居坊/pieces/01_民居坊_11.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="303" name="素材件-02_官宅清流" tilewidth="16" tileheight="16" tilecount="3" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="02_官宅清流_01"/></properties>
+			<image width="384" height="368" source="../../../素材库/02_官宅清流/pieces/02_官宅清流_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="02_官宅清流_02"/></properties>
+			<image width="480" height="192" source="../../../素材库/02_官宅清流/pieces/02_官宅清流_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="02_官宅清流_03"/></properties>
+			<image width="192" height="192" source="../../../素材库/02_官宅清流/pieces/02_官宅清流_03.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="306" name="素材件-03_贵戚府" tilewidth="16" tileheight="16" tilecount="2" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="03_贵戚府_01"/></properties>
+			<image width="192" height="192" source="../../../素材库/03_贵戚府/pieces/03_贵戚府_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="03_贵戚府_02"/></properties>
+			<image width="192" height="192" source="../../../素材库/03_贵戚府/pieces/03_贵戚府_02.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="308" name="素材件-04_亲王公主府" tilewidth="16" tileheight="16" tilecount="6" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="04_亲王公主府_01"/></properties>
+			<image width="96" height="96" source="../../../素材库/04_亲王公主府/pieces/04_亲王公主府_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="04_亲王公主府_02"/></properties>
+			<image width="96" height="96" source="../../../素材库/04_亲王公主府/pieces/04_亲王公主府_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="04_亲王公主府_03"/></properties>
+			<image width="94" height="96" source="../../../素材库/04_亲王公主府/pieces/04_亲王公主府_03.png"/>
+		</tile>
+		<tile id="3">
+			<properties><property name="slice" value="04_亲王公主府_04"/></properties>
+			<image width="96" height="96" source="../../../素材库/04_亲王公主府/pieces/04_亲王公主府_04.png"/>
+		</tile>
+		<tile id="4">
+			<properties><property name="slice" value="04_亲王公主府_05"/></properties>
+			<image width="96" height="95" source="../../../素材库/04_亲王公主府/pieces/04_亲王公主府_05.png"/>
+		</tile>
+		<tile id="5">
+			<properties><property name="slice" value="04_亲王公主府_06"/></properties>
+			<image width="94" height="96" source="../../../素材库/04_亲王公主府/pieces/04_亲王公主府_06.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="314" name="素材件-05_官署" tilewidth="16" tileheight="16" tilecount="3" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="05_官署_01"/></properties>
+			<image width="464" height="240" source="../../../素材库/05_官署/pieces/05_官署_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="05_官署_02"/></properties>
+			<image width="94" height="95" source="../../../素材库/05_官署/pieces/05_官署_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="05_官署_03"/></properties>
+			<image width="83" height="95" source="../../../素材库/05_官署/pieces/05_官署_03.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="317" name="素材件-06_宫城" tilewidth="16" tileheight="16" tilecount="12" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="06_宫城_01"/></properties>
+			<image width="92" height="88" source="../../../素材库/06_宫城/pieces/06_宫城_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="06_宫城_02"/></properties>
+			<image width="94" height="95" source="../../../素材库/06_宫城/pieces/06_宫城_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="06_宫城_03"/></properties>
+			<image width="144" height="96" source="../../../素材库/06_宫城/pieces/06_宫城_03.png"/>
+		</tile>
+		<tile id="3">
+			<properties><property name="slice" value="06_宫城_04"/></properties>
+			<image width="96" height="96" source="../../../素材库/06_宫城/pieces/06_宫城_04.png"/>
+		</tile>
+		<tile id="4">
+			<properties><property name="slice" value="06_宫城_05"/></properties>
+			<image width="92" height="95" source="../../../素材库/06_宫城/pieces/06_宫城_05.png"/>
+		</tile>
+		<tile id="5">
+			<properties><property name="slice" value="06_宫城_06"/></properties>
+			<image width="144" height="96" source="../../../素材库/06_宫城/pieces/06_宫城_06.png"/>
+		</tile>
+		<tile id="6">
+			<properties><property name="slice" value="06_宫城_07"/></properties>
+			<image width="144" height="96" source="../../../素材库/06_宫城/pieces/06_宫城_07.png"/>
+		</tile>
+		<tile id="7">
+			<properties><property name="slice" value="06_宫城_08"/></properties>
+			<image width="94" height="96" source="../../../素材库/06_宫城/pieces/06_宫城_08.png"/>
+		</tile>
+		<tile id="8">
+			<properties><property name="slice" value="06_宫城_09"/></properties>
+			<image width="92" height="68" source="../../../素材库/06_宫城/pieces/06_宫城_09.png"/>
+		</tile>
+		<tile id="9">
+			<properties><property name="slice" value="06_宫城_10"/></properties>
+			<image width="94" height="96" source="../../../素材库/06_宫城/pieces/06_宫城_10.png"/>
+		</tile>
+		<tile id="10">
+			<properties><property name="slice" value="06_宫城_11"/></properties>
+			<image width="96" height="94" source="../../../素材库/06_宫城/pieces/06_宫城_11.png"/>
+		</tile>
+		<tile id="11">
+			<properties><property name="slice" value="06_宫城_12"/></properties>
+			<image width="94" height="95" source="../../../素材库/06_宫城/pieces/06_宫城_12.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="329" name="素材件-07_寺观" tilewidth="16" tileheight="16" tilecount="10" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="07_寺观_01"/></properties>
+			<image width="92" height="89" source="../../../素材库/07_寺观/pieces/07_寺观_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="07_寺观_02"/></properties>
+			<image width="38" height="96" source="../../../素材库/07_寺观/pieces/07_寺观_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="07_寺观_03"/></properties>
+			<image width="52" height="96" source="../../../素材库/07_寺观/pieces/07_寺观_03.png"/>
+		</tile>
+		<tile id="3">
+			<properties><property name="slice" value="07_寺观_04"/></properties>
+			<image width="64" height="96" source="../../../素材库/07_寺观/pieces/07_寺观_04.png"/>
+		</tile>
+		<tile id="4">
+			<properties><property name="slice" value="07_寺观_05"/></properties>
+			<image width="82" height="91" source="../../../素材库/07_寺观/pieces/07_寺观_05.png"/>
+		</tile>
+		<tile id="5">
+			<properties><property name="slice" value="07_寺观_06"/></properties>
+			<image width="64" height="96" source="../../../素材库/07_寺观/pieces/07_寺观_06.png"/>
+		</tile>
+		<tile id="6">
+			<properties><property name="slice" value="07_寺观_07"/></properties>
+			<image width="82" height="192" source="../../../素材库/07_寺观/pieces/07_寺观_07.png"/>
+		</tile>
+		<tile id="7">
+			<properties><property name="slice" value="07_寺观_08"/></properties>
+			<image width="767" height="288" source="../../../素材库/07_寺观/pieces/07_寺观_08.png"/>
+		</tile>
+		<tile id="8">
+			<properties><property name="slice" value="07_寺观_09"/></properties>
+			<image width="272" height="288" source="../../../素材库/07_寺观/pieces/07_寺观_09.png"/>
+		</tile>
+		<tile id="9">
+			<properties><property name="slice" value="07_寺观_10"/></properties>
+			<image width="82" height="96" source="../../../素材库/07_寺观/pieces/07_寺观_10.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="339" name="素材件-08_市铺" tilewidth="16" tileheight="16" tilecount="34" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="08_市铺_01"/></properties>
+			<image width="192" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="08_市铺_02"/></properties>
+			<image width="96" height="90" source="../../../素材库/08_市铺/pieces/08_市铺_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="08_市铺_03"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_03.png"/>
+		</tile>
+		<tile id="3">
+			<properties><property name="slice" value="08_市铺_04"/></properties>
+			<image width="191" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_04.png"/>
+		</tile>
+		<tile id="4">
+			<properties><property name="slice" value="08_市铺_05"/></properties>
+			<image width="96" height="90" source="../../../素材库/08_市铺/pieces/08_市铺_05.png"/>
+		</tile>
+		<tile id="5">
+			<properties><property name="slice" value="08_市铺_06"/></properties>
+			<image width="96" height="94" source="../../../素材库/08_市铺/pieces/08_市铺_06.png"/>
+		</tile>
+		<tile id="6">
+			<properties><property name="slice" value="08_市铺_07"/></properties>
+			<image width="190" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_07.png"/>
+		</tile>
+		<tile id="7">
+			<properties><property name="slice" value="08_市铺_08"/></properties>
+			<image width="96" height="90" source="../../../素材库/08_市铺/pieces/08_市铺_08.png"/>
+		</tile>
+		<tile id="8">
+			<properties><property name="slice" value="08_市铺_09"/></properties>
+			<image width="96" height="95" source="../../../素材库/08_市铺/pieces/08_市铺_09.png"/>
+		</tile>
+		<tile id="9">
+			<properties><property name="slice" value="08_市铺_10"/></properties>
+			<image width="83" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_10.png"/>
+		</tile>
+		<tile id="10">
+			<properties><property name="slice" value="08_市铺_11"/></properties>
+			<image width="190" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_11.png"/>
+		</tile>
+		<tile id="11">
+			<properties><property name="slice" value="08_市铺_12"/></properties>
+			<image width="96" height="95" source="../../../素材库/08_市铺/pieces/08_市铺_12.png"/>
+		</tile>
+		<tile id="12">
+			<properties><property name="slice" value="08_市铺_13"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_13.png"/>
+		</tile>
+		<tile id="13">
+			<properties><property name="slice" value="08_市铺_14"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_14.png"/>
+		</tile>
+		<tile id="14">
+			<properties><property name="slice" value="08_市铺_15"/></properties>
+			<image width="191" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_15.png"/>
+		</tile>
+		<tile id="15">
+			<properties><property name="slice" value="08_市铺_16"/></properties>
+			<image width="160" height="93" source="../../../素材库/08_市铺/pieces/08_市铺_16.png"/>
+		</tile>
+		<tile id="16">
+			<properties><property name="slice" value="08_市铺_17"/></properties>
+			<image width="78" height="95" source="../../../素材库/08_市铺/pieces/08_市铺_17.png"/>
+		</tile>
+		<tile id="17">
+			<properties><property name="slice" value="08_市铺_18"/></properties>
+			<image width="90" height="95" source="../../../素材库/08_市铺/pieces/08_市铺_18.png"/>
+		</tile>
+		<tile id="18">
+			<properties><property name="slice" value="08_市铺_19"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_19.png"/>
+		</tile>
+		<tile id="19">
+			<properties><property name="slice" value="08_市铺_20"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_20.png"/>
+		</tile>
+		<tile id="20">
+			<properties><property name="slice" value="08_市铺_21"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_21.png"/>
+		</tile>
+		<tile id="21">
+			<properties><property name="slice" value="08_市铺_22"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_22.png"/>
+		</tile>
+		<tile id="22">
+			<properties><property name="slice" value="08_市铺_23"/></properties>
+			<image width="84" height="80" source="../../../素材库/08_市铺/pieces/08_市铺_23.png"/>
+		</tile>
+		<tile id="23">
+			<properties><property name="slice" value="08_市铺_24"/></properties>
+			<image width="80" height="80" source="../../../素材库/08_市铺/pieces/08_市铺_24.png"/>
+		</tile>
+		<tile id="24">
+			<properties><property name="slice" value="08_市铺_25"/></properties>
+			<image width="96" height="80" source="../../../素材库/08_市铺/pieces/08_市铺_25.png"/>
+		</tile>
+		<tile id="25">
+			<properties><property name="slice" value="08_市铺_26"/></properties>
+			<image width="80" height="77" source="../../../素材库/08_市铺/pieces/08_市铺_26.png"/>
+		</tile>
+		<tile id="26">
+			<properties><property name="slice" value="08_市铺_27"/></properties>
+			<image width="96" height="90" source="../../../素材库/08_市铺/pieces/08_市铺_27.png"/>
+		</tile>
+		<tile id="27">
+			<properties><property name="slice" value="08_市铺_28"/></properties>
+			<image width="80" height="78" source="../../../素材库/08_市铺/pieces/08_市铺_28.png"/>
+		</tile>
+		<tile id="28">
+			<properties><property name="slice" value="08_市铺_29"/></properties>
+			<image width="80" height="78" source="../../../素材库/08_市铺/pieces/08_市铺_29.png"/>
+		</tile>
+		<tile id="29">
+			<properties><property name="slice" value="08_市铺_30"/></properties>
+			<image width="96" height="79" source="../../../素材库/08_市铺/pieces/08_市铺_30.png"/>
+		</tile>
+		<tile id="30">
+			<properties><property name="slice" value="08_市铺_31"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_31.png"/>
+		</tile>
+		<tile id="31">
+			<properties><property name="slice" value="08_市铺_32"/></properties>
+			<image width="96" height="96" source="../../../素材库/08_市铺/pieces/08_市铺_32.png"/>
+		</tile>
+		<tile id="32">
+			<properties><property name="slice" value="08_市铺_33"/></properties>
+			<image width="96" height="88" source="../../../素材库/08_市铺/pieces/08_市铺_33.png"/>
+		</tile>
+		<tile id="33">
+			<properties><property name="slice" value="08_市铺_34"/></properties>
+			<image width="64" height="64" source="../../../素材库/08_市铺/pieces/08_市铺_34.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="373" name="素材件-09_风月楼" tilewidth="16" tileheight="16" tilecount="1" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="09_风月楼_01"/></properties>
+			<image width="168" height="47" source="../../../素材库/09_风月楼/pieces/09_风月楼_01.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="374" name="素材件-10_军营" tilewidth="16" tileheight="16" tilecount="1" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="10_军营_01"/></properties>
+			<image width="150" height="47" source="../../../素材库/10_军营/pieces/10_军营_01.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="375" name="素材件-11_街饰过渡" tilewidth="16" tileheight="16" tilecount="24" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="11_街饰过渡_01"/></properties>
+			<image width="191" height="44" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_01.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="11_街饰过渡_02"/></properties>
+			<image width="44" height="52" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_02.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="11_街饰过渡_03"/></properties>
+			<image width="84" height="71" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_03.png"/>
+		</tile>
+		<tile id="3">
+			<properties><property name="slice" value="11_街饰过渡_04"/></properties>
+			<image width="94" height="64" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_04.png"/>
+		</tile>
+		<tile id="4">
+			<properties><property name="slice" value="11_街饰过渡_05"/></properties>
+			<image width="41" height="53" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_05.png"/>
+		</tile>
+		<tile id="5">
+			<properties><property name="slice" value="11_街饰过渡_06"/></properties>
+			<image width="28" height="26" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_06.png"/>
+		</tile>
+		<tile id="6">
+			<properties><property name="slice" value="11_街饰过渡_07"/></properties>
+			<image width="42" height="39" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_07.png"/>
+		</tile>
+		<tile id="7">
+			<properties><property name="slice" value="11_街饰过渡_08"/></properties>
+			<image width="39" height="39" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_08.png"/>
+		</tile>
+		<tile id="8">
+			<properties><property name="slice" value="11_街饰过渡_09"/></properties>
+			<image width="322" height="41" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_09.png"/>
+		</tile>
+		<tile id="9">
+			<properties><property name="slice" value="11_街饰过渡_10"/></properties>
+			<image width="36" height="43" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_10.png"/>
+		</tile>
+		<tile id="10">
+			<properties><property name="slice" value="11_街饰过渡_11"/></properties>
+			<image width="48" height="44" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_11.png"/>
+		</tile>
+		<tile id="11">
+			<properties><property name="slice" value="11_街饰过渡_12"/></properties>
+			<image width="15" height="25" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_12.png"/>
+		</tile>
+		<tile id="12">
+			<properties><property name="slice" value="11_街饰过渡_13"/></properties>
+			<image width="16" height="27" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_13.png"/>
+		</tile>
+		<tile id="13">
+			<properties><property name="slice" value="11_街饰过渡_14"/></properties>
+			<image width="33" height="44" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_14.png"/>
+		</tile>
+		<tile id="14">
+			<properties><property name="slice" value="11_街饰过渡_15"/></properties>
+			<image width="33" height="43" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_15.png"/>
+		</tile>
+		<tile id="15">
+			<properties><property name="slice" value="11_街饰过渡_16"/></properties>
+			<image width="43" height="43" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_16.png"/>
+		</tile>
+		<tile id="16">
+			<properties><property name="slice" value="11_街饰过渡_17"/></properties>
+			<image width="44" height="46" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_17.png"/>
+		</tile>
+		<tile id="17">
+			<properties><property name="slice" value="11_街饰过渡_18"/></properties>
+			<image width="45" height="40" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_18.png"/>
+		</tile>
+		<tile id="18">
+			<properties><property name="slice" value="11_街饰过渡_19"/></properties>
+			<image width="42" height="48" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_19.png"/>
+		</tile>
+		<tile id="19">
+			<properties><property name="slice" value="11_街饰过渡_20"/></properties>
+			<image width="40" height="46" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_20.png"/>
+		</tile>
+		<tile id="20">
+			<properties><property name="slice" value="11_街饰过渡_21"/></properties>
+			<image width="36" height="38" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_21.png"/>
+		</tile>
+		<tile id="21">
+			<properties><property name="slice" value="11_街饰过渡_22"/></properties>
+			<image width="34" height="38" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_22.png"/>
+		</tile>
+		<tile id="22">
+			<properties><property name="slice" value="11_街饰过渡_23"/></properties>
+			<image width="33" height="45" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_23.png"/>
+		</tile>
+		<tile id="23">
+			<properties><property name="slice" value="11_街饰过渡_24"/></properties>
+			<image width="33" height="45" source="../../../素材库/11_街饰过渡/pieces/11_街饰过渡_24.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="399" name="素材件-12_城防" tilewidth="16" tileheight="16" tilecount="1" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="12_城防_01"/></properties>
+			<image width="150" height="47" source="../../../素材库/12_城防/pieces/12_城防_01.png"/>
+		</tile>
+	</tileset>
+	<tileset firstgid="400" name="SCKR道具" tilewidth="16" tileheight="16" tilecount="14" columns="0" objectalignment="bottom">
+		<tile id="0">
+			<properties><property name="slice" value="bell_tower"/></properties>
+			<image width="70" height="96" source="../../../sprites/changan_props_sckr/bell_tower.png"/>
+		</tile>
+		<tile id="1">
+			<properties><property name="slice" value="boat_small"/></properties>
+			<image width="96" height="33" source="../../../sprites/changan_props_sckr/boat_small.png"/>
+		</tile>
+		<tile id="2">
+			<properties><property name="slice" value="bridge_arch_stone_deck"/></properties>
+			<image width="96" height="58" source="../../../sprites/changan_props_sckr/bridge_arch_stone_deck.png"/>
+		</tile>
+		<tile id="3">
+			<properties><property name="slice" value="drum_tower"/></properties>
+			<image width="70" height="96" source="../../../sprites/changan_props_sckr/drum_tower.png"/>
+		</tile>
+		<tile id="4">
+			<properties><property name="slice" value="gate_tower_big"/></properties>
+			<image width="110" height="94" source="../../../sprites/changan_props_sckr/gate_tower_big.png"/>
+		</tile>
+		<tile id="5">
+			<properties><property name="slice" value="gate_tower_mid"/></properties>
+			<image width="100" height="94" source="../../../sprites/changan_props_sckr/gate_tower_mid.png"/>
+		</tile>
+		<tile id="6">
+			<properties><property name="slice" value="lamp_red"/></properties>
+			<image width="30" height="52" source="../../../sprites/changan_props_sckr/lamp_red.png"/>
+		</tile>
+		<tile id="7">
+			<properties><property name="slice" value="lamp_red2"/></properties>
+			<image width="30" height="52" source="../../../sprites/changan_props_sckr/lamp_red2.png"/>
+		</tile>
+		<tile id="8">
+			<properties><property name="slice" value="lion_stone_a"/></properties>
+			<image width="22" height="44" source="../../../sprites/changan_props_sckr/lion_stone_a.png"/>
+		</tile>
+		<tile id="9">
+			<properties><property name="slice" value="lion_stone_b"/></properties>
+			<image width="24" height="44" source="../../../sprites/changan_props_sckr/lion_stone_b.png"/>
+		</tile>
+		<tile id="10">
+			<properties><property name="slice" value="tree_big"/></properties>
+			<image width="96" height="96" source="../../../sprites/changan_props_sckr/tree_big.png"/>
+		</tile>
+		<tile id="11">
+			<properties><property name="slice" value="tree_lush_a"/></properties>
+			<image width="90" height="96" source="../../../sprites/changan_props_sckr/tree_lush_a.png"/>
+		</tile>
+		<tile id="12">
+			<properties><property name="slice" value="tree_lush_b"/></properties>
+			<image width="94" height="95" source="../../../sprites/changan_props_sckr/tree_lush_b.png"/>
+		</tile>
+		<tile id="13">
+			<properties><property name="slice" value="wall_run"/></properties>
+			<image width="68" height="63" source="../../../sprites/changan_props_sckr/wall_run.png"/>
+		</tile>
+	</tileset>
+	<layer id="5" name="地面" width="168" height="142">
+		<data encoding="base64" compression="zlib">eNrt3dGHVV0cxvE5irruL52uZmhoaGhoaJi5L4qiKIqi7ouiKIqiqPuiKIpaw9lkWVt77/M8v9lr+V48Hubi975nnc3L5/2tfRZra2sLQgghhBBCCDmGXEzZXTbnQeaWSyl7y+Y8yNxyOWV/2ZwHmVsOUg6XzXmQuWUjZXPZnAeZW86lbC27pn/v8ynbNC1q9fN5IWWHpkXtdDGaXrWdLnY6/eHUQtd72fwzC23y+fdT7lXY7s8ROd/pYl9Tvgh7P5uvfj7z+Q9THlTY7s8ROd/pYt9Tvgn7MJuvfj7z+Y9THlXY7s8ROd/pYj9Tfgh7M5uvfj7z+VdTrlTY7s8ROd/pYr9Tfgl7K5uvfj7z+ddTrlXY7s8ROd/pn0d/+CPs3MfUz2c+/2bKjQrb/Tki5zv982T6w4mFrnMfUz+f+fzbKbcqbPfniJzv9E+1L+U+pn4+8/l3U+5U2O7PETnf6Z9qX8I/8U+lf6p9Cf/EP5X+qfYl/BP/VPqn2pfwT/xT6Z9qX8I/8U+lf6p9Cf/EP5X+qfYl/BP/VPqn2pfwT/xT6Z9qX8I/8U+lf6p9Cf/EP5X+qfYl/BP/VPqn2pfwT/xT6Z80vWpz/53m/jtNc/+d5v77GP9U+xL+Oc0n3ef0PuWdsKP8U+1L+Oc0n3Sf08eUD8KO8k+1L+Gf03zSfU6fUz4JO8o/1ftL+Oc0n3Sf09OUJ8KO8k/1/hL7n9P2M93n9DzlmbCj/FO9v8T+57T9TPc5vUx5Iewo/1TvL7H/OW0/031Or1NeCTvKP9W+xP7ntP1M9zm9TXkj7Cj/VPsS/ol/Kv1T7Uv4J/6p9E+1L5Vc76DgfVO6zz9V86O6zz+d51Srf6p9qeR6GwXvm9J9/qmaH9V9/uk8p1r9U+1L+Cf+qfRPtS/hn/in0j/VvoR/4p9K/1T7Ev6Jfyr9U+1L+Cf+qfRPtS/hn/in0j/VvsT+J/ufSv9U+xL7n+x/cv+dbun+O/e06Tnfh+eeNj3n+/Dc06Zrug8f5WIRruee37Xa4faCv4da3//pdLEI13PP71rtcPvB30Ot7/90uliE67nnd612uMPg76HW9386XSzC9dzzu1bveW0Gfw9Ov3X6p3MvMGKv0T2/a/We11bw91Dr7x859wIj9hrd87tW73ltB38Ptf7+kXMvMGKv0T2/a/We107w91Dr7x859wIj9hrd87tW+9Ju8PdQ6+8f4Z/D/FPtS/gn/qn0T7Uv4Z/z8U/nvW73/K7VvnQc/um6v1+7fzrvdbvnd632pePwT9f9ffzz+P1T7Uv4J/6p9E+1L+Gf+KfSP9W+hH/in0r/VPsS/ol/Kv1T7Uv4J/6p9E+1L+Gf7H8q9z/VvsT+J/ufyv1PtS+x/8n9d5rff6dpfv+d5vffaXp+v/9eu09G+Sfn1D/f6Z+1+2SUf3JO/fOd/lm7T0b5J+fUP9/pn7X7ZJR/ck79853+Wft+ZtT+J+fUP9/pn7XvZ0btf3JO/fOd/ln7fmbU/ifn1D/f6Z+172dG7X9yTv3z8U/8E//E9fDPefpnzffTo+6/c079893+WfP99Kj775xT/3z8E//EP3E9/BP/xD/xT/wT/8Q/8U/OCf/EP/FP9hrZ/2T/k/1P9j+5/05z/52muf9Oc/+dprn/jn/+/5+jfn945Hz8s33/VL8/PHI+/tm+f6rfH16av742LGPn45/t+6f6/eGl+d3zd7aQf5/PsfPZ/2x//1P9/vDS/L5nM39Gx85n/7P9/U/1+8NL84c+n2Pns//Z/v6n+v3hpflDn8+x89n/bH//U+0/pflDn8+x8/HP9v1T7T+l+esDns2jjJ2Pf7bvn2pfipzP/ff277+rfSlyPvff27//rval0vyh/30fOx//bN8/1b5Umr8+8BkdOx//bN8/1b5Umj/0+Rw7H/9s3z/VvlSaP/T5HDsf/2zfP9W+VJq/PvD/wY+dj3+2759q/ynNH/p8jp2Pf7bvn2r/Kc0ful83dj77n+3vf6p9KXI++5/t73+qfSlyPvffae6/0zT332nuv5PV4/Q9QlaN0/cIWTVO3yNk1Th9j5BV4/Q9QlaN0/cIIYQQQggh/vwFyKE4dQ==</data>
+	</layer>
+	<layer id="6" name="城墙装饰" width="168" height="142">
+		<data encoding="base64" compression="zlib">eNrt2zEOwjAMQNGcrjlJpaYSvf/YdMsEFUoQjd+XvILBb4ChKUmSJEmSJElSzF51tjrZhJi2ke9zmTr4NEF8Sj3jU3xKfPau1FkGTFvv1y5ffo67OxU+/8rnDDuXB38nfPLJJ5988sknn3zyySeffPLJJ5988sknn3zyySeffPLJJ5988sknn3zyySeffPLJJ5988sknn3z+5tae7/B8h8Sn+JT4FJ98prTXWQdMW+/X3vkM5dPOfLo1n3zyySefdubTrfnkk08+3drOfPLJJ5925tOt+eSTTz7d2s588sknn3bm06355JNPPt3aznzyyWcEn57v4FMa7VOSJM2X35/y/0h88ik+JT7FJ5/iU3zyKT4lPsUnn+JTfPIpPiU+xSef4lPiU3xKfIpPPsWnxKf4lPgUn3yKT4lP8SnxKT75FJ8Sn+JT4lN88ik+JT7Fp8Sn+ORTfEp8ik8+xaf45FN8SnyKTz7Fp/jkU3xKfIpPPsWn+ORTfEp8ik8+xafEp/iU+BSffIpPiU/xKfEpPvkUnxKfiuozm4/T5vt4P3zyGcGnJEmSJEmSJD21E7ii3m8=</data>
+	</layer>
+	<objectgroup id="7" name="城墙立面">
+		<object id="62" name="OuterWall_N_28" gid="413" x="148" y="159"/>
+		<object id="61" name="OuterWall_N_27" gid="413" x="216" y="159"/>
+		<object id="60" name="OuterWall_N_26" gid="413" x="284" y="159"/>
+		<object id="59" name="OuterWall_N_25" gid="413" x="352" y="159"/>
+		<object id="58" name="OuterWall_N_24" gid="413" x="420" y="159"/>
+		<object id="57" name="OuterWall_N_23" gid="413" x="488" y="159"/>
+		<object id="56" name="OuterWall_N_22" gid="413" x="556" y="159"/>
+		<object id="55" name="OuterWall_N_21" gid="413" x="624" y="159"/>
+		<object id="54" name="OuterWall_N_20" gid="413" x="692" y="159"/>
+		<object id="53" name="OuterWall_N_19" gid="413" x="760" y="159"/>
+		<object id="52" name="OuterWall_N_18" gid="413" x="828" y="159"/>
+		<object id="51" name="OuterWall_N_17" gid="413" x="896" y="159"/>
+		<object id="50" name="OuterWall_N_16" gid="413" x="964" y="159"/>
+		<object id="49" name="OuterWall_N_15" gid="413" x="1032" y="159"/>
+		<object id="48" name="OuterWall_N_14" gid="413" x="1100" y="159"/>
+		<object id="47" name="OuterWall_N_13" gid="413" x="1168" y="159"/>
+		<object id="46" name="OuterWall_N_12" gid="413" x="1236" y="159"/>
+		<object id="45" name="OuterWall_N_11" gid="413" x="1304" y="159"/>
+		<object id="44" name="OuterWall_N_10" gid="413" x="1372" y="159"/>
+		<object id="43" name="OuterWall_N_09" gid="413" x="1440" y="159"/>
+		<object id="42" name="OuterWall_N_08" gid="413" x="1508" y="159"/>
+		<object id="41" name="OuterWall_N_07" gid="413" x="1576" y="159"/>
+		<object id="40" name="OuterWall_N_06" gid="413" x="1644" y="159"/>
+		<object id="39" name="OuterWall_N_05" gid="413" x="1712" y="159"/>
+		<object id="38" name="OuterWall_N_04" gid="413" x="1780" y="159"/>
+		<object id="37" name="OuterWall_N_03" gid="413" x="1848" y="159"/>
+		<object id="36" name="OuterWall_N_02" gid="413" x="1916" y="159"/>
+		<object id="35" name="OuterWall_N_01" gid="413" x="1984" y="159"/>
+		<object id="34" name="OuterWall_N_00" gid="413" x="2052" y="159"/>
+		<object id="63" name="wall_run#62" gid="413" x="2220" y="159"/>
+		<object id="64" name="wall_run#63" gid="413" x="2288" y="159"/>
+		<object id="65" name="wall_run#64" gid="413" x="2356" y="159"/>
+		<object id="66" name="wall_run#65" gid="413" x="2424" y="159"/>
+		<object id="67" name="wall_run#66" gid="413" x="2492" y="159"/>
+		<object id="68" name="wall_run#67" gid="413" x="2560" y="159"/>
+		<object id="86" name="OuterWall_S_17" gid="413" x="107" y="2143"/>
+		<object id="85" name="OuterWall_S_16" gid="413" x="175" y="2143"/>
+		<object id="84" name="OuterWall_S_15" gid="413" x="243" y="2143"/>
+		<object id="83" name="OuterWall_S_14" gid="413" x="311" y="2143"/>
+		<object id="82" name="OuterWall_S_13" gid="413" x="379" y="2143"/>
+		<object id="81" name="OuterWall_S_12" gid="413" x="447" y="2143"/>
+		<object id="80" name="OuterWall_S_11" gid="413" x="515" y="2143"/>
+		<object id="79" name="OuterWall_S_10" gid="413" x="583" y="2143"/>
+		<object id="78" name="OuterWall_S_09" gid="413" x="651" y="2143"/>
+		<object id="77" name="OuterWall_S_08" gid="413" x="719" y="2143"/>
+		<object id="76" name="OuterWall_S_07" gid="413" x="787" y="2143"/>
+		<object id="75" name="OuterWall_S_06" gid="413" x="855" y="2143"/>
+		<object id="74" name="OuterWall_S_05" gid="413" x="923" y="2143"/>
+		<object id="73" name="OuterWall_S_04" gid="413" x="991" y="2143"/>
+		<object id="72" name="OuterWall_S_03" gid="413" x="1059" y="2143"/>
+		<object id="71" name="OuterWall_S_02" gid="413" x="1127" y="2143"/>
+		<object id="70" name="OuterWall_S_01" gid="413" x="1195" y="2143"/>
+		<object id="69" name="OuterWall_S_00" gid="413" x="1263" y="2143"/>
+		<object id="87" name="wall_run#86" gid="413" x="1441" y="2143"/>
+		<object id="88" name="wall_run#87" gid="413" x="1509" y="2143"/>
+		<object id="89" name="wall_run#88" gid="413" x="1577" y="2143"/>
+		<object id="90" name="wall_run#89" gid="413" x="1645" y="2143"/>
+		<object id="91" name="wall_run#90" gid="413" x="1713" y="2143"/>
+		<object id="92" name="wall_run#91" gid="413" x="1781" y="2143"/>
+		<object id="93" name="wall_run#92" gid="413" x="1849" y="2143"/>
+		<object id="94" name="wall_run#93" gid="413" x="1917" y="2143"/>
+		<object id="95" name="wall_run#94" gid="413" x="1985" y="2143"/>
+		<object id="96" name="wall_run#95" gid="413" x="2053" y="2143"/>
+		<object id="97" name="wall_run#96" gid="413" x="2121" y="2143"/>
+		<object id="98" name="wall_run#97" gid="413" x="2189" y="2143"/>
+		<object id="99" name="wall_run#98" gid="413" x="2257" y="2143"/>
+		<object id="100" name="wall_run#99" gid="413" x="2325" y="2143"/>
+		<object id="101" name="wall_run#100" gid="413" x="2393" y="2143"/>
+		<object id="102" name="wall_run#101" gid="413" x="2461" y="2143"/>
+		<object id="103" name="wall_run#102" gid="413" x="2529" y="2143"/>
+	</objectgroup>
+	<objectgroup id="8" name="城外林带">
+		<object id="1" name="Outskirts_tree_lush_a" gid="411" x="296" y="112"/>
+		<object id="2" name="Outskirts_tree_lush_b" gid="412" x="680" y="112"/>
+		<object id="3" name="Outskirts_tree_big" gid="410" x="1064" y="112"/>
+		<object id="4" name="tree_lush_a#03" gid="411" x="1704" y="112"/>
+		<object id="5" name="tree_lush_b#04" gid="412" x="2424" y="112"/>
+		<object id="12" name="tree_lush_b#11" gid="412" x="2616" y="448"/>
+		<object id="10" name="tree_lush_a#09" gid="411" x="88" y="560"/>
+		<object id="11" name="tree_big#10" gid="410" x="88" y="1520"/>
+		<object id="13" name="tree_lush_a#12" gid="411" x="2616" y="1632"/>
+		<object id="6" name="tree_lush_b#05" gid="412" x="392" y="2240"/>
+		<object id="7" name="tree_big#06" gid="410" x="872" y="2240"/>
+		<object id="8" name="tree_lush_a#07" gid="411" x="1832" y="2240"/>
+		<object id="9" name="tree_lush_b#08" gid="412" x="2344" y="2240"/>
+	</objectgroup>
+	<objectgroup id="9" name="城门">
+		<object id="106" name="GatePiece_bell_tower" gid="400" x="-24" y="-32"/>
+		<object id="111" name="GatePiece_drum_tower" gid="2147484051" x="24" y="-32"/>
+		<object id="109" name="GatePiece_lion_stone_a" gid="408" x="-58" y="-18"/>
+		<object id="107" name="GatePiece_lamp_red" gid="406" x="-34" y="-18"/>
+		<object id="112" name="GatePiece_lamp_red" gid="406" x="34" y="-18"/>
+		<object id="114" name="GatePiece_lion_stone_a" gid="408" x="58" y="-18"/>
+		<object id="110" name="GatePiece_lion_stone_b" gid="2147484057" x="-58" y="64"/>
+		<object id="115" name="GatePiece_lion_stone_b" gid="2147484057" x="58" y="64"/>
+		<object id="108" name="GatePiece_lamp_red2" gid="2147484055" x="-34" y="72"/>
+		<object id="113" name="GatePiece_lamp_red2" gid="2147484055" x="34" y="72"/>
+		<object id="105" name="CityGate_N" gid="405" x="2136" y="159"/>
+		<object id="104" name="CityGate_S" gid="404" x="1352" y="2143"/>
+	</objectgroup>
+	<objectgroup id="10" name="坊内建筑道具">
+		<object id="14" name="11_街饰过渡_12#13" gid="386" x="1320" y="304"/>
+		<object id="15" name="11_街饰过渡_12#14" gid="2147484034" x="1368" y="304"/>
+		<object id="130" name="06_宫城_01#129" gid="317" x="1086" y="320"/>
+		<object id="129" name="06_宫城_03#128" gid="319" x="1352" y="320"/>
+		<object id="131" name="06_宫城_01#130" gid="2147483965" x="1598" y="320"/>
+		<object id="138" name="06_宫城_03#137" gid="319" x="1944" y="320"/>
+		<object id="118" name="tree_lush_b#117" gid="412" x="271" y="336"/>
+		<object id="119" name="11_街饰过渡_08#118" gid="382" x="483.5" y="336"/>
+		<object id="122" name="05_官署_02#121" gid="315" x="703" y="336"/>
+		<object id="123" name="05_官署_03#122" gid="2147483964" x="793.5" y="336"/>
+		<object id="141" name="06_宫城_02#140" gid="318" x="2239" y="336"/>
+		<object id="142" name="06_宫城_12#141" gid="2147483976" x="2399" y="336"/>
+		<object id="117" name="07_寺观_10#116" gid="338" x="361" y="384"/>
+		<object id="145" name="11_街饰过渡_19#144" gid="393" x="2293" y="400"/>
+		<object id="126" name="11_街饰过渡_15#125" gid="389" x="640.5" y="416"/>
+		<object id="127" name="11_街饰过渡_23#126" gid="397" x="736.5" y="416"/>
+		<object id="128" name="11_街饰过渡_07#127" gid="381" x="837" y="416"/>
+		<object id="133" name="06_宫城_02#132" gid="318" x="1087" y="416"/>
+		<object id="132" name="06_宫城_06#131" gid="2147483970" x="1352" y="416"/>
+		<object id="134" name="06_宫城_02#133" gid="2147483966" x="1599" y="416"/>
+		<object id="139" name="06_宫城_06#138" gid="2147483970" x="1944" y="416"/>
+		<object id="146" name="11_街饰过渡_18#145" gid="392" x="2374.5" y="416"/>
+		<object id="16" name="11_街饰过渡_12#15" gid="386" x="1320" y="432"/>
+		<object id="17" name="11_街饰过渡_12#16" gid="2147484034" x="1368" y="432"/>
+		<object id="120" name="tree_lush_a#119" gid="411" x="269" y="512"/>
+		<object id="116" name="07_寺观_01#115" gid="329" x="366" y="512"/>
+		<object id="121" name="tree_lush_b#120" gid="412" x="463" y="512"/>
+		<object id="124" name="05_官署_02#123" gid="2147483963" x="703" y="512"/>
+		<object id="125" name="05_官署_02#124" gid="315" x="799" y="512"/>
+		<object id="136" name="06_宫城_04#135" gid="320" x="1088" y="512"/>
+		<object id="135" name="06_宫城_07#134" gid="323" x="1352" y="512"/>
+		<object id="137" name="06_宫城_04#136" gid="2147483968" x="1600" y="512"/>
+		<object id="140" name="06_宫城_07#139" gid="323" x="1944" y="512"/>
+		<object id="143" name="06_宫城_08#142" gid="2147483972" x="2239" y="512"/>
+		<object id="144" name="06_宫城_01#143" gid="317" x="2398" y="512"/>
+		<object id="18" name="11_街饰过渡_12#17" gid="386" x="1320" y="688"/>
+		<object id="19" name="11_街饰过渡_12#18" gid="2147484034" x="1368" y="688"/>
+		<object id="166" name="11_街饰过渡_16#165" gid="390" x="2053.5" y="704"/>
+		<object id="149" name="tree_big#148" gid="410" x="272" y="720"/>
+		<object id="150" name="11_街饰过渡_07#149" gid="381" x="485" y="720"/>
+		<object id="159" name="05_官署_02#158" gid="315" x="1039" y="720"/>
+		<object id="160" name="05_官署_02#159" gid="2147483963" x="1647" y="720"/>
+		<object id="168" name="08_市铺_01#167" gid="339" x="2320" y="720"/>
+		<object id="156" name="11_街饰过渡_21#155" gid="395" x="626" y="736"/>
+		<object id="148" name="07_寺观_10#147" gid="338" x="361" y="768"/>
+		<object id="172" name="11_街饰过渡_10#171" gid="384" x="2226" y="784"/>
+		<object id="174" name="11_街饰过渡_21#173" gid="395" x="2386" y="784"/>
+		<object id="153" name="01_民居坊_04#152" gid="295" x="752" y="800"/>
+		<object id="163" name="03_贵戚府_02#162" gid="307" x="1936" y="800"/>
+		<object id="173" name="11_街饰过渡_18#172" gid="392" x="2310.5" y="800"/>
+		<object id="20" name="11_街饰过渡_12#19" gid="386" x="1320" y="816"/>
+		<object id="21" name="11_街饰过渡_12#20" gid="2147484034" x="1368" y="816"/>
+		<object id="158" name="02_官宅清流_02#157" gid="304" x="1328" y="880"/>
+		<object id="152" name="tree_lush_a#151" gid="411" x="269" y="896"/>
+		<object id="147" name="07_寺观_01#146" gid="329" x="366" y="896"/>
+		<object id="151" name="tree_lush_b#150" gid="412" x="463" y="896"/>
+		<object id="154" name="01_民居坊_07#153" gid="298" x="656" y="896"/>
+		<object id="157" name="tree_lush_b#156" gid="412" x="751" y="896"/>
+		<object id="155" name="01_民居坊_11#154" gid="2147483950" x="848" y="896"/>
+		<object id="161" name="05_官署_03#160" gid="2147483964" x="1033.5" y="896"/>
+		<object id="162" name="05_官署_03#161" gid="316" x="1641.5" y="896"/>
+		<object id="164" name="11_街饰过渡_02#163" gid="376" x="1814" y="896"/>
+		<object id="167" name="tree_lush_b#166" gid="412" x="1935" y="896"/>
+		<object id="165" name="11_街饰过渡_05#164" gid="2147484027" x="2052.5" y="896"/>
+		<object id="169" name="08_市铺_24#168" gid="362" x="2216" y="896"/>
+		<object id="170" name="08_市铺_17#169" gid="2147484003" x="2311" y="896"/>
+		<object id="171" name="08_市铺_25#170" gid="363" x="2416" y="896"/>
+		<object id="22" name="11_街饰过渡_12#21" gid="386" x="1320" y="1072"/>
+		<object id="23" name="11_街饰过渡_12#22" gid="2147484034" x="1368" y="1072"/>
+		<object id="188" name="11_街饰过渡_02#187" gid="376" x="870" y="1088"/>
+		<object id="193" name="11_街饰过渡_16#192" gid="390" x="1253.5" y="1088"/>
+		<object id="175" name="08_市铺_11#174" gid="349" x="319" y="1104"/>
+		<object id="176" name="08_市铺_02#175" gid="2147483988" x="464" y="1104"/>
+		<object id="197" name="tree_lush_a#196" gid="411" x="1453" y="1104"/>
+		<object id="198" name="11_街饰过渡_11#197" gid="385" x="1672" y="1104"/>
+		<object id="201" name="08_市铺_04#200" gid="342" x="1887.5" y="1104"/>
+		<object id="202" name="08_市铺_12#201" gid="2147483998" x="2032" y="1104"/>
+		<object id="211" name="05_官署_02#210" gid="315" x="2255" y="1104"/>
+		<object id="212" name="05_官署_03#211" gid="2147483964" x="2361.5" y="1104"/>
+		<object id="196" name="07_寺观_10#195" gid="338" x="1545" y="1152"/>
+		<object id="179" name="11_街饰过渡_11#178" gid="385" x="248" y="1184"/>
+		<object id="180" name="11_街饰过渡_10#179" gid="384" x="290" y="1184"/>
+		<object id="181" name="11_街饰过渡_18#180" gid="392" x="342.5" y="1184"/>
+		<object id="182" name="11_街饰过渡_17#181" gid="391" x="390" y="1184"/>
+		<object id="183" name="11_街饰过渡_19#182" gid="393" x="437" y="1184"/>
+		<object id="184" name="11_街饰过渡_18#183" gid="392" x="486.5" y="1184"/>
+		<object id="185" name="03_贵戚府_01#184" gid="306" x="752" y="1184"/>
+		<object id="190" name="03_贵戚府_02#189" gid="307" x="1136" y="1184"/>
+		<object id="205" name="11_街饰过渡_17#204" gid="391" x="1814" y="1184"/>
+		<object id="206" name="11_街饰过渡_16#205" gid="390" x="1861.5" y="1184"/>
+		<object id="207" name="11_街饰过渡_10#206" gid="384" x="1906" y="1184"/>
+		<object id="208" name="11_街饰过渡_02#207" gid="376" x="1958" y="1184"/>
+		<object id="209" name="11_街饰过渡_17#208" gid="391" x="2006" y="1184"/>
+		<object id="210" name="11_街饰过渡_18#209" gid="392" x="2054.5" y="1184"/>
+		<object id="24" name="11_街饰过渡_12#23" gid="386" x="1320" y="1200"/>
+		<object id="25" name="11_街饰过渡_12#24" gid="2147484034" x="1368" y="1200"/>
+		<object id="177" name="08_市铺_03#176" gid="341" x="272" y="1280"/>
+		<object id="178" name="08_市铺_04#177" gid="2147483990" x="415.5" y="1280"/>
+		<object id="186" name="11_街饰过渡_02#185" gid="376" x="630" y="1280"/>
+		<object id="189" name="tree_lush_b#188" gid="412" x="751" y="1280"/>
+		<object id="187" name="11_街饰过渡_05#186" gid="2147484027" x="868.5" y="1280"/>
+		<object id="191" name="11_街饰过渡_02#190" gid="376" x="1014" y="1280"/>
+		<object id="194" name="tree_lush_b#193" gid="412" x="1135" y="1280"/>
+		<object id="192" name="11_街饰过渡_05#191" gid="2147484027" x="1252.5" y="1280"/>
+		<object id="200" name="tree_lush_a#199" gid="411" x="1453" y="1280"/>
+		<object id="195" name="07_寺观_01#194" gid="329" x="1550" y="1280"/>
+		<object id="199" name="tree_lush_b#198" gid="412" x="1647" y="1280"/>
+		<object id="203" name="08_市铺_24#202" gid="362" x="1832" y="1280"/>
+		<object id="204" name="08_市铺_16#203" gid="2147484002" x="1968" y="1280"/>
+		<object id="213" name="05_官署_02#212" gid="2147483963" x="2303" y="1280"/>
+		<object id="26" name="11_街饰过渡_12#25" gid="386" x="1320" y="1456"/>
+		<object id="27" name="11_街饰过渡_12#26" gid="2147484034" x="1368" y="1456"/>
+		<object id="229" name="11_街饰过渡_05#228" gid="379" x="1252.5" y="1472"/>
+		<object id="214" name="01_民居坊_11#213" gid="302" x="272" y="1488"/>
+		<object id="215" name="01_民居坊_10#214" gid="2147483949" x="368" y="1488"/>
+		<object id="216" name="01_民居坊_11#215" gid="302" x="464" y="1488"/>
+		<object id="222" name="04_亲王公主府_01#221" gid="2147483956" x="656" y="1488"/>
+		<object id="223" name="04_亲王公主府_02#222" gid="309" x="768" y="1488"/>
+		<object id="224" name="11_街饰过渡_22#223" gid="396" x="865" y="1488"/>
+		<object id="233" name="04_亲王公主府_01#232" gid="2147483956" x="1456" y="1488"/>
+		<object id="234" name="04_亲王公主府_02#233" gid="309" x="1568" y="1488"/>
+		<object id="235" name="11_街饰过渡_20#234" gid="394" x="1668" y="1488"/>
+		<object id="239" name="04_亲王公主府_01#238" gid="2147483956" x="1840" y="1488"/>
+		<object id="240" name="04_亲王公主府_02#239" gid="309" x="1952" y="1488"/>
+		<object id="241" name="11_街饰过渡_07#240" gid="381" x="2053" y="1488"/>
+		<object id="245" name="04_亲王公主府_01#244" gid="2147483956" x="2224" y="1488"/>
+		<object id="246" name="04_亲王公主府_02#245" gid="309" x="2336" y="1488"/>
+		<object id="247" name="11_街饰过渡_07#246" gid="381" x="2437" y="1488"/>
+		<object id="226" name="02_官宅清流_03#225" gid="305" x="1136" y="1568"/>
+		<object id="28" name="11_街饰过渡_12#27" gid="386" x="1320" y="1584"/>
+		<object id="29" name="11_街饰过渡_12#28" gid="2147484034" x="1368" y="1584"/>
+		<object id="217" name="01_民居坊_08#216" gid="2147483947" x="272" y="1664"/>
+		<object id="218" name="01_民居坊_07#217" gid="298" x="368" y="1664"/>
+		<object id="219" name="01_民居坊_09#218" gid="2147483948" x="464" y="1664"/>
+		<object id="220" name="04_亲王公主府_01#219" gid="308" x="656" y="1664"/>
+		<object id="221" name="04_亲王公主府_02#220" gid="2147483957" x="768" y="1664"/>
+		<object id="225" name="11_街饰过渡_21#224" gid="395" x="850" y="1664"/>
+		<object id="227" name="11_街饰过渡_02#226" gid="376" x="1014" y="1664"/>
+		<object id="230" name="tree_lush_b#229" gid="412" x="1135" y="1664"/>
+		<object id="228" name="11_街饰过渡_05#227" gid="2147484027" x="1252.5" y="1664"/>
+		<object id="231" name="04_亲王公主府_01#230" gid="308" x="1456" y="1664"/>
+		<object id="232" name="04_亲王公主府_02#231" gid="2147483957" x="1568" y="1664"/>
+		<object id="236" name="11_街饰过渡_22#235" gid="396" x="1649" y="1664"/>
+		<object id="237" name="04_亲王公主府_01#236" gid="308" x="1840" y="1664"/>
+		<object id="238" name="04_亲王公主府_02#237" gid="2147483957" x="1952" y="1664"/>
+		<object id="242" name="11_街饰过渡_22#241" gid="396" x="2033" y="1664"/>
+		<object id="243" name="04_亲王公主府_01#242" gid="308" x="2224" y="1664"/>
+		<object id="244" name="04_亲王公主府_02#243" gid="2147483957" x="2336" y="1664"/>
+		<object id="248" name="11_街饰过渡_21#247" gid="395" x="2418" y="1664"/>
+		<object id="30" name="11_街饰过渡_12#29" gid="386" x="1320" y="1840"/>
+		<object id="31" name="11_街饰过渡_12#30" gid="2147484034" x="1368" y="1840"/>
+		<object id="271" name="boat_small#270" gid="401" x="2242" y="1856"/>
+		<object id="264" name="01_民居坊_10#263" gid="301" x="1456" y="1872"/>
+		<object id="265" name="01_民居坊_08#264" gid="2147483947" x="1552" y="1872"/>
+		<object id="266" name="01_民居坊_09#265" gid="300" x="1648" y="1872"/>
+		<object id="273" name="07_寺观_05#272" gid="333" x="2393" y="1872"/>
+		<object id="252" name="11_街饰过渡_23#251" gid="397" x="240.5" y="1888"/>
+		<object id="257" name="11_街饰过渡_22#256" gid="396" x="625" y="1888"/>
+		<object id="262" name="11_街饰过渡_15#261" gid="389" x="1008.5" y="1888"/>
+		<object id="272" name="bridge_arch_stone_deck#271" gid="402" x="2224" y="1936"/>
+		<object id="249" name="01_民居坊_04#248" gid="295" x="368" y="1952"/>
+		<object id="254" name="01_民居坊_03#253" gid="294" x="752" y="1952"/>
+		<object id="259" name="01_民居坊_05#258" gid="296" x="1115" y="1952"/>
+		<object id="32" name="11_街饰过渡_12#31" gid="386" x="1320" y="1968"/>
+		<object id="33" name="11_街饰过渡_12#32" gid="2147484034" x="1368" y="1968"/>
+		<object id="250" name="01_民居坊_07#249" gid="298" x="272" y="2048"/>
+		<object id="253" name="tree_lush_b#252" gid="412" x="367" y="2048"/>
+		<object id="251" name="01_民居坊_11#250" gid="2147483950" x="464" y="2048"/>
+		<object id="255" name="01_民居坊_10#254" gid="301" x="656" y="2048"/>
+		<object id="258" name="tree_lush_b#257" gid="412" x="751" y="2048"/>
+		<object id="256" name="01_民居坊_10#255" gid="2147483949" x="848" y="2048"/>
+		<object id="260" name="01_民居坊_10#259" gid="301" x="1040" y="2048"/>
+		<object id="263" name="tree_lush_b#262" gid="412" x="1135" y="2048"/>
+		<object id="261" name="01_民居坊_08#260" gid="2147483947" x="1232" y="2048"/>
+		<object id="267" name="01_民居坊_11#266" gid="2147483950" x="1456" y="2048"/>
+		<object id="268" name="01_民居坊_08#267" gid="299" x="1552" y="2048"/>
+		<object id="269" name="01_民居坊_07#268" gid="2147483946" x="1648" y="2048"/>
+		<object id="270" name="07_寺观_09#269" gid="337" x="1928" y="2048"/>
+		<object id="275" name="tree_lush_a#274" gid="411" x="2221" y="2048"/>
+		<object id="274" name="07_寺观_05#273" gid="2147483981" x="2393" y="2048"/>
+	</objectgroup>
+	<objectgroup id="1" name="城内人口">
+		<object id="276" name="行商·01" x="1336" y="344"><point/></object>
+		<object id="277" name="书生·02" x="1368" y="440"><point/></object>
+		<object id="278" name="脚夫·03" x="1336" y="728"><point/></object>
+		<object id="279" name="香客·04" x="1368" y="824"><point/></object>
+		<object id="280" name="坊民·05" x="1336" y="1112"><point/></object>
+		<object id="281" name="侍女·06" x="1368" y="1208"><point/></object>
+		<object id="282" name="货郎·07" x="1336" y="1496"><point/></object>
+		<object id="283" name="老者·08" x="1368" y="1592"><point/></object>
+		<object id="284" name="行商·09" x="1336" y="1880"><point/></object>
+		<object id="285" name="书生·10" x="1368" y="1976"><point/></object>
+		<object id="286" name="脚夫·11" x="376" y="552"><point/></object>
+		<object id="287" name="香客·12" x="760" y="584"><point/></object>
+		<object id="288" name="坊民·13" x="1144" y="552"><point/></object>
+		<object id="289" name="侍女·14" x="1560" y="584"><point/></object>
+		<object id="290" name="货郎·15" x="1944" y="552"><point/></object>
+		<object id="291" name="老者·16" x="2328" y="584"><point/></object>
+		<object id="292" name="行商·17" x="376" y="936"><point/></object>
+		<object id="293" name="书生·18" x="760" y="968"><point/></object>
+		<object id="294" name="脚夫·19" x="1144" y="936"><point/></object>
+		<object id="295" name="香客·20" x="1560" y="968"><point/></object>
+		<object id="296" name="坊民·21" x="1944" y="936"><point/></object>
+		<object id="297" name="侍女·22" x="2328" y="968"><point/></object>
+		<object id="298" name="货郎·23" x="376" y="1320"><point/></object>
+		<object id="299" name="老者·24" x="760" y="1352"><point/></object>
+		<object id="300" name="行商·25" x="1144" y="1320"><point/></object>
+		<object id="301" name="书生·26" x="1560" y="1352"><point/></object>
+		<object id="302" name="脚夫·27" x="1944" y="1320"><point/></object>
+		<object id="303" name="香客·28" x="2328" y="1352"><point/></object>
+		<object id="304" name="坊民·29" x="376" y="1704"><point/></object>
+		<object id="305" name="侍女·30" x="760" y="1736"><point/></object>
+		<object id="306" name="货郎·31" x="1144" y="1704"><point/></object>
+		<object id="307" name="老者·32" x="1560" y="1736"><point/></object>
+		<object id="308" name="行商·33" x="1944" y="1704"><point/></object>
+		<object id="309" name="书生·34" x="2328" y="1736"><point/></object>
+		<object id="310" name="脚夫·35" x="264" y="1128"><point/></object>
+		<object id="311" name="香客·36" x="328" y="1160"><point/></object>
+		<object id="312" name="坊民·37" x="408" y="1128"><point/></object>
+		<object id="313" name="侍女·38" x="472" y="1160"><point/></object>
+		<object id="314" name="货郎·39" x="1832" y="1128"><point/></object>
+		<object id="315" name="老者·40" x="1896" y="1160"><point/></object>
+	</objectgroup>
+	<objectgroup id="2" name="出城触发" color="#e07040">
+		<object id="316" name="明德门(S)" x="1328" y="2124" width="48" height="24"/>
+		<object id="317" name="玄武门(N)" x="2112" y="124" width="48" height="24"/>
+		<object id="318" name="春明门(E)" x="2540" y="928" width="24" height="48"/>
+		<object id="319" name="开远门(W)" x="124" y="928" width="24" height="48"/>
+	</objectgroup>
+	<objectgroup id="3" name="街区轮廓（参考）">
+		<object id="320" name="修德坊" type="block" x="208" y="208" width="320" height="320" color="#c9a1d9">
+			<properties><property name="id" value="xiude"/><property name="kind" value="temple"/></properties>
+		</object>
+		<object id="321" name="芳林坊" type="block" x="592" y="208" width="320" height="320" color="#d97a6b">
+			<properties><property name="id" value="fanglin"/><property name="kind" value="military"/></properties>
+		</object>
+		<object id="322" name="宫城·太极宫" type="block" x="976" y="208" width="736" height="320" color="#f4d166">
+			<properties><property name="id" value="gongcheng"/><property name="kind" value="palace"/></properties>
+		</object>
+		<object id="323" name="东宫" type="block" x="1776" y="208" width="320" height="320" color="#f2b859">
+			<properties><property name="id" value="donggong"/><property name="kind" value="palace_east"/></properties>
+		</object>
+		<object id="324" name="大明宫预留" type="block" x="2160" y="208" width="320" height="320" color="#999999">
+			<properties><property name="id" value="daminggong"/><property name="kind" value="royal_reserve"/></properties>
+		</object>
+		<object id="325" name="崇业坊" type="block" x="208" y="592" width="320" height="320" color="#c9a1d9">
+			<properties><property name="id" value="chongye"/><property name="kind" value="taoist"/></properties>
+		</object>
+		<object id="326" name="颁政坊" type="block" x="592" y="592" width="320" height="320" color="#f5f5f5">
+			<properties><property name="id" value="banzheng"/><property name="kind" value="residential"/></properties>
+		</object>
+		<object id="327" name="皇城官署带" type="block" x="976" y="592" width="736" height="320" color="#e8c26b">
+			<properties><property name="id" value="huangcheng"/><property name="kind" value="office"/></properties>
+		</object>
+		<object id="328" name="崇仁坊" type="block" x="1776" y="592" width="320" height="320" color="#8ab8e8">
+			<properties><property name="id" value="chongren"/><property name="kind" value="noble"/></properties>
+		</object>
+		<object id="329" name="平康坊" type="block" x="2160" y="592" width="320" height="320" color="#f2a1bf">
+			<properties><property name="id" value="pingkang"/><property name="kind" value="venue"/></properties>
+		</object>
+		<object id="330" name="西市" type="block" x="208" y="976" width="320" height="320" color="#80d989">
+			<properties><property name="id" value="xishi"/><property name="kind" value="market"/></properties>
+		</object>
+		<object id="331" name="长寿坊" type="block" x="592" y="976" width="320" height="320" color="#8ab8e8">
+			<properties><property name="id" value="changshou"/><property name="kind" value="noble"/></properties>
+		</object>
+		<object id="332" name="务本坊" type="block" x="976" y="976" width="320" height="320" color="#8ab8e8">
+			<properties><property name="id" value="wuben"/><property name="kind" value="noble"/></properties>
+		</object>
+		<object id="333" name="靖善坊" type="block" x="1392" y="976" width="320" height="320" color="#c9a1d9">
+			<properties><property name="id" value="jingshan"/><property name="kind" value="temple"/></properties>
+		</object>
+		<object id="334" name="东市" type="block" x="1776" y="976" width="320" height="320" color="#80d989">
+			<properties><property name="id" value="dongshi"/><property name="kind" value="market"/></properties>
+		</object>
+		<object id="335" name="安邑坊" type="block" x="2160" y="976" width="320" height="320" color="#e8c26b">
+			<properties><property name="id" value="anyi"/><property name="kind" value="yamen"/></properties>
+		</object>
+		<object id="336" name="怀远坊" type="block" x="208" y="1360" width="320" height="320" color="#f5f5f5">
+			<properties><property name="id" value="huaiyuan"/><property name="kind" value="residential"/></properties>
+		</object>
+		<object id="337" name="延康坊" type="block" x="592" y="1360" width="320" height="320" color="#8ab8e8">
+			<properties><property name="id" value="yankang"/><property name="kind" value="noble"/></properties>
+		</object>
+		<object id="338" name="永兴坊" type="block" x="976" y="1360" width="320" height="320" color="#8ab8e8">
+			<properties><property name="id" value="yongxing"/><property name="kind" value="noble"/></properties>
+		</object>
+		<object id="339" name="崇义坊" type="block" x="1392" y="1360" width="320" height="320" color="#8ab8e8">
+			<properties><property name="id" value="chongyi"/><property name="kind" value="noble"/></properties>
+		</object>
+		<object id="340" name="宣阳坊" type="block" x="1776" y="1360" width="320" height="320" color="#8ab8e8">
+			<properties><property name="id" value="xuanyang"/><property name="kind" value="noble"/></properties>
+		</object>
+		<object id="341" name="胜业坊" type="block" x="2160" y="1360" width="320" height="320" color="#8ab8e8">
+			<properties><property name="id" value="shengye"/><property name="kind" value="noble"/></properties>
+		</object>
+		<object id="342" name="延寿坊" type="block" x="208" y="1744" width="320" height="320" color="#f5f5f5">
+			<properties><property name="id" value="yanshou"/><property name="kind" value="residential"/></properties>
+		</object>
+		<object id="343" name="通济坊" type="block" x="592" y="1744" width="320" height="320" color="#f5f5f5">
+			<properties><property name="id" value="tongji"/><property name="kind" value="residential"/></properties>
+		</object>
+		<object id="344" name="丰安坊" type="block" x="976" y="1744" width="320" height="320" color="#f5f5f5">
+			<properties><property name="id" value="fengan"/><property name="kind" value="residential"/></properties>
+		</object>
+		<object id="345" name="昌明坊" type="block" x="1392" y="1744" width="320" height="320" color="#f5f5f5">
+			<properties><property name="id" value="changming"/><property name="kind" value="residential"/></properties>
+		</object>
+		<object id="346" name="晋昌坊" type="block" x="1776" y="1744" width="320" height="320" color="#c9a1d9">
+			<properties><property name="id" value="jinchang"/><property name="kind" value="temple"/></properties>
+		</object>
+		<object id="347" name="曲江预留地" type="block" x="2160" y="1744" width="320" height="320" color="#999999">
+			<properties><property name="id" value="qujiang"/><property name="kind" value="reserve_empty"/></properties>
+		</object>
+	</objectgroup>
+</map>

@@ -81,6 +81,9 @@ docs/参考/tiled_work/_ingest_smoke/
 docs/参考/tiled_work/_probe_b/
 docs/参考/tiled_work/export_log.txt
 docs/参考/tiled_work/v.txt
+# 长安v2全城导出中间产物（dump为实机JSON快照；裁片为SCKR派生16px裁切）
+docs/参考/tiled_work/_changan_v2_city_dump.json
+docs/参考/tiled_work/_changan_single_16/
 
 # 长安QC裁切对比图（SCKR派生像素，仅本地品控用）
 docs/shots/_qc/
