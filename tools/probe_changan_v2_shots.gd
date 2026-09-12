@@ -58,21 +58,34 @@ func _run():
 		["chunming", city.gate_info["E"]["inside"] + Vector2i(-6, 0), 2.0],
 	]
 	var count := 0
+	var failed: Array[String] = []
 	for s in spots:
 		player.global_position = cv.CITY_OFFSET + city.cell_to_px(s[1])
 		player.velocity = Vector2.ZERO
 		cam.zoom = Vector2(s[2], s[2])
 		cam.reset_smoothing()
 		await get_tree().create_timer(0.35).timeout
-		await _shot("changan_v2_%s.png" % String(s[0]))
-		count += 1
+		var fname := "changan_v2_%s.png" % String(s[0])
+		var err: int = await _shot(fname)
+		if err == OK:
+			count += 1
+		else:
+			failed.append("%s(error=%d)" % [fname, err])
+	if not failed.is_empty():
+		print("[ChangAnV2-Shots][FAIL] 成功=%d 失败=%s" % [count, str(failed)])
+		get_tree().quit(1)
+		return
 	print("[ChangAnV2-Shots][PASS] 样张=%d 张 → docs/shots/changan_v2_*.png" % count)
 	_shots_done = true
 	get_tree().quit(0)
 
-func _shot(fname: String) -> void:
+func _shot(fname: String) -> int:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	var img := get_viewport().get_texture().get_image()
-	img.save_png("res://docs/shots/" + fname)
-	print("[ChangAnV2-Shot] %s" % fname)
+	var err := img.save_png("res://docs/shots/" + fname)
+	if err == OK:
+		print("[ChangAnV2-Shot] %s" % fname)
+	else:
+		push_error("[ChangAnV2-Shot] 保存失败 %s error=%d" % [fname, err])
+	return err

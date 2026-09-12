@@ -57,6 +57,16 @@ func _ready() -> void:
 			fails.append("建筑碰撞统计=%d，实际节点=%d" % [int(city.stats.get("material_collisions", -1)), bodies])
 		if get_tree().get_nodes_in_group("changan_city_gate").size() != 4:
 			fails.append("城门楼素材节点数≠4")
+		var activity_nodes := get_tree().get_nodes_in_group("changan_activity_prop").size()
+		if activity_nodes != int(city.stats.get("material_activity", -1)):
+			fails.append("活动件统计=%d，实际节点=%d" %
+					[int(city.stats.get("material_activity", -1)), activity_nodes])
+		if int(city.stats.get("material_activity", 0)) < 16:
+			fails.append("城市生活活动件=%d < 下限16" % int(city.stats.get("material_activity", 0)))
+		if int(city.stats.get("material_vehicles", 0)) < 4:
+			fails.append("两市物流车辆=%d < 下限4" % int(city.stats.get("material_vehicles", 0)))
+		if int(city.stats.get("material_shore_life", 0)) < 4:
+			fails.append("曲江水岸生活件=%d < 下限4" % int(city.stats.get("material_shore_life", 0)))
 	if int(city.stats.get("population", 0)) != 40:
 		fails.append("城市人口=%d≠40" % int(city.stats.get("population", 0)))
 	# 城墙用完整 wall_run 立面连续铺设；TileMap 仍保留两格厚碰撞环。

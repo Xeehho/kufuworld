@@ -34,6 +34,9 @@ var placed := 0
 var rejected := 0
 var shadow_count := 0
 var collision_count := 0
+var activity_count := 0
+var vehicle_count := 0
+var shore_life_count := 0
 var _tex := {}
 var _pack_assets := {}
 var _occ: Array = []   # 当前坊的占位矩形（px，世界坐标）
@@ -69,8 +72,9 @@ func setup(host: Node2D) -> void:
 			"venue": _layout_venue(cat, rect, rng)
 			"royal_reserve", "reserve_empty": _layout_garden_reserve(cat, rect, rng, String(b["id"]))
 		_fill_block_greenery(rect, rng, String(b["kind"]))
-	print("[ChangAnV2材质] 建模 %d 件（阴影 %d / 建筑碰撞 %d / 占位拒入 %d）%dms" %
-			[placed, shadow_count, collision_count, rejected, Time.get_ticks_msec() - t0])
+	print("[ChangAnV2材质] 建模 %d 件（阴影 %d / 实体碰撞 %d / 活动件 %d / 车辆 %d / 水岸生活 %d / 占位拒入 %d）%dms" %
+			[placed, shadow_count, collision_count, activity_count, vehicle_count,
+			shore_life_count, rejected, Time.get_ticks_msec() - t0])
 
 
 # ---- 城市构图层：朱雀大街不是两侧坊的空隙，而是贯穿全城的礼制轴 ----
@@ -355,7 +359,7 @@ func _pick(pool: Array, rng: RandomNumberGenerator, avoid: String = "") -> Dicti
 # ---- 摆件（合理性核心）：cell=左上格，底缘贴 anchor_bottom_row 下缘；
 # ---- 占位矩形（件实际像素 bbox）与已放件相交即拒（零穿模），越界/退线不足亦拒 ----
 func _put(cat: String, p: Dictionary, cell: Vector2i, bottom_row: int, rect: Rect2i,
-		flip := false) -> bool:
+		flip := false, group_name := "") -> bool:
 	if p.is_empty():
 		return false
 	var w_px := int(p["w"])
@@ -387,12 +391,22 @@ func _put(cat: String, p: Dictionary, cell: Vector2i, bottom_row: int, rect: Rec
 	sp.offset = Vector2(0, -h_px / 2.0)
 	sp.set_meta("material_id", String(p["id"]))
 	sp.set_meta("foot_y", px.end.y)
+	if group_name != "":
+		sp.add_to_group(group_name)
 	_add_contact_shadow(px, String(p["cls"]))
 	add_child(sp)
 	_add_building_collision(px, p, cat)
 	_occ.append(px)
 	placed += 1
 	return true
+
+
+func _put_activity(cat: String, p: Dictionary, cell: Vector2i, bottom_row: int,
+		rect: Rect2i, flip := false) -> bool:
+	if _put(cat, p, cell, bottom_row, rect, flip, "changan_activity_prop"):
+		activity_count += 1
+		return true
+	return false
 
 
 # ---- 接地阴影：只给建筑/合院加低矮软影；摊位与灯具保持原贴图自己的投影 ----
@@ -492,14 +506,30 @@ func _put_pack_prop(name: String, cell: Vector2i, bottom_row: int, rect: Rect2i,
 	sp.offset = Vector2(0, -float(p["h"]) / 2.0)
 	sp.set_meta("material_id", name)
 	sp.set_meta("foot_y", px.end.y)
-	if name.begins_with("tree_"):
+	var is_tree := name.begins_with("tree_")
+	var is_building := String(p.get("kind", "")) == "building"
+	var is_vehicle := name in ["cart_horse_a", "sedan_gold", "sedan_red", "ox_cart_cover"]
+	var is_shore_life := name in ["boat_row", "boat_cover", "boat_small", "boat_sampan",
+			"bench_wood", "lantern_stone_s", "stall_wood"]
+	var is_activity := is_vehicle or is_shore_life or name.begins_with("stall_")
+	if is_activity:
+		sp.add_to_group("changan_activity_prop")
+		activity_count += 1
+	if is_vehicle:
+		sp.add_to_group("changan_vehicle")
+		vehicle_count += 1
+	if is_shore_life:
+		sp.add_to_group("changan_shore_life")
+		shore_life_count += 1
+	if is_tree or is_building:
 		var shadow := TextureGen.make_shadow_sprite(minf(72.0, w_px * 0.65), 0.22)
+		shadow.name = "ContactShadow"
 		shadow.position = Vector2(px.get_center().x, px.end.y - 3.0)
 		shadow.scale.y *= 0.48
 		add_child(shadow)
 		shadow_count += 1
 	add_child(sp)
-	if name.begins_with("tree_"):
+	if is_tree:
 		var body := StaticBody2D.new()
 		body.name = "TreeCollision_%d" % collision_count
 		body.collision_layer = 1
@@ -508,9 +538,27 @@ func _put_pack_prop(name: String, cell: Vector2i, bottom_row: int, rect: Rect2i,
 		_add_collision_rect(body, Vector2(px.get_center().x, px.end.y - 6.0), Vector2(14, 12))
 		add_child(body)
 		collision_count += 1
+	elif is_building:
+		_add_pack_foot_collision(px, "PackBuilding")
+	elif is_vehicle:
+		_add_pack_foot_collision(px, "Vehicle", 0.62, 12.0)
 	_occ.append(px)
 	placed += 1
 	return true
+
+
+func _add_pack_foot_collision(px: Rect2, prefix: String, width_ratio := 0.70,
+		height := 12.0) -> void:
+	var body := StaticBody2D.new()
+	body.name = "%sCollision_%d" % [prefix, collision_count]
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.add_to_group("changan_building_collision")
+	var foot_w := clampf(px.size.x * width_ratio, 24.0, maxf(24.0, px.size.x - 8.0))
+	_add_collision_rect(body, Vector2(px.get_center().x, px.end.y - height * 0.5),
+			Vector2(foot_w, height))
+	add_child(body)
+	collision_count += 1
 
 
 # 坊内庭树补位：组件摆完后只在真实空角尝试，最多补 1~2 棵，形成前/中/后景。
@@ -556,14 +604,36 @@ func _layout_residential(cat: String, rect: Rect2i, rng: RandomNumberGenerator, 
 		_try_tree(rect, Vector2i(x0 + 1, y0 + 4), rng)
 		_try_tree(rect, Vector2i(x0 + 16, y0 + 4), rng)
 	else:
-		# 两条连续街面各三开间，北排略退、南排贴街；六栋形成真正的坊巷界面。
-		var last := ""
-		for row in [[y0 + 2, y0 + 7, false], [y0 + 13, y0 + 18, true]]:
-			for xx in [x0 + 1, x0 + 7, x0 + 13]:
-				var s := _pick(small, rng, last)
-				last = String(s.get("id", ""))
-				_put(cat, s, Vector2i(xx, int(row[0])), int(row[1]), rect,
-						bool(row[2]) != (xx == x0 + 7))
+		# 普通坊改用 manifest 中的原生单栋模块紧排，避免 96px 自带院墙切件
+		# 六宫格复制后产生“邮票地块”。北排是后宅，南排是临街门面，中间两格巷
+		# 放低矮生活件，形成参考图里的“屋檐—作业巷—前店”连续剖面。
+		var house_names := ["house_win_a", "house_door_a", "house_win_small",
+				"gable_white", "house_small_win", "lou_dark"]
+		var available: Array[String] = []
+		for name in house_names:
+			if _pack_assets.has(name) and int(_pack_assets[name]["w"]) <= 96:
+				available.append(name)
+		if available.size() >= 3:
+			var index := posmod(hash(id), available.size())
+			for row in [[y0 + 7, false], [y0 + 18, true]]:
+				for ci in range(3):
+					var name: String = available[(index + ci + (3 if bool(row[1]) else 0)) % available.size()]
+					_put_pack_prop(name, Vector2i(x0 + 1 + ci * 6, int(row[0]) - 5),
+							int(row[0]), rect, bool(row[1]) != (ci == 1))
+			var alley_props := _pool("11_街饰过渡", 28, 48, 24, 46, "prop")
+			if not alley_props.is_empty():
+				_put_activity("11_街饰过渡", _pick(alley_props, rng),
+						Vector2i(x0 + 4, y0 + 9), y0 + 11, rect)
+				_put_activity("11_街饰过渡", _pick(alley_props, rng),
+						Vector2i(x0 + 13, y0 + 9), y0 + 11, rect, true)
+		else:
+			var last := ""
+			for row in [[y0 + 2, y0 + 7, false], [y0 + 13, y0 + 18, true]]:
+				for xx in [x0 + 1, x0 + 7, x0 + 13]:
+					var s := _pick(small, rng, last)
+					last = String(s.get("id", ""))
+					_put(cat, s, Vector2i(xx, int(row[0])), int(row[1]), rect,
+							bool(row[2]) != (xx == x0 + 7))
 
 
 # ---- noble：estate 坊=府邸居北+前庭；其余用 04 亲王门面件（南北两排+中庭）----
@@ -584,15 +654,19 @@ func _layout_noble(rect: Rect2i, rng: RandomNumberGenerator, id: String):
 			_try_tree(rect, Vector2i(x0 + 16, y0 + 1), rng)
 			return
 	# 04 门面件坊（yankang/xuanyang/贵戚回退）：南门面排 + 北楼阁排 + 中庭开放
-	var units := _pool("04_亲王公主府", 80, 110, 80, 110)
+	var units := _pool("04_亲王公主府", 78, 96, 76, 110)
 	if units.size() >= 2:
-		_put("04_亲王公主府", units[0], Vector2i(x0 + 1, y0 + 13), y0 + 18, rect)
-		_put("04_亲王公主府", units[1 % units.size()], Vector2i(x0 + 8, y0 + 13), y0 + 18, rect, true)
-		_put("04_亲王公主府", units[0], Vector2i(x0 + 1, y0 + 2), y0 + 7, rect, true)
-		_put("04_亲王公主府", units[1 % units.size()], Vector2i(x0 + 8, y0 + 2), y0 + 7, rect)
-	_try_tree(rect, Vector2i(x0 + 16, y0 + 2), rng)
-	_put("11_街饰过渡", _pick(_pool("11_街饰过渡", 30, 50, 24, 38, "prop"), rng),
-			Vector2i(x0 + 15, y0 + 15), y0 + 18, rect)
+		for row in [[y0 + 7, false], [y0 + 18, true]]:
+			for ci in range(3):
+				_put("04_亲王公主府", units[(ci + (1 if bool(row[1]) else 0)) % units.size()],
+						Vector2i(x0 + 1 + ci * 6, int(row[0]) - 5), int(row[0]), rect,
+						bool(row[1]) != (ci == 1))
+	var court_props := _pool("11_街饰过渡", 28, 48, 24, 42, "prop")
+	if not court_props.is_empty():
+		_put_activity("11_街饰过渡", _pick(court_props, rng),
+				Vector2i(x0 + 4, y0 + 9), y0 + 11, rect)
+		_put_activity("11_街饰过渡", _pick(court_props, rng),
+				Vector2i(x0 + 13, y0 + 9), y0 + 11, rect, true)
 
 
 # ---- palace：中轴（门楼→大前庭→大殿）+ 像素级对称配殿（左右同款镜像）----
@@ -632,7 +706,7 @@ func _layout_office(cat: String, rect: Rect2i, rng: RandomNumberGenerator):
 		if not compounds.is_empty() and _put("02_官宅清流", compounds[0],
 				Vector2i(x0 + 7, y0 + 4), y0 + 17, rect):
 			compound_placed = true
-	var units := _pool(cat, 75, 110, 80, 110)
+	var units := _pool(cat, 75, 96, 80, 110)
 	if units.is_empty():
 		return
 	if compound_placed:
@@ -646,23 +720,15 @@ func _layout_office(cat: String, rect: Rect2i, rng: RandomNumberGenerator):
 			_put(cat, _pick(units, rng), entry[0], entry[1], rect, entry[2])
 		return
 	var i := 0
-	var xx := x0 + 3
-	var flip := false
-	while xx + 6 <= x0 + w - 3:
-		if i % 3 == 2:
-			_try_tree(rect, Vector2i(xx + 1, y0 + 3), rng)   # 每 3 位插树破连排
-		else:
-			_put(cat, units[i % units.size()], Vector2i(xx, y0 + 2), y0 + 7, rect, flip)
-		i += 1
-		flip = not flip
-		xx += 7
-	xx = x0 + 6
-	flip = true
-	while xx + 6 <= x0 + w - 3:
-		_put(cat, units[i % units.size()], Vector2i(xx, y0 + 13), y0 + 18, rect, flip)
-		i += 1
-		flip = not flip
-		xx += 9
+	for row in [[y0 + 7, false], [y0 + 18, true]]:
+		for ci in range(3):
+			_put(cat, units[i % units.size()], Vector2i(x0 + 1 + ci * 6, int(row[0]) - 5),
+					int(row[0]), rect, bool(row[1]) != (ci == 1))
+			i += 1
+	var office_props := _pool("11_街饰过渡", 28, 48, 24, 42, "prop")
+	if not office_props.is_empty():
+		_put_activity("11_街饰过渡", _pick(office_props, rng),
+				Vector2i(x0 + 9, y0 + 9), y0 + 11, rect)
 
 
 # ---- temple：山门→庭→殿→塔 纵序（塔限高防压殿）+ 四角绿化簇 ----
@@ -715,16 +781,18 @@ func _layout_market(cat: String, rect: Rect2i, rng: RandomNumberGenerator):
 				var shop := _pick(shops, rng, last)
 				last = String(shop.get("id", ""))
 				_put(cat, shop, Vector2i(xx, int(row[0])), int(row[1]), rect)
-	# 中央摊位带 y+9..12：小件横向错开，保持东/西两端进出集市的视觉开口。
+	# 中央物流带 y+9..12：半尺度车辆贴内侧停车，摊位与货物接在车辆之间；
+	# 东西两端仍留出至少两格入口，玩家可绕车通行，不再像六个同款摊位陈列。
+	_put_pack_prop("ox_cart_cover", Vector2i(x0 + 1, y0 + 10), y0 + 12, rect, false, 0.5)
+	_put_pack_prop("sedan_red", Vector2i(x0 + 16, y0 + 10), y0 + 12, rect, true, 0.5)
 	var stalls := _pool("11_街饰过渡", 36, 50, 40, 56, "prop")
 	last = ""
-	for c in [Vector2i(x0 + 1, y0 + 10), Vector2i(x0 + 4, y0 + 10),
-			Vector2i(x0 + 7, y0 + 10), Vector2i(x0 + 10, y0 + 10),
-			Vector2i(x0 + 13, y0 + 10), Vector2i(x0 + 16, y0 + 10)]:
+	for c in [Vector2i(x0 + 7, y0 + 10), Vector2i(x0 + 10, y0 + 10),
+			Vector2i(x0 + 13, y0 + 10)]:
 		if not stalls.is_empty():
 			var st: Dictionary = _pick(stalls, rng, last)
 			last = String(st["id"])
-			_put("11_街饰过渡", st, c, c.y + 2, rect)
+			_put_activity("11_街饰过渡", st, c, c.y + 2, rect)
 	# 入口两角只放低矮挂件，避免树冠遮住店招和市场动线。
 	_put("11_街饰过渡", _pick(_pool("11_街饰过渡", 12, 20, 20, 30, "prop"), rng),
 			Vector2i(x0 + 18, y0 + 9), y0 + 10, rect)
@@ -775,10 +843,14 @@ func _layout_garden_reserve(cat: String, rect: Rect2i, rng: RandomNumberGenerato
 		# 左半坊为水面，桥面底下已由生成器铺可走带；右半坊布亭塔与树。
 		_put_pack_prop("boat_small", Vector2i(x0 + 2, y0 + 3), y0 + 6, rect)
 		_put_pack_prop("bridge_arch_stone_deck", Vector2i(x0 + 1, y0 + 7), y0 + 11, rect)
+		_put_pack_prop("boat_sampan", Vector2i(x0 + 3, y0 + 13), y0 + 15, rect,
+				true, 0.5)
 		_put(cat, _pick(units, rng), Vector2i(x0 + 12, y0 + 2), y0 + 7, rect)
 		_put(cat, _pick(units, rng), Vector2i(x0 + 12, y0 + 13), y0 + 18, rect, true)
 		_try_tree(rect, Vector2i(x0 + 10, y0 + 2), rng)
 		_try_tree(rect, Vector2i(x0 + 10, y0 + 14), rng)
+		_put_pack_prop("stall_wood", Vector2i(x0 + 11, y0 + 9), y0 + 12, rect)
+		_put_pack_prop("bench_wood", Vector2i(x0 + 16, y0 + 9), y0 + 12, rect, true)
 		return
 	for entry in [[Vector2i(x0 + 2, y0 + 2), y0 + 7, false],
 			[Vector2i(x0 + 12, y0 + 2), y0 + 7, true],

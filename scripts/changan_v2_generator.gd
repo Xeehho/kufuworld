@@ -113,6 +113,9 @@ var portals_node: Node2D = null
 var materials_count := -1   # -1=素材库缺件保持灰盒
 var material_shadows := 0
 var material_collisions := 0
+var material_activity := 0
+var material_vehicles := 0
+var material_shore_life := 0
 var population_count := 0
 
 
@@ -125,6 +128,9 @@ func _spawn_materials():
 	materials_count = mat.placed
 	material_shadows = mat.shadow_count
 	material_collisions = mat.collision_count
+	material_activity = mat.activity_count
+	material_vehicles = mat.vehicle_count
+	material_shore_life = mat.shore_life_count
 
 
 func _ready():
@@ -210,7 +216,9 @@ func _build():
 		"labels": label_count, "bfs_fail": bfs_failures.size(), "gates": gate_info.size(),
 		"ground_cells": painted[0], "decor_cells": painted[1],
 		"materials": materials_count, "material_shadows": material_shadows,
-		"material_collisions": material_collisions, "population": population_count,
+		"material_collisions": material_collisions, "material_activity": material_activity,
+		"material_vehicles": material_vehicles, "material_shore_life": material_shore_life,
+		"population": population_count,
 	}
 	print("[ChangAnV2] %s 生成 %dms 街区=%d 标签=%d 城门=%d BFS未达=%d 材质件=%d" %
 			[stats["size"], ms, blocks.size(), label_count, gate_info.size(), bfs_failures.size(), materials_count])
@@ -241,7 +249,7 @@ func _spawn_population() -> void:
 		if String(b["kind"]) != "market":
 			continue
 		var rect := _block_rect(b)
-		for p in [Vector2i(3, 9), Vector2i(7, 11), Vector2i(12, 9), Vector2i(16, 11)]:
+		for p in [Vector2i(1, 11), Vector2i(10, 9), Vector2i(13, 11), Vector2i(18, 9)]:
 			cells.append(rect.position + p)
 	var types := ["warrior", "scholar", "merchant", "elder", "guard",
 			"tavern_f", "matron_f", "peasant_f", "herbalist_f", "seamstress_f"]

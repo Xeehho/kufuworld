@@ -61,6 +61,12 @@ func _ready() -> void:
 	_check(get_tree().get_nodes_in_group("changan_building_collision").size() >= 40,
 			"建筑/树木脚印碰撞体不少于40处")
 	_check(get_tree().get_nodes_in_group("changan_city_gate").size() == 4, "四城门楼素材齐备")
+	_check(get_tree().get_nodes_in_group("changan_activity_prop").size() >= 16,
+			"市集/坊巷/水岸生活活动件不少于16处")
+	_check(get_tree().get_nodes_in_group("changan_vehicle").size() == 4,
+			"东西两市各有牛车与小轿物流节点")
+	_check(get_tree().get_nodes_in_group("changan_shore_life").size() >= 4,
+			"曲江船只与岸边停留点不少于4处")
 	_check(_main_streets_clear(ch, cv, p), "朱雀与两条横向主街保留可连续穿行的中央通道")
 	# 2) 落点 3×3 可通行
 	var spawn_cell := Vector2i(int((p.global_position.x - cv.CITY_OFFSET.x) / TILE), int((p.global_position.y - cv.CITY_OFFSET.y) / TILE))
