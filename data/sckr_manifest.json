@@ -2344,6 +2344,82 @@
    "source_kind": "imagegen"
   },
   {
+   "name": "outer_wall_h_ai_a",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/outer_wall_horizontal_magenta.png",
+   "box": [
+    0,
+    0,
+    64,
+    64
+   ],
+   "source_box": [
+    600,
+    248,
+    792,
+    440
+   ],
+   "source_kind": "imagegen"
+  },
+  {
+   "name": "outer_wall_h_ai_b",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/outer_wall_horizontal_magenta.png",
+   "box": [
+    0,
+    0,
+    64,
+    64
+   ],
+   "source_box": [
+    792,
+    248,
+    984,
+    440
+   ],
+   "source_kind": "imagegen"
+  },
+  {
+   "name": "outer_gate_h_ai",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/outer_gate_horizontal_magenta.png",
+   "box": [
+    0,
+    0,
+    168,
+    144
+   ],
+   "source_box": [
+    510,
+    60,
+    1350,
+    780
+   ],
+   "source_kind": "imagegen"
+  },
+  {
+   "name": "terrace_stairs_ai",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/terrace_stairs_magenta.png",
+   "box": [
+    0,
+    0,
+    336,
+    96
+   ],
+   "source_box": [
+    79,
+    64,
+    2095,
+    640
+   ],
+   "source_kind": "imagegen"
+  },
+  {
    "name": "street_main",
    "kind": "tile",
    "category": "ground",

@@ -300,6 +300,7 @@ func _paint_layout():
 	_paint_block_access_lanes()
 	_paint_district_enclosures()
 	_paint_qujiang_water()
+	_paint_south_river()
 	# 外郭城墙物理环 + 完整立面由 Materials 层的 wall_run 连续组装
 	_paint_walls()
 	_carve_gates()
@@ -333,26 +334,45 @@ func _paint_block_access_lanes() -> void:
 				rect.size.x - 2, 2, Z_ROAD)
 
 
-# ---- 曲江水岸：左侧园池+两格桥面，形成概念图中的水绿边界 ----
-# 使用 TilesetGen 已注册的 111 岸石/112 水面；桥面重铺寺观地坪，保证玩家可过。
+# ---- 曲江水岸：整坊横向水系+纵向石桥，形成城市级水绿边界 ----
+# 使用 TilesetGen 已注册的 111 岸石/112 水面；中央三格桥面贯通南北，保持 BFS。
 func _paint_qujiang_water() -> void:
 	for b in blocks:
 		if String(b["id"]) != "qujiang":
 			continue
 		var rect := _block_rect(b)
-		# 岸基先铺成十格宽，再用逐行变宽的水面雕出折岸；中部两行石桥切断水面。
-		# 这仍完全落在曲江坊内部，不改变冻结街网和外部 BFS。
-		_set_rect(ground, rect.position.x + 1, rect.position.y + 2, 10, rect.size.y - 4, T_BANK)
+		# 水面由旧版半坊上下小池扩展为横贯整坊的长池：两端收尖、中段放宽，
+		# 北南岸各留可建模平台；仍不侵入坊外冻结主街。
+		_set_rect(ground, rect.position.x + 1, rect.position.y + 3,
+				rect.size.x - 2, rect.size.y - 6, T_BANK)
 		var water_rows := [
-			[3, 3, 5], [4, 2, 7], [5, 2, 7], [6, 2, 7], [7, 2, 7],
-			[8, 2, 6], [11, 2, 6], [12, 3, 6], [13, 3, 6], [14, 3, 6],
-			[15, 4, 5], [16, 4, 5],
+			[5, 4, 12], [6, 2, 16], [7, 1, 18], [8, 1, 18], [9, 1, 18],
+			[10, 1, 18], [11, 1, 18], [12, 2, 16], [13, 3, 14], [14, 5, 10],
 		]
 		for row in water_rows:
 			_set_rect(ground, rect.position.x + int(row[1]), rect.position.y + int(row[0]),
 					int(row[2]), 1, T_WATER)
-		_set_rect(ground, rect.position.x + 1, rect.position.y + 9, 10, 2, Z_TEMPLE)
+		# 三格宽纵桥贯通北岸、桥心和南岸；视觉桥件由 Materials 层叠加。
+		_set_rect(ground, rect.position.x + 8, rect.position.y + 4, 3, 12, Z_TEMPLE)
 		return
+
+
+# ---- 城南长河：概念图中的前景水系，横贯南城外并在明德门轴线上留石桥。----
+# 它完全位于外郭墙之外，不侵入 28 坊、四门或 BFS 冻结拓扑；曲江仍是城内园池，
+# 两者共同建立“城内水岸 + 城外长河”的尺度对比，解决总览水面只剩小方块的问题。
+func _paint_south_river() -> void:
+	var top: int = H - margin + 1
+	var left: int = margin + 4
+	var right: int = W - margin - 4
+	# 上下各一格石岸，中间五格水；逐行收放两端，让河带不是机械矩形。
+	_set_rect(ground, left, top, right - left, 7, T_BANK)
+	for row in range(5):
+		var inset: int = absi(row - 2)
+		_set_rect(ground, left + inset, top + 1 + row,
+				(right - left) - inset * 2, 1, T_WATER)
+	# 明德门中轴四格宽桥面贯穿两岸；外郭门触发区仍保持原位置与语义。
+	var cx: int = W / 2
+	_set_rect(ground, cx - 2, top, 4, 7, Z_ROAD)
 
 
 # ---- 礼制组团围合：宫城/东宫/皇城不再是地坪上的散件。----

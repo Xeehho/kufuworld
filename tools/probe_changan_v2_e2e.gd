@@ -67,17 +67,36 @@ func _ready() -> void:
 		if String(gate.get_meta("material_id", "")) == "side_gate_bridge_ai":
 			ai_side_gates += 1
 	_check(ai_side_gates == 2, "Image 2.0 原生纵向门桥替换东西开放关口")
+	var ai_horizontal_gates := 0
+	for gate in city_gates:
+		if String(gate.get_meta("material_id", "")) == "outer_gate_h_ai":
+			ai_horizontal_gates += 1
+	_check(ai_horizontal_gates == 2, "Image 2.0 同族横向门桥替换南北旧门楼")
 	var ai_side_walls := 0
 	for wall in get_tree().get_nodes_in_group("changan_outer_wall_facade"):
 		if String(wall.get_meta("material_id", "")).begins_with("side_wall_run_ai_"):
 			ai_side_walls += 1
 	_check(ai_side_walls >= 52, "Image 2.0 原生纵向城墙连续铺设不少于52段")
+	var ai_horizontal_walls := 0
+	for wall in get_tree().get_nodes_in_group("changan_outer_wall_facade"):
+		if String(wall.get_meta("material_id", "")).begins_with("outer_wall_h_ai_"):
+			ai_horizontal_walls += 1
+	_check(ai_horizontal_walls >= 68, "Image 2.0 同族横向城墙连续铺设不少于68段")
+	_check(get_tree().get_nodes_in_group("changan_terrace").size() == 1,
+			"Image 2.0 宫城台基唯一且中央石阶保持通行")
+	_check(get_tree().get_nodes_in_group("changan_river_bridge").size() == 1,
+			"明德门外石桥贯通城南长河")
 	_check(get_tree().get_nodes_in_group("changan_activity_prop").size() >= 16,
 			"市集/坊巷/水岸生活活动件不少于16处")
 	_check(get_tree().get_nodes_in_group("changan_vehicle").size() == 4,
 			"东西两市各有牛车与小轿物流节点")
 	_check(get_tree().get_nodes_in_group("changan_shore_life").size() >= 4,
 			"曲江船只与岸边停留点不少于4处")
+	var qujiang_water := 0
+	for ground_id in ch.ground:
+		if int(ground_id) == ch.T_WATER:
+			qujiang_water += 1
+	_check(qujiang_water >= 700, "曲江与城南长河水面不少于700格且两座纵桥保留")
 	_check(_main_streets_clear(ch, cv, p), "朱雀与两条横向主街保留可连续穿行的中央通道")
 	# 2) 落点 3×3 可通行
 	var spawn_cell := Vector2i(int((p.global_position.x - cv.CITY_OFFSET.x) / TILE), int((p.global_position.y - cv.CITY_OFFSET.y) / TILE))

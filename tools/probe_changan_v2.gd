@@ -63,12 +63,30 @@ func _ready() -> void:
 				ai_side_gates += 1
 		if ai_side_gates != 2:
 			fails.append("Image 2.0 东西门桥节点数≠2（实=%d）" % ai_side_gates)
+		var ai_horizontal_gates := 0
+		for gate in get_tree().get_nodes_in_group("changan_city_gate"):
+			if String(gate.get_meta("material_id", "")) == "outer_gate_h_ai":
+				ai_horizontal_gates += 1
+		if ai_horizontal_gates != 2:
+			fails.append("Image 2.0 南北门桥节点数≠2（实=%d）" % ai_horizontal_gates)
 		var ai_side_walls := 0
 		for wall in get_tree().get_nodes_in_group("changan_outer_wall_facade"):
 			if String(wall.get_meta("material_id", "")).begins_with("side_wall_run_ai_"):
 				ai_side_walls += 1
 		if ai_side_walls < 52:
 			fails.append("Image 2.0 东西竖向城墙不足52段（实=%d）" % ai_side_walls)
+		var ai_horizontal_walls := 0
+		for wall in get_tree().get_nodes_in_group("changan_outer_wall_facade"):
+			if String(wall.get_meta("material_id", "")).begins_with("outer_wall_h_ai_"):
+				ai_horizontal_walls += 1
+		if ai_horizontal_walls < 68:
+			fails.append("Image 2.0 南北横向城墙不足68段（实=%d）" % ai_horizontal_walls)
+		var terraces := get_tree().get_nodes_in_group("changan_terrace").size()
+		if terraces != 1:
+			fails.append("Image 2.0 宫城台基节点数≠1（实=%d）" % terraces)
+		var river_bridges := get_tree().get_nodes_in_group("changan_river_bridge").size()
+		if river_bridges != 1:
+			fails.append("明德门城南跨河石桥节点数≠1（实=%d）" % river_bridges)
 		var activity_nodes := get_tree().get_nodes_in_group("changan_activity_prop").size()
 		if activity_nodes != int(city.stats.get("material_activity", -1)):
 			fails.append("活动件统计=%d，实际节点=%d" %
@@ -88,8 +106,8 @@ func _ready() -> void:
 	for d in city.ground:
 		if int(d) == city.T_WATER:
 			water_cells += 1
-	if water_cells < 60:
-		fails.append("曲江水面=%d格 < 下限60" % water_cells)
+	if water_cells < 700:
+		fails.append("曲江与城南长河水系=%d格 < 下限700" % water_cells)
 	# BFS：明德门内可达全部街区中心+四门落点
 	if not city.bfs_failures.is_empty():
 		fails.append("BFS未达%d处：%s" % [city.bfs_failures.size(), str(city.bfs_failures.slice(0, 5))])

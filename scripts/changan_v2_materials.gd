@@ -111,31 +111,77 @@ func _put_axis_prop(cat: String, p: Dictionary, cell: Vector2i, flip := false) -
 
 # ---- 外郭城墙完整立面：wall_run 自带垛口、灰砖墙身和石脚，整体重复而非分层贴条。----
 func _layout_outer_wall_facade() -> void:
-	if not _pack_assets.has("wall_run"):
+	const AI_WALL_NAMES := ["outer_wall_h_ai_a", "outer_wall_h_ai_b"]
+	var ai_textures: Array[Texture2D] = []
+	for wall_name in AI_WALL_NAMES:
+		if not _pack_assets.has(wall_name):
+			ai_textures.clear()
+			break
+		var ai_p: Dictionary = _pack_assets[wall_name]
+		var ai_path := String(ai_p["file"])
+		var ai_tex: Texture2D = TextureGen.load_png_texture(ai_path)
+		if ai_tex == null:
+			ai_textures.clear()
+			break
+		_tex[ai_path] = ai_tex
+		ai_textures.append(ai_tex)
+	if ai_textures.is_empty() and not _pack_assets.has("wall_run"):
 		return
-	var p: Dictionary = _pack_assets["wall_run"]
-	var path := String(p["file"])
-	var tex: Texture2D = TextureGen.load_png_texture(path)
-	if tex == null:
-		return
-	_tex[path] = tex
+	var fallback_tex: Texture2D = null
+	if ai_textures.is_empty():
+		var p: Dictionary = _pack_assets["wall_run"]
+		var path := String(p["file"])
+		fallback_tex = TextureGen.load_png_texture(path)
+		if fallback_tex == null:
+			return
+		_tex[path] = fallback_tex
 	for side in ["N", "S"]:
 		if not gen.gate_info.has(side):
 			continue
 		var cells: Array = gen.gate_info[side]["gap_cells"]
 		var gate_cx := (float(cells[0].x + cells[cells.size() - 1].x) * 0.5 + 0.5) * 16.0
-		var gate_name := "gate_tower_big" if side == "S" else "gate_tower_mid"
+		var gate_name := "outer_gate_h_ai" if _pack_assets.has("outer_gate_h_ai") \
+				else ("gate_tower_big" if side == "S" else "gate_tower_mid")
 		var gate_half := 55.0
 		if _pack_assets.has(gate_name):
 			gate_half = float(_pack_assets[gate_name]["w"]) * 0.5
 		var x_start := float(gen.margin * 16)
 		var x_end := float((gen.W - gen.margin) * 16)
-		var bottom := float((gen.margin + gen.wall) * 16 - 1) if side == "N" \
-				else float((gen.H - gen.margin) * 16 - 1)
-		# 从门楼边缘反向铺墙，把不可整除的余量赶到城角外侧；门墙接缝始终零缝。
-		_spawn_wall_interval(tex, x_start, gate_cx - gate_half, bottom, side, true)
-		_spawn_wall_interval(tex, gate_cx + gate_half, x_end, bottom, side, false)
+		if not ai_textures.is_empty():
+			var center_y := float((gen.margin + gen.wall / 2.0) * 16.0) if side == "N" \
+					else float((gen.H - gen.margin - gen.wall / 2.0) * 16.0)
+			_spawn_horizontal_wall_interval(ai_textures, x_start, gate_cx - gate_half,
+					center_y, side, true)
+			_spawn_horizontal_wall_interval(ai_textures, gate_cx + gate_half, x_end,
+					center_y, side, false)
+		else:
+			var bottom := float((gen.margin + gen.wall) * 16 - 1) if side == "N" \
+					else float((gen.H - gen.margin) * 16 - 1)
+			# 素材缺失时保留旧城墙立面降级路径。
+			_spawn_wall_interval(fallback_tex, x_start, gate_cx - gate_half, bottom, side, true)
+			_spawn_wall_interval(fallback_tex, gate_cx + gate_half, x_end, bottom, side, false)
 	_layout_side_wall_facades()
+
+
+func _spawn_horizontal_wall_interval(textures: Array[Texture2D], x0: float, x1: float,
+		center_y: float, side: String, align_right: bool) -> void:
+	var step := float(textures[0].get_width())
+	var count := int(floor((x1 - x0) / step))
+	if count <= 0:
+		return
+	var x := x1 - count * step if align_right else x0
+	for index in range(count):
+		var tex := textures[index % textures.size()]
+		var sp := Sprite2D.new()
+		sp.name = "OuterWall_%s_AI_%02d" % [side, index]
+		sp.texture = tex
+		sp.flip_v = side == "N"
+		sp.position = Vector2(x + step * 0.5, center_y)
+		sp.set_meta("material_id", "outer_wall_h_ai_%s" % ("a" if index % 2 == 0 else "b"))
+		sp.add_to_group("changan_outer_wall_facade")
+		add_child(sp)
+		placed += 1
+		x += step
 
 
 func _spawn_wall_interval(tex: Texture2D, x0: float, x1: float, bottom: float, side: String,
@@ -220,8 +266,6 @@ func _layout_outskirts() -> void:
 		["tree_lush_a", Vector2i(18, 7)], ["tree_lush_b", Vector2i(42, 7)],
 		["tree_big", Vector2i(66, 7)], ["tree_lush_a", Vector2i(106, 7)],
 		["tree_lush_b", Vector2i(151, 7)],
-		["tree_lush_b", Vector2i(24, gen.H - 2)], ["tree_big", Vector2i(54, gen.H - 2)],
-		["tree_lush_a", Vector2i(114, gen.H - 2)], ["tree_lush_b", Vector2i(146, gen.H - 2)],
 		["tree_lush_a", Vector2i(5, 35)], ["tree_big", Vector2i(5, 95)],
 		["tree_lush_b", Vector2i(gen.W - 5, 28)], ["tree_lush_a", Vector2i(gen.W - 5, 102)],
 	]
@@ -263,7 +307,8 @@ func _spawn_pack_free(name: String, foot_cell: Vector2i) -> bool:
 # 中央 48px 净宽可容玩家 24px 碰撞体通过。
 func _layout_city_gates() -> void:
 	var names := {
-		"S": "gate_tower_big", "N": "gate_tower_mid",
+		"S": "outer_gate_h_ai" if _pack_assets.has("outer_gate_h_ai") else "gate_tower_big",
+		"N": "outer_gate_h_ai" if _pack_assets.has("outer_gate_h_ai") else "gate_tower_mid",
 	}
 	for side in ["S", "N"]:
 		if not gen.gate_info.has(side) or not _pack_assets.has(names[side]):
@@ -285,13 +330,47 @@ func _layout_city_gates() -> void:
 		sp.set_meta("material_id", names[side])
 		sp.add_to_group("changan_city_gate")
 		var cx := (float(c0.x + c1.x) * 0.5 + 0.5) * 16.0
-		var base_row: int = int(gen.H - gen.margin - 1 if side == "S" else gen.margin + 1)
-		sp.position = Vector2(cx, (base_row + 1) * 16.0 - 1.0)
-		sp.offset = Vector2(0, -tex.get_height() / 2.0)
+		if names[side] == "outer_gate_h_ai":
+			var center_y := float((gen.margin + gen.wall / 2.0) * 16.0) if side == "N" \
+					else float((gen.H - gen.margin - gen.wall / 2.0) * 16.0)
+			sp.position = Vector2(cx, center_y)
+			sp.flip_v = side == "N"
+		else:
+			var base_row: int = int(gen.H - gen.margin - 1 if side == "S" else gen.margin + 1)
+			sp.position = Vector2(cx, (base_row + 1) * 16.0 - 1.0)
+			sp.offset = Vector2(0, -tex.get_height() / 2.0)
 		add_child(sp)
 		placed += 1
 	for side in ["E", "W"]:
 		_layout_side_gate_checkpoint(side)
+	_layout_south_river_bridge()
+
+
+func _layout_south_river_bridge() -> void:
+	const NAME := "bridge_arch_stone_v"
+	if not gen.gate_info.has("S") or not _pack_assets.has(NAME):
+		return
+	var p: Dictionary = _pack_assets[NAME]
+	var path := String(p["file"])
+	var tex: Texture2D = _tex.get(path)
+	if tex == null:
+		tex = TextureGen.load_png_texture(path)
+		if tex == null:
+			return
+		_tex[path] = tex
+	var cells: Array = gen.gate_info["S"]["gap_cells"]
+	var c0: Vector2i = cells[0]
+	var c1: Vector2i = cells[cells.size() - 1]
+	var sp := Sprite2D.new()
+	sp.name = "MingdeRiverBridge"
+	sp.texture = tex
+	sp.position = Vector2((float(c0.x + c1.x) * 0.5 + 0.5) * 16.0, gen.H * 16.0)
+	sp.offset = Vector2(0, -tex.get_height() * 0.5)
+	sp.set_meta("material_id", NAME)
+	sp.set_meta("foot_y", gen.H * 16.0)
+	sp.add_to_group("changan_river_bridge")
+	add_child(sp)
+	placed += 1
 
 
 # 素材包没有真正的东西向城门/城墙透视件。旧版把正面门楼旋转 90°，瓦顶、
@@ -769,6 +848,10 @@ func _layout_palace(cat: String, rect: Rect2i):
 	var pav := _pool(cat, 80, 110, 80, 100)
 	if gate.is_empty():
 		return
+	# 宫城双坊先铺一座真正可通行的高台：挡墙两翼有碰撞，中央石阶留口；
+	# 高台不写入 _occ，殿宇可落在台面上，并依靠底边 y-sort 形成前后层级。
+	if rect.size.x >= 40:
+		_put_palace_terrace(rect, y0 + 14)
 	# 三进中轴：南门—中殿—北殿，逐排换型；大宫城每进再配左右殿，形成天际线级差。
 	var rows := [y0 + 6, y0 + 12, y0 + 18]
 	for ri in range(rows.size()):
@@ -781,6 +864,46 @@ func _layout_palace(cat: String, rect: Rect2i):
 			var wing_cells := int(ceil(float(wing["w"]) / 16.0))
 			_put(cat, wing, Vector2i(x0 + 4, rows[ri] - 5), rows[ri], rect)
 			_put(cat, wing, Vector2i(rect.end.x - 4 - wing_cells, rows[ri] - 5), rows[ri], rect, true)
+
+
+func _put_palace_terrace(rect: Rect2i, bottom_row: int) -> bool:
+	const NAME := "terrace_stairs_ai"
+	if not _pack_assets.has(NAME):
+		return false
+	var p: Dictionary = _pack_assets[NAME]
+	var tex: Texture2D = TextureGen.load_png_texture(String(p["file"]))
+	if tex == null:
+		return false
+	var width := float(p["w"])
+	var height := float(p["h"])
+	var center_x := (rect.position.x + rect.size.x * 0.5) * 16.0
+	var bottom_y := (bottom_row + 1) * 16.0
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	sp.position = Vector2(center_x, bottom_y)
+	sp.offset = Vector2(0, -height * 0.5)
+	sp.set_meta("material_id", NAME)
+	sp.set_meta("foot_y", bottom_y)
+	sp.add_to_group("changan_terrace")
+	add_child(sp)
+	# 只阻挡台基正面，中央 64px 石阶保持通行；玩家从石阶进入台面，
+	# 不用整张矩形碰撞把宫殿封死。
+	var body := StaticBody2D.new()
+	body.name = "TerraceCollision_%d" % collision_count
+	body.collision_layer = 1
+	body.collision_mask = 0
+	body.add_to_group("changan_building_collision")
+	var gap := 64.0
+	var edge_width := (width - gap) * 0.5
+	var wall_y := bottom_y - 22.0
+	_add_collision_rect(body, Vector2(center_x - gap * 0.5 - edge_width * 0.5, wall_y),
+			Vector2(edge_width, 12.0))
+	_add_collision_rect(body, Vector2(center_x + gap * 0.5 + edge_width * 0.5, wall_y),
+			Vector2(edge_width, 12.0))
+	add_child(body)
+	collision_count += 1
+	placed += 1
+	return true
 
 
 # ---- office/yamen：临街门面排 + 中央开放；步进留白+树打破机械连排 ----
@@ -930,17 +1053,21 @@ func _layout_garden_reserve(cat: String, rect: Rect2i, rng: RandomNumberGenerato
 	if units.is_empty():
 		return
 	if id == "qujiang":
-		# 左半坊为水面，桥面底下已由生成器铺可走带；右半坊布亭塔与树。
-		_put_pack_prop("boat_small", Vector2i(x0 + 2, y0 + 3), y0 + 6, rect)
-		_put_pack_prop("bridge_arch_stone_deck", Vector2i(x0 + 1, y0 + 7), y0 + 11, rect)
-		_put_pack_prop("boat_sampan", Vector2i(x0 + 3, y0 + 13), y0 + 15, rect,
-				true, 0.5)
-		_put(cat, _pick(units, rng), Vector2i(x0 + 12, y0 + 2), y0 + 7, rect)
-		_put(cat, _pick(units, rng), Vector2i(x0 + 12, y0 + 13), y0 + 18, rect, true)
-		_try_tree(rect, Vector2i(x0 + 10, y0 + 2), rng)
-		_try_tree(rect, Vector2i(x0 + 10, y0 + 14), rng)
-		_put_pack_prop("stall_wood", Vector2i(x0 + 11, y0 + 9), y0 + 12, rect)
-		_put_pack_prop("bench_wood", Vector2i(x0 + 16, y0 + 9), y0 + 12, rect, true)
+		# 横贯整坊的长池以纵桥分流；建筑退到南北岸，船只留在桥两侧，
+		# 不再把亭塔塞进水面或把河压成两块狭小方池。
+		var shore_units := _pool(cat, 60, 100, 75, 90)
+		if shore_units.is_empty():
+			shore_units = units
+		_put_pack_prop("bridge_arch_stone_v", Vector2i(x0 + 8, y0 + 6), y0 + 11, rect)
+		_put_pack_prop("boat_small", Vector2i(x0 + 1, y0 + 7), y0 + 10, rect)
+		_put_pack_prop("boat_sampan", Vector2i(x0 + 12, y0 + 9), y0 + 13, rect,
+				true, 0.65)
+		_put_pack_prop("lantern_stone_s", Vector2i(x0 + 6, y0 + 3), y0 + 5, rect)
+		_put_pack_prop("lantern_stone_s", Vector2i(x0 + 12, y0 + 14), y0 + 16, rect, true)
+		_put(cat, _pick(shore_units, rng), Vector2i(x0 + 1, y0 + 1), y0 + 6, rect)
+		_put(cat, _pick(shore_units, rng), Vector2i(x0 + 13, y0 + 1), y0 + 6, rect, true)
+		_put(cat, _pick(shore_units, rng), Vector2i(x0 + 1, y0 + 15), y0 + 19, rect, true)
+		_put(cat, _pick(shore_units, rng), Vector2i(x0 + 13, y0 + 15), y0 + 19, rect)
 		return
 	for entry in [[Vector2i(x0 + 2, y0 + 2), y0 + 7, false],
 			[Vector2i(x0 + 12, y0 + 2), y0 + 7, true],

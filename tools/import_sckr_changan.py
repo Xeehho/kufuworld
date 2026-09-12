@@ -265,6 +265,10 @@ AI_PROPS = [
     ("side_gate_bridge_ai", "side_gate_bridge_magenta.png", (411, 340, 843, 844), (432, 504), (144, 168)),
     ("side_wall_run_ai_a", "side_wall_run_magenta.png", (384, 480, 640, 736), (256, 256), (64, 64)),
     ("side_wall_run_ai_b", "side_wall_run_magenta.png", (384, 736, 640, 992), (256, 256), (64, 64)),
+    ("outer_wall_h_ai_a", "outer_wall_horizontal_magenta.png", (600, 248, 792, 440), (192, 192), (64, 64)),
+    ("outer_wall_h_ai_b", "outer_wall_horizontal_magenta.png", (792, 248, 984, 440), (192, 192), (64, 64)),
+    ("outer_gate_h_ai", "outer_gate_horizontal_magenta.png", (510, 60, 1350, 780), (840, 720), (168, 144)),
+    ("terrace_stairs_ai", "terrace_stairs_magenta.png", (79, 64, 2095, 640), (2016, 576), (336, 96)),
 ]
 
 # ---- tile 清单：16×16 整窗（TileMap 图集源，不修边）----
