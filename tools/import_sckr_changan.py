@@ -19,6 +19,8 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "downloaded_assets", "comshadow_bundle")
 OUT_PROPS = os.path.join(ROOT, "sprites", "changan_props_sckr")
 OUT_TILES = os.path.join(ROOT, "sprites", "tiles_changan_sckr")
+AI_SRC = os.path.join(ROOT, "art_sources", "imagegen", "changan_v2")
+OUT_AI = os.path.join(ROOT, "sprites", "changan_ai")
 CONTACT = os.path.join(ROOT, "docs", "shots", "pack_jingcheng", "slice_contact.png")
 
 JC = "jingcheng/tile-B-01.png"
@@ -257,6 +259,14 @@ PROPS = [
     ("mat_cushion",      WX3, (384, 576, 480, 672)),   # 蒲团垫
 ]
 
+# Image 2.0 生成补件：源图永久保留，导入时统一抠真 Alpha，并以整数比缩为 16px 模数。
+# 字段：(语义名, 源图, 固定源窗, 透明画布尺寸, 输出尺寸)。运行时只引用语义名，不临时裁窗。
+AI_PROPS = [
+    ("side_gate_bridge_ai", "side_gate_bridge_magenta.png", (411, 340, 843, 844), (432, 504), (144, 168)),
+    ("side_wall_run_ai_a", "side_wall_run_magenta.png", (384, 480, 640, 736), (256, 256), (64, 64)),
+    ("side_wall_run_ai_b", "side_wall_run_magenta.png", (384, 736, 640, 992), (256, 256), (64, 64)),
+]
+
 # ---- tile 清单：16×16 整窗（TileMap 图集源，不修边）----
 TILES = [
     # 街巷铺装（终案：街=夯土暖色、御道/宫市=石板、青灰砖=墙——三级语义清晰，修"街砖像城墙"）
@@ -415,10 +425,53 @@ def keep_largest_component(im):
                 px[xx, yy] = (0, 0, 0, 0)
     return im
 
+def key_magenta_bg(im):
+    """Image 2.0 纯洋红底抠图；色键只吃高红高蓝低绿像素，避免误伤灰瓦/木梁。"""
+    im = im.convert("RGBA")
+    px = im.load()
+    for yy in range(im.height):
+        for xx in range(im.width):
+            r, g, b, _ = px[xx, yy]
+            # 洋红底及其与灰瓦/墙砖混出的暗紫边：R/B 同时高于 G，且 R/B 彼此接近。
+            # 棕木的 B 很低、青瓦的 R≈G，不会命中。
+            if abs(r - b) < 80 and min(r, b) - g > 18:
+                px[xx, yy] = (0, 0, 0, 0)
+    # 清掉紧邻透明区的洋红混色边，不动资产内部同色（本套件本身无紫/洋红材质）。
+    for _ in range(2):
+        halo = []
+        for yy in range(im.height):
+            for xx in range(im.width):
+                r, g, b, a = px[xx, yy]
+                if a == 0 or not (r > 120 and b > 120 and min(r, b) - g > 35):
+                    continue
+                if any(0 <= nx < im.width and 0 <= ny < im.height and px[nx, ny][3] == 0
+                       for nx, ny in ((xx + 1, yy), (xx - 1, yy), (xx, yy + 1), (xx, yy - 1))):
+                    halo.append((xx, yy))
+        for xx, yy in halo:
+            px[xx, yy] = (0, 0, 0, 0)
+    # 保持原始画布坐标，后续 AI_PROPS.source_box 才是稳定、可审计的切窗契约。
+    return keep_largest_component(im)
+
+def fit_transparent(im, size):
+    """把已抠资产居中补到固定透明画布，保证后续严格整数倍缩放。"""
+    assert im.width <= size[0] and im.height <= size[1], (im.size, size)
+    out = Image.new("RGBA", size, (0, 0, 0, 0))
+    out.paste(im, ((size[0] - im.width) // 2, (size[1] - im.height) // 2), im)
+    return out
+
+def cleanup_side_gate_bridge(im):
+    """移除模型在门洞左右误补的横墙臂，只保留纵墙与南北向屋脊门桥。"""
+    px = im.load()
+    for yy in range(70, 121):
+        for xx in list(range(0, 40)) + list(range(104, im.width)):
+            px[xx, yy] = (0, 0, 0, 0)
+    return im
+
 def main():
     only = set(sys.argv[1:])
     os.makedirs(OUT_PROPS, exist_ok=True)
     os.makedirs(OUT_TILES, exist_ok=True)
+    os.makedirs(OUT_AI, exist_ok=True)
     sheets = {}
     def sheet(rel):
         if rel not in sheets:
@@ -433,6 +486,19 @@ def main():
             im = key_water_bg(im)
         im.save(os.path.join(OUT_PROPS, name + ".png"))
         made.append((name, im, "prop"))
+    for name, rel, source_box, canvas_size, output_size in AI_PROPS:
+        if only and name not in only:
+            continue
+        im = Image.open(os.path.join(AI_SRC, rel)).convert("RGBA")
+        im = trim_alpha(key_magenta_bg(im).crop(source_box), pad=0)
+        im = fit_transparent(im, canvas_size)
+        assert canvas_size[0] % output_size[0] == 0 and canvas_size[1] % output_size[1] == 0
+        assert canvas_size[0] // output_size[0] == canvas_size[1] // output_size[1]
+        im = im.resize(output_size, Image.Resampling.NEAREST)
+        if name == "side_gate_bridge_ai":
+            im = cleanup_side_gate_bridge(im)
+        im.save(os.path.join(OUT_AI, name + ".png"))
+        made.append((name, im, "imagegen_prop"))
     # 第四轮：整数旋转派生件（90° 旋转像素无损，合规；记录源名+方向，manifest 同步登记）
     # bridge_arch_stone_v = deck 版顺时针 90°（96×58→58×96）：桥长轴转南北=进城过河方向
     # gate_tower_mid_v_e/_w（2026-09-08 重切落地）= 门楼逆/顺 90°（100×94→94×100）：
@@ -664,6 +730,12 @@ def main():
         for name, rel, box in PROPS:
             assets.append({"name": name, "kind": "prop", "category": cat_of(name),
                            "sheet": rel, "box": list(box)})
+        for name, rel, source_box, _canvas_size, output_size in AI_PROPS:
+            assets.append({"name": name, "kind": "prop", "category": "building",
+                           "sheet": "art_sources/imagegen/changan_v2/" + rel,
+                           "box": [0, 0, output_size[0], output_size[1]],
+                           "source_box": list(source_box),
+                           "source_kind": "imagegen"})
         for name, rel, box in TILES:
             assets.append({"name": name, "kind": "tile", "category": cat_of(name),
                            "sheet": rel, "box": list(box)})
@@ -679,7 +751,7 @@ def main():
         out_m = {
             "grid": {"texture_px": 16, "kit_block_px": 48},
             "source_root": "downloaded_assets/comshadow_bundle/",
-            "note": "SCKR 中式包工程化解析清单（范式v3）。派生PNG已gitignore，克隆后重跑本脚本再生。",
+            "note": "SCKR 中式包 + Image 2.0 补件工程化解析清单（范式v3）。SCKR派生PNG已gitignore；AI补件由仓库内源图重建。",
             "assets": assets,
         }
         manifest_path = os.path.join(ROOT, "data", "sckr_manifest.json")

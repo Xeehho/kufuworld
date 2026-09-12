@@ -409,3 +409,14 @@
 - 另一条线需要知道：`weather_controller.gd` 本轮已释放；工作树中的玩法 UID、`tools/godot_path.txt` 和 Tiled TMX 均未触碰、不会纳入提交。
 - 下一步：继续长安街区空间层次；只有晴天基准仍显暗的个别大面积地坪/墙体才做选择性中间调调整，不全包换色。
 - Git commit：随当前视觉提交落库。
+
+### 2026-09-12 20:32｜视觉世界线｜Image 2.0 东西门桥与竖向外郭墙
+
+- 状态：首批 P0 缺件完成；东西侧外郭墙与门桥已从开放检查点升级为原生方向正式素材，台地/四向台阶等后续缺件仍待分批生成。
+- 改动文件：Image 2.0 两张生成源、三张透明像素派生件、`tools/import_sckr_changan.py`、`data/sckr_manifest.json`、`scripts/changan_v2_materials.gd`、结构/E2E/截图探针与受影响样张。
+- 完成内容：新增原生南北向墙顶步道 A/B 与纵向屋脊门桥；东西道路保留穿桥通道。源图→色键 Alpha→固定源窗→整数缩放→manifest→运行时语义加载全链可重建；方向错误候选不入库。
+- 稳定接口变化：无破坏性变化；四门 side、`gate_info`、Portals、街区/道路拓扑和共享热点均未修改。新增节点 meta `side_gate_bridge_ai`、`side_wall_run_ai_{a,b}` 只用于视觉探针。
+- 验证命令与结果：结构探针 PASS（339材质、门桥2、竖墙≥52、BFS=0）；窗口样张 14/14 PASS；主场景 E2E 全 PASS；开放世界 94/94 PASS；验证日志零引擎错误/泄漏，`project.godot` 字节哈希不变。
+- 另一条线需要知道：未修改玩法文件、TMX 或 `tools/godot_path.txt`；以上文件均不会进入本次视觉提交。
+- 下一步：沿同一 Image 2.0 管线补台地崖墙/四向台阶、院墙转角、建筑侧背面模块，每批独立目检与实机验收。
+- Git commit：随当前视觉提交落库。

@@ -39,7 +39,7 @@ def main():
         text = f.read()
     print(text[-1500:])
     for line in text.splitlines():
-        if "[ChangAnV2-Shots]" in line:
+        if "[ChangAnV2-Shots]" in line and ("[PASS]" in line or "[FAIL]" in line):
             sys.exit(0 if "[PASS]" in line else 1)
     sys.exit(1)
 

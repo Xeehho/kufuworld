@@ -60,7 +60,18 @@ func _ready() -> void:
 				break
 	_check(get_tree().get_nodes_in_group("changan_building_collision").size() >= 40,
 			"建筑/树木脚印碰撞体不少于40处")
-	_check(get_tree().get_nodes_in_group("changan_city_gate").size() == 4, "四城门楼素材齐备")
+	var city_gates := get_tree().get_nodes_in_group("changan_city_gate")
+	_check(city_gates.size() == 4, "四城门楼素材齐备")
+	var ai_side_gates := 0
+	for gate in city_gates:
+		if String(gate.get_meta("material_id", "")) == "side_gate_bridge_ai":
+			ai_side_gates += 1
+	_check(ai_side_gates == 2, "Image 2.0 原生纵向门桥替换东西开放关口")
+	var ai_side_walls := 0
+	for wall in get_tree().get_nodes_in_group("changan_outer_wall_facade"):
+		if String(wall.get_meta("material_id", "")).begins_with("side_wall_run_ai_"):
+			ai_side_walls += 1
+	_check(ai_side_walls >= 52, "Image 2.0 原生纵向城墙连续铺设不少于52段")
 	_check(get_tree().get_nodes_in_group("changan_activity_prop").size() >= 16,
 			"市集/坊巷/水岸生活活动件不少于16处")
 	_check(get_tree().get_nodes_in_group("changan_vehicle").size() == 4,

@@ -135,6 +135,7 @@ func _layout_outer_wall_facade() -> void:
 		# 从门楼边缘反向铺墙，把不可整除的余量赶到城角外侧；门墙接缝始终零缝。
 		_spawn_wall_interval(tex, x_start, gate_cx - gate_half, bottom, side, true)
 		_spawn_wall_interval(tex, gate_cx + gate_half, x_end, bottom, side, false)
+	_layout_side_wall_facades()
 
 
 func _spawn_wall_interval(tex: Texture2D, x0: float, x1: float, bottom: float, side: String,
@@ -157,6 +158,60 @@ func _spawn_wall_interval(tex: Texture2D, x0: float, x1: float, bottom: float, s
 		if not align_right:
 			x += step
 		index += 1
+
+
+func _layout_side_wall_facades() -> void:
+	const WALL_NAMES := ["side_wall_run_ai_a", "side_wall_run_ai_b"]
+	const GATE_NAME := "side_gate_bridge_ai"
+	if not _pack_assets.has(GATE_NAME):
+		return
+	var textures: Array[Texture2D] = []
+	for wall_name in WALL_NAMES:
+		if not _pack_assets.has(wall_name):
+			return
+		var wall_p: Dictionary = _pack_assets[wall_name]
+		var path := String(wall_p["file"])
+		var wall_tex: Texture2D = TextureGen.load_png_texture(path)
+		if wall_tex == null:
+			return
+		_tex[path] = wall_tex
+		textures.append(wall_tex)
+	var gate_p: Dictionary = _pack_assets[GATE_NAME]
+	var y_start := float(gen.margin * 16)
+	var y_end := float((gen.H - gen.margin) * 16)
+	var gate_half := float(gate_p["h"]) * 0.5
+	for side in ["W", "E"]:
+		if not gen.gate_info.has(side):
+			continue
+		var cells: Array = gen.gate_info[side]["gap_cells"]
+		var cy := (float(cells[0].y + cells[cells.size() - 1].y) * 0.5 + 0.5) * 16.0
+		var wall_x := float((gen.W - gen.margin - gen.wall) * 16) if side == "E" \
+				else float((gen.margin + gen.wall) * 16)
+		_spawn_side_wall_interval(textures, y_start, cy - gate_half, wall_x, side, true)
+		_spawn_side_wall_interval(textures, cy + gate_half, y_end, wall_x, side, false)
+
+
+func _spawn_side_wall_interval(textures: Array[Texture2D], y0: float, y1: float, wall_x: float,
+		side: String, align_bottom: bool) -> void:
+	if textures.is_empty():
+		return
+	var step := float(textures[0].get_height())
+	var count := int(floor((y1 - y0) / step))
+	if count <= 0:
+		return
+	var y := y1 - count * step if align_bottom else y0
+	for index in range(count):
+		var tex := textures[index % textures.size()]
+		var sp := Sprite2D.new()
+		sp.name = "OuterWall_%s_AI_%02d" % [side, index]
+		sp.texture = tex
+		sp.flip_h = side == "E"
+		sp.position = Vector2(wall_x, y + step * 0.5)
+		sp.set_meta("material_id", "side_wall_run_ai_%s" % ("a" if index % 2 == 0 else "b"))
+		sp.add_to_group("changan_outer_wall_facade")
+		add_child(sp)
+		placed += 1
+		y += step
 
 
 # ---- 城外林带：让城墙落在环境中，而不是悬在纯绿色矩形上。----
@@ -249,6 +304,8 @@ func _layout_side_gate_checkpoint(side: String) -> void:
 	var cy := (float(cells[0].y + cells[cells.size() - 1].y) * 0.5 + 0.5) * 16.0
 	var wall_x := float((gen.W - gen.margin - gen.wall) * 16) if side == "E" \
 			else float((gen.margin + gen.wall) * 16)
+	if _spawn_generated_side_gate(side, wall_x, cy):
+		return
 	var inward := -1.0 if side == "E" else 1.0
 	var root := Node2D.new()
 	root.name = "CityGate_%s" % side
@@ -263,6 +320,35 @@ func _layout_side_gate_checkpoint(side: String) -> void:
 	_spawn_gate_piece(root, "lamp_red2", Vector2(inward * 34.0, 72.0), true)
 	_spawn_gate_piece(root, "lion_stone_a", Vector2(inward * 58.0, -18.0))
 	_spawn_gate_piece(root, "lion_stone_b", Vector2(inward * 58.0, 64.0), true)
+
+
+func _spawn_generated_side_gate(side: String, wall_x: float, cy: float) -> bool:
+	const NAME := "side_gate_bridge_ai"
+	if not _pack_assets.has(NAME):
+		return false
+	var p: Dictionary = _pack_assets[NAME]
+	var path := String(p["file"])
+	var tex: Texture2D = _tex.get(path)
+	if tex == null:
+		tex = TextureGen.load_png_texture(path)
+		if tex == null:
+			return false
+		_tex[path] = tex
+	# y-sort 锚落在三格门洞南缘：人在门北/洞内受屋顶遮挡，走到门南侧后压在门桥前。
+	var root := Node2D.new()
+	root.name = "CityGate_%s" % side
+	root.position = Vector2(wall_x, cy + 24.0)
+	root.set_meta("material_id", NAME)
+	root.add_to_group("changan_city_gate")
+	var sp := Sprite2D.new()
+	sp.name = "SideGateBridge"
+	sp.texture = tex
+	sp.flip_h = side == "E"
+	sp.offset = Vector2(0, -24.0)
+	root.add_child(sp)
+	add_child(root)
+	placed += 1
+	return true
 
 
 func _spawn_gate_piece(parent: Node2D, name: String, bottom: Vector2, flip := false) -> void:
@@ -327,7 +413,11 @@ func _load_pack_manifest() -> void:
 			continue
 		var name := String(p["name"])
 		var kind := String(p.get("kind", "prop"))
-		var root := "res://sprites/tiles_changan_sckr/" if kind == "tile" else "res://sprites/changan_props_sckr/"
+		var root: String
+		if String(p.get("source_kind", "")) == "imagegen":
+			root = "res://sprites/changan_ai/"
+		else:
+			root = "res://sprites/tiles_changan_sckr/" if kind == "tile" else "res://sprites/changan_props_sckr/"
 		var path := root + name + ".png"
 		if FileAccess.file_exists(path):
 			_pack_assets[name] = {

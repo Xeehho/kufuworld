@@ -4,7 +4,7 @@
   "kit_block_px": 48
  },
  "source_root": "downloaded_assets/comshadow_bundle/",
- "note": "SCKR 中式包工程化解析清单（范式v3）。派生PNG已gitignore，克隆后重跑本脚本再生。",
+ "note": "SCKR 中式包 + Image 2.0 补件工程化解析清单（范式v3）。SCKR派生PNG已gitignore；AI补件由仓库内源图重建。",
  "assets": [
   {
    "name": "gate_tower_big",
@@ -2285,6 +2285,63 @@
     480,
     672
    ]
+  },
+  {
+   "name": "side_gate_bridge_ai",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/side_gate_bridge_magenta.png",
+   "box": [
+    0,
+    0,
+    144,
+    168
+   ],
+   "source_box": [
+    411,
+    340,
+    843,
+    844
+   ],
+   "source_kind": "imagegen"
+  },
+  {
+   "name": "side_wall_run_ai_a",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/side_wall_run_magenta.png",
+   "box": [
+    0,
+    0,
+    64,
+    64
+   ],
+   "source_box": [
+    384,
+    480,
+    640,
+    736
+   ],
+   "source_kind": "imagegen"
+  },
+  {
+   "name": "side_wall_run_ai_b",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/side_wall_run_magenta.png",
+   "box": [
+    0,
+    0,
+    64,
+    64
+   ],
+   "source_box": [
+    384,
+    736,
+    640,
+    992
+   ],
+   "source_kind": "imagegen"
   },
   {
    "name": "street_main",

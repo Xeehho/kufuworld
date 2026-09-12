@@ -57,6 +57,18 @@ func _ready() -> void:
 			fails.append("建筑碰撞统计=%d，实际节点=%d" % [int(city.stats.get("material_collisions", -1)), bodies])
 		if get_tree().get_nodes_in_group("changan_city_gate").size() != 4:
 			fails.append("城门楼素材节点数≠4")
+		var ai_side_gates := 0
+		for gate in get_tree().get_nodes_in_group("changan_city_gate"):
+			if String(gate.get_meta("material_id", "")) == "side_gate_bridge_ai":
+				ai_side_gates += 1
+		if ai_side_gates != 2:
+			fails.append("Image 2.0 东西门桥节点数≠2（实=%d）" % ai_side_gates)
+		var ai_side_walls := 0
+		for wall in get_tree().get_nodes_in_group("changan_outer_wall_facade"):
+			if String(wall.get_meta("material_id", "")).begins_with("side_wall_run_ai_"):
+				ai_side_walls += 1
+		if ai_side_walls < 52:
+			fails.append("Image 2.0 东西竖向城墙不足52段（实=%d）" % ai_side_walls)
 		var activity_nodes := get_tree().get_nodes_in_group("changan_activity_prop").size()
 		if activity_nodes != int(city.stats.get("material_activity", -1)):
 			fails.append("活动件统计=%d，实际节点=%d" %
