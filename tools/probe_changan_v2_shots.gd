@@ -41,8 +41,40 @@ func _run():
 		return
 	var city = cv.changan
 	var cam = player.get_node("Camera2D")
+	var weather = main.get_node_or_null("World/WeatherController")
+	if weather == null:
+		print("[ChangAnV2-Shots][FAIL] WeatherController 缺失")
+		get_tree().quit(1)
+		return
+	weather.weather_duration = 9999.0
 	cam.reset_smoothing()
 	await get_tree().create_timer(0.5).timeout
+	# 同机位三联证据：晴天基准 / 旧版完整雨滤镜 / 长安弱化雨滤镜。
+	# 常规材质样张随后固定为晴天，避免随机天气污染视觉验收。
+	var lighting_cell := Vector2i(city.col_x(0) + 10, city.row_y(2) + 10)
+	player.global_position = cv.CITY_OFFSET + city.cell_to_px(lighting_cell)
+	player.velocity = Vector2.ZERO
+	cam.zoom = Vector2(2.0, 2.0)
+	cam.reset_smoothing()
+	var light_samples: Dictionary = {}
+	await _set_weather_light(weather, weather.Weather.CLEAR, 0.40)
+	light_samples["clear"] = weather.canvas_modulate.color
+	await _shot("changan_v2_lighting_clear.png")
+	await _set_weather_light(weather, weather.Weather.RAIN, 1.0)
+	light_samples["rain_legacy"] = weather.canvas_modulate.color
+	await _shot("changan_v2_lighting_rain_legacy.png")
+	await _set_weather_light(weather, weather.Weather.RAIN, 0.40)
+	light_samples["rain_tuned"] = weather.canvas_modulate.color
+	await _shot("changan_v2_lighting_rain_tuned.png")
+	var lum_clear := _luminance(light_samples["clear"])
+	var lum_legacy := _luminance(light_samples["rain_legacy"])
+	var lum_tuned := _luminance(light_samples["rain_tuned"])
+	if not (lum_tuned > lum_legacy + 0.12 and lum_tuned < lum_clear - 0.02):
+		print("[ChangAnV2-Shots][FAIL] 光照三联不满足层级 clear=%.3f legacy=%.3f tuned=%.3f" % [lum_clear, lum_legacy, lum_tuned])
+		get_tree().quit(1)
+		return
+	print("[ChangAnV2-Shots] 光照三联 clear=%s legacy=%s tuned=%s" % [str(light_samples["clear"]), str(light_samples["rain_legacy"]), str(light_samples["rain_tuned"])])
+	await _set_weather_light(weather, weather.Weather.CLEAR, 0.40)
 	# 机位清单：[名, 城内格, zoom]
 	var spots := [
 		["overview", Vector2i(city.W / 2, city.H / 2), 0.45],
@@ -75,9 +107,19 @@ func _run():
 		print("[ChangAnV2-Shots][FAIL] 成功=%d 失败=%s" % [count, str(failed)])
 		get_tree().quit(1)
 		return
-	print("[ChangAnV2-Shots][PASS] 样张=%d 张 → docs/shots/changan_v2_*.png" % count)
+	print("[ChangAnV2-Shots][PASS] 常规晴天样张=%d 张 + 光照A/B=3张 → docs/shots/changan_v2_*.png" % count)
 	_shots_done = true
 	get_tree().quit(0)
+
+func _set_weather_light(weather: Node, weather_id: int, city_strength: float) -> void:
+	weather.current_weather = weather_id
+	weather.changan_weather_strength = city_strength
+	weather.current_light = weather._target_light_color()
+	weather.canvas_modulate.color = weather.current_light
+	await get_tree().create_timer(0.35).timeout
+
+func _luminance(color: Color) -> float:
+	return color.r * 0.2126 + color.g * 0.7152 + color.b * 0.0722
 
 func _shot(fname: String) -> int:
 	await get_tree().process_frame

@@ -30,8 +30,12 @@ const WEATHER_LIGHT := {
 	Weather.SNOW: {"mult": 0.94, "tint": Color(0.97, 0.99, 1.02)},
 	Weather.FOG: {"mult": 0.88, "tint": Color(0.90, 0.87, 0.82)},
 }
+# 长安的建筑/石坪占屏面积远高于开放世界；完整套用雨雾乘色会把中间调压成一片灰黑。
+# 0=只保留时辰光，1=沿用开放世界完整天气调色。粒子与天气状态不受影响。
+@export_range(0.0, 1.0, 0.05) var changan_weather_strength: float = 0.40
 var current_light: Color = Color(1, 1, 1, 1)   # 平滑后的实际CanvasModulate颜色
 var _shadow_tick: float = 0.0                  # 树影强度刷新节流
+var _city_visit: Node = null
 
 var rain_particles: GPUParticles2D = null
 var snow_particles: GPUParticles2D = null
@@ -124,9 +128,17 @@ func _update_lighting(delta):
 	_tick_tree_shadows(delta)
 
 func _target_light_color() -> Color:
-	var c = _get_hour_color(current_hour)
+	var c: Color = _get_hour_color(current_hour)
 	var wl: Dictionary = WEATHER_LIGHT.get(current_weather, {"mult": 1.0, "tint": Color.WHITE})
-	return c * float(wl["mult"]) * wl["tint"]
+	var weathered: Color = c * float(wl["mult"]) * wl["tint"]
+	if _is_changan_active():
+		return c.lerp(weathered, changan_weather_strength)
+	return weathered
+
+func _is_changan_active() -> bool:
+	if _city_visit == null or not is_instance_valid(_city_visit):
+		_city_visit = get_node_or_null("/root/Main/CityVisit")
+	return _city_visit != null and bool(_city_visit.get("in_city"))
 
 # 日照强度0..1（驱动树影浓度）：正午最强，晨昏过渡，夜里保留微弱月光影
 func _daylight_factor() -> float:
