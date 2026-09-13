@@ -442,3 +442,14 @@
 - 另一条线需要知道：未修改或暂存用户 TMX、参考图删除现场、`project.godot`、`tools/godot_path.txt`、Godot `.import` 与玩法 UID；这些仍属于其他现场。
 - 下一步：先继续皇城院落和次级巷道生活簇；城墙四角/横竖接口/门肩收口坚持末轮处理。
 - Git commit：随当前视觉提交落库。
+
+### 2026-09-13 17:08｜视觉世界线｜Godot 长安手拼工作台
+
+- 状态：工具阶段完成；等用户在 Godot 中手拼第一个街区样板，现行运行时长安未被替换。
+- 改动文件：新增 `addons/changan_map_editor/`、`scenes/changan_manual_map.tscn`、`scripts/tools/changan_manual_map_root.gd`、`tools/probe_changan_map_editor.gd`、`docs/长安Godot手拼工作台使用说明.md`。
+- 完成内容：Godot 右侧停靠面板索引两份现有 manifest，默认只显示原生素材；提供分类缩略图、搜索、16px 吸附、1:1 原尺寸、底边锚、三层放置、镜像/删除/对齐和撤销。
+- 稳定接口变化：无；本插件仅读 `data/material_library.json` 与 `data/sckr_manifest.json`，不改长安生成器、玩法脚本、冻结街网、四门或共享热点。
+- 验证命令与结果：专项探针 PASS（原生材质库121件、SCKR 244件）；模板场景 headless 启动退出0；临时启用插件后 Godot 4.6.2 编辑器完整启动零 `SCRIPT ERROR`/`ERROR`；`project.godot` 前后 SHA-256 均为 `BAC1CCA8046925946711873DBCB27990DB7852624A8FDEE3254DA3A3B1647805`。
+- 另一条线需要知道：没有暂存或覆盖用户 TMX、参考图删除现场、`project.godot`、`tools/godot_path.txt`、AI `.import` 或玩法 UID。
+- 下一步：用户另存手拼模板并完成一个街区；视觉线再从已放置 Sprite2D 节点的 meta 生成碰撞、交互锚与运行时布局。
+- Git commit：随当前视觉提交落库。

@@ -1,0 +1,26 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/tools/changan_manual_map_root.gd" id="1_root"]
+[ext_resource type="Texture2D" path="res://docs/shots/changan_v2_graybox.png" id="2_guide"]
+
+[node name="ChanganManualMap" type="Node2D"]
+script = ExtResource("1_root")
+metadata/changan_manual_map = true
+
+[node name="Guide" type="Sprite2D" parent="."]
+z_index = -100
+modulate = Color(1, 1, 1, 0.42)
+texture_filter = 1
+texture = ExtResource("2_guide")
+centered = false
+scale = Vector2(16, 16)
+
+[node name="ManualGround" type="Node2D" parent="."]
+z_index = -20
+
+[node name="YSortContent" type="Node2D" parent="."]
+z_index = 2
+y_sort_enabled = true
+
+[node name="ManualForeground" type="Node2D" parent="."]
+z_index = 20
