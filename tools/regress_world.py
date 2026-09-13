@@ -19,12 +19,15 @@ def check(group, name, ok, detail="", since="W0"):
     results.append((group, name, bool(ok), detail, since))
 
 def main():
-    with open(pg, encoding="utf-8") as f:
+    with open(pg, "rb") as f:
         original = f.read()
     try:
-        if MARKER not in original:
-            patched = original.replace("[autoload]\n", "[autoload]\n\n" + MARKER + "\n", 1)
-            with open(pg, "w", encoding="utf-8") as f:
+        marker_bytes = MARKER.encode("utf-8")
+        if marker_bytes not in original:
+            eol = b"\r\n" if b"[autoload]\r\n" in original else b"\n"
+            header = b"[autoload]" + eol
+            patched = original.replace(header, header + eol + marker_bytes + eol, 1)
+            with open(pg, "wb") as f:
                 f.write(patched)
         if os.path.exists(gp):
             os.remove(gp)
@@ -43,13 +46,9 @@ def main():
             print("FATAL: game run timed out (180s)")
             sys.exit(2)
     finally:
-        with open(pg, encoding="utf-8") as f:
-            cur = f.read()
-        cur = cur.replace("\n" + MARKER, "").replace(MARKER, "")
-        # 补丁插入残留的空行清掉（否则每次回归留下+1空行脏diff，与run_w8_shots.py同款修复）
-        cur = cur.replace("[autoload]\n\n\n\n", "[autoload]\n\n").replace("[autoload]\n\n\n", "[autoload]\n\n")
-        with open(pg, "w", encoding="utf-8") as f:
-            f.write(cur)
+        # 字节级恢复，保留运行前的内容、换行与 BOM；用户的并行编辑不被规范化。
+        with open(pg, "wb") as f:
+            f.write(original)
 
     if not os.path.exists(jp):
         print("FATAL: no data json produced; log tail:")

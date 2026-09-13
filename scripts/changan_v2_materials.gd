@@ -82,14 +82,19 @@ func setup(host: Node2D) -> void:
 # 成对、定距、确定性摆放让玩家沿轴移动时得到连续节奏，而非面对一条纯地砖走廊。
 func _layout_zhuque_axis() -> void:
 	var lamps := _pool("11_街饰过渡", 12, 20, 20, 30, "prop")
-	if lamps.is_empty():
-		return
-	var lamp: Dictionary = lamps[0]
 	var sx: int = gen.seam_x(gen.axis_col)
-	for r in range(gen.rows):
-		for yy in range(gen.row_y(r) + 4, gen.row_y(r) + gen.bh - 2, 8):
-			_put_axis_prop("11_街饰过渡", lamp, Vector2i(sx + 1, yy))
-			_put_axis_prop("11_街饰过渡", lamp, Vector2i(sx + gen.zq_s - 2, yy), true)
+	if not lamps.is_empty():
+		var lamp: Dictionary = lamps[0]
+		for r in range(gen.rows):
+			for yy in range(gen.row_y(r) + 4, gen.row_y(r) + gen.bh - 2, 8):
+				_put_axis_prop("11_街饰过渡", lamp, Vector2i(sx + 1, yy))
+				_put_axis_prop("11_街饰过渡", lamp, Vector2i(sx + gen.zq_s - 2, yy), true)
+	# 参考图的朱雀大街靠连续灯笼节奏聚拢视线；灯柱贴两侧边线，中央四格净宽不动。
+	if _pack_assets.has("lamp_red"):
+		for r in range(gen.rows):
+			for yy in [gen.row_y(r) + 6, gen.row_y(r) + 15]:
+				_spawn_axis_pack_prop("lamp_red", Vector2i(sx, yy), false, 0.60)
+				_spawn_axis_pack_prop("lamp_red", Vector2i(sx + gen.zq_s - 1, yy), true, 0.60)
 
 
 func _put_axis_prop(cat: String, p: Dictionary, cell: Vector2i, flip := false) -> void:
@@ -105,6 +110,29 @@ func _put_axis_prop(cat: String, p: Dictionary, cell: Vector2i, flip := false) -
 	sp.flip_h = flip
 	sp.position = Vector2(cell.x * 16 + 8, (cell.y + 2) * 16)
 	sp.offset = Vector2(0, -h_px / 2.0)
+	add_child(sp)
+	placed += 1
+
+
+func _spawn_axis_pack_prop(name: String, cell: Vector2i, flip := false, scale := 1.0) -> void:
+	if not _pack_assets.has(name):
+		return
+	var p: Dictionary = _pack_assets[name]
+	var path := String(p["file"])
+	var tex: Texture2D = _tex.get(path)
+	if tex == null:
+		tex = TextureGen.load_png_texture(path)
+		if tex == null:
+			return
+		_tex[path] = tex
+	var sp := Sprite2D.new()
+	sp.texture = tex
+	sp.flip_h = flip
+	sp.scale = Vector2(scale, scale)
+	sp.position = Vector2(cell.x * 16.0 + 8.0, (cell.y + 1) * 16.0)
+	sp.offset = Vector2(0, -float(p["h"]) * 0.5)
+	sp.set_meta("material_id", name)
+	sp.add_to_group("changan_axis_lantern")
 	add_child(sp)
 	placed += 1
 
@@ -636,6 +664,9 @@ func _add_collision_rect(body: StaticBody2D, center: Vector2, size: Vector2) -> 
 
 
 func _try_tree(rect: Rect2i, cell: Vector2i, rng: RandomNumberGenerator, bottom_off := 5) -> void:
+	if _pack_assets.has("tree_blossom_ai") and rng.randi_range(0, 3) == 0:
+		if _put_pack_prop("tree_blossom_ai", cell, cell.y + bottom_off, rect, false, 0.75):
+			return
 	var tree_names := ["tree_lush_a", "tree_lush_b", "tree_big"]
 	var name: String = tree_names[rng.randi_range(0, tree_names.size() - 1)]
 	if not _put_pack_prop(name, cell, cell.y + bottom_off, rect):
@@ -681,6 +712,14 @@ func _put_pack_prop(name: String, cell: Vector2i, bottom_row: int, rect: Rect2i,
 	var is_shore_life := name in ["boat_row", "boat_cover", "boat_small", "boat_sampan",
 			"bench_wood", "lantern_stone_s", "stall_wood"]
 	var is_activity := is_vehicle or is_shore_life or name.begins_with("stall_")
+	if name == "market_arcade_ai":
+		sp.add_to_group("changan_bustling_frontage")
+	if name == "urban_row_ai":
+		sp.add_to_group("changan_urban_frontage")
+	if name == "tree_blossom_ai":
+		sp.add_to_group("changan_blossom_tree")
+	if name == "stall_market_cluster_ai":
+		sp.add_to_group("changan_market_cluster")
 	if is_activity:
 		sp.add_to_group("changan_activity_prop")
 		activity_count += 1
@@ -741,8 +780,12 @@ func _fill_block_greenery(rect: Rect2i, rng: RandomNumberGenerator, kind: String
 	var added := 0
 	for i in range(candidates.size()):
 		var off: Vector2i = candidates[(start + i) % candidates.size()]
-		var name := "tree_lush_a" if (i + start) % 2 == 0 else "tree_lush_b"
-		if _put_pack_prop(name, rect.position + off, rect.position.y + off.y + 5, rect):
+		var use_blossom := _pack_assets.has("tree_blossom_ai") and (i + start) % 4 == 0
+		var name := "tree_blossom_ai" if use_blossom else \
+				("tree_lush_a" if (i + start) % 2 == 0 else "tree_lush_b")
+		var tree_scale := 0.75 if use_blossom else 1.0
+		if _put_pack_prop(name, rect.position + off, rect.position.y + off.y + 5, rect,
+				false, tree_scale):
 			added += 1
 			if added >= target:
 				break
@@ -755,6 +798,26 @@ func _layout_residential(cat: String, rect: Rect2i, rng: RandomNumberGenerator, 
 	var small := _pool(cat, 80, 110, 80, 110)
 	var estate := _pool(cat, 140, 200, 140, 200, "estate")
 	var tall := _pool(cat, 80, 110, 150, 180)
+	# 三个平民坊用同家族商住连排把繁华色彩扩散到两市之外；北排整体成街，
+	# 南排仍由现有小屋组成，避免新件覆盖全城而失去项目原有材质语言。
+	if id in ["banzheng", "yanshou", "changming"] and _put_pack_prop("urban_row_ai",
+			Vector2i(x0 + 1, y0 + 2), y0 + 7, rect):
+		var row_houses := ["house_win_a", "house_door_a", "house_win_small",
+				"gable_white", "house_small_win", "lou_dark"]
+		var available: Array[String] = []
+		for name in row_houses:
+			if _pack_assets.has(name) and int(_pack_assets[name]["w"]) <= 96:
+				available.append(name)
+		for ci in range(mini(3, available.size())):
+			_put_pack_prop(available[(ci + posmod(hash(id), available.size())) % available.size()],
+					Vector2i(x0 + 1 + ci * 6, y0 + 13), y0 + 18, rect, ci == 1)
+		var life_props := _pool("11_街饰过渡", 28, 48, 24, 46, "prop")
+		if not life_props.is_empty():
+			_put_activity("11_街饰过渡", _pick(life_props, rng),
+					Vector2i(x0 + 4, y0 + 9), y0 + 11, rect)
+			_put_activity("11_街饰过渡", _pick(life_props, rng),
+					Vector2i(x0 + 13, y0 + 9), y0 + 11, rect, true)
+		return
 	if not estate.is_empty() and hash(id) % 2 == 0:
 		_put(cat, estate[rng.randi_range(0, estate.size() - 1)],
 				Vector2i(x0 + 4, y0 + 1), y0 + 12, rect)
@@ -977,11 +1040,20 @@ func _layout_temple(cat: String, rect: Rect2i, rng: RandomNumberGenerator, id: S
 func _layout_market(cat: String, rect: Rect2i, rng: RandomNumberGenerator):
 	var x0 := rect.position.x
 	var y0 := rect.position.y
-	# 一座双开间大铺 + 一座单开间门面组成每条街面，南北错位，避免六个小方块陈列感。
+	# 北侧优先使用 Image 2.0 连排商铺，以“低—高—中”屋脊一次形成完整街墙；
+	# 南侧用三间窄铺错开色彩，给中央物流带保留真实前后景。
 	var shops := _pool(cat, 75, 100, 60, 100)
 	var wide_shops := _pool(cat, 150, 195, 75, 100)
+	var narrow_shops := _pool(cat, 75, 80, 60, 100)
 	var last := ""
-	if not wide_shops.is_empty():
+	var arcade_placed := _put_pack_prop("market_arcade_ai",
+			Vector2i(x0 + 1, y0 + 2), y0 + 7, rect)
+	if arcade_placed and not narrow_shops.is_empty():
+		for xx in [x0 + 1, x0 + 7, x0 + 13]:
+			var shop: Dictionary = _pick(narrow_shops, rng, last)
+			last = String(shop.get("id", ""))
+			_put(cat, shop, Vector2i(xx, y0 + 13), y0 + 18, rect, xx == x0 + 7)
+	elif not wide_shops.is_empty():
 		var north_wide := _pick(wide_shops, rng)
 		_put(cat, north_wide, Vector2i(x0 + 1, y0 + 2), y0 + 7, rect)
 		_put(cat, _pick(shops, rng), Vector2i(x0 + 13, y0 + 2), y0 + 7, rect, true)
@@ -999,13 +1071,15 @@ func _layout_market(cat: String, rect: Rect2i, rng: RandomNumberGenerator):
 	_put_pack_prop("ox_cart_cover", Vector2i(x0 + 1, y0 + 10), y0 + 12, rect, false, 0.5)
 	_put_pack_prop("sedan_red", Vector2i(x0 + 16, y0 + 10), y0 + 12, rect, true, 0.5)
 	var stalls := _pool("11_街饰过渡", 36, 50, 40, 56, "prop")
-	last = ""
-	for c in [Vector2i(x0 + 7, y0 + 10), Vector2i(x0 + 10, y0 + 10),
-			Vector2i(x0 + 13, y0 + 10)]:
-		if not stalls.is_empty():
-			var st: Dictionary = _pick(stalls, rng, last)
-			last = String(st["id"])
-			_put_activity("11_街饰过渡", st, c, c.y + 2, rect)
+	if not _put_pack_prop("stall_market_cluster_ai", Vector2i(x0 + 6, y0 + 10),
+			y0 + 12, rect):
+		last = ""
+		for c in [Vector2i(x0 + 7, y0 + 10), Vector2i(x0 + 10, y0 + 10),
+				Vector2i(x0 + 13, y0 + 10)]:
+			if not stalls.is_empty():
+				var st: Dictionary = _pick(stalls, rng, last)
+				last = String(st["id"])
+				_put_activity("11_街饰过渡", st, c, c.y + 2, rect)
 	# 入口两角只放低矮挂件，避免树冠遮住店招和市场动线。
 	_put("11_街饰过渡", _pick(_pool("11_街饰过渡", 12, 20, 20, 30, "prop"), rng),
 			Vector2i(x0 + 18, y0 + 9), y0 + 10, rect)
@@ -1035,10 +1109,22 @@ func _layout_venue(cat: String, rect: Rect2i, rng: RandomNumberGenerator) -> voi
 	var y0 := rect.position.y
 	var wide := _pool(cat, 150, 200, 80, 110)
 	var shops := _pool(cat, 75, 100, 60, 100)
-	if not wide.is_empty():
+	var narrow_shops := _pool(cat, 75, 80, 60, 100)
+	var arcade_placed := _put_pack_prop("market_arcade_ai",
+			Vector2i(x0 + 1, y0 + 2), y0 + 7, rect)
+	if not arcade_placed and not wide.is_empty():
 		_put(cat, _pick(wide, rng), Vector2i(x0 + 4, y0 + 2), y0 + 7, rect)
-	for xx in [x0 + 1, x0 + 7, x0 + 13]:
-		_put(cat, _pick(shops, rng), Vector2i(xx, y0 + 13), y0 + 18, rect, xx == x0 + 7)
+	if arcade_placed and not narrow_shops.is_empty():
+		_put(cat, _pick(narrow_shops, rng), Vector2i(x0 + 1, y0 + 13), y0 + 18, rect)
+		_put_pack_prop("tree_blossom_ai", Vector2i(x0 + 7, y0 + 13), y0 + 18,
+				rect, false, 0.75)
+		_put(cat, _pick(narrow_shops, rng), Vector2i(x0 + 14, y0 + 13), y0 + 18, rect, true)
+	else:
+		for xx in [x0 + 1, x0 + 7, x0 + 13]:
+			_put(cat, _pick(shops, rng), Vector2i(xx, y0 + 13), y0 + 18, rect, xx == x0 + 7)
+	# 一整排彩棚、货筐与手车代替三个零散小摊，夜市中心先形成高信息密度焦点。
+	if _put_pack_prop("stall_market_cluster_ai", Vector2i(x0 + 5, y0 + 10), y0 + 12, rect):
+		return
 	var stalls := _pool("11_街饰过渡", 32, 50, 32, 56, "prop")
 	for cell in [Vector2i(x0 + 3, y0 + 9), Vector2i(x0 + 8, y0 + 10),
 			Vector2i(x0 + 13, y0 + 9)]:

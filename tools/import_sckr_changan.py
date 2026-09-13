@@ -269,6 +269,10 @@ AI_PROPS = [
     ("outer_wall_h_ai_b", "outer_wall_horizontal_magenta.png", (792, 248, 984, 440), (192, 192), (64, 64)),
     ("outer_gate_h_ai", "outer_gate_horizontal_magenta.png", (510, 60, 1350, 780), (840, 720), (168, 144)),
     ("terrace_stairs_ai", "terrace_stairs_magenta.png", (79, 64, 2095, 640), (2016, 576), (336, 96)),
+    ("market_arcade_ai", "market_arcade_magenta.png", (78, 26, 2094, 698), (2016, 672), (288, 96)),
+    ("tree_blossom_ai", "blossom_tree_transparent.png", (0, 0, 1254, 1254), (1280, 1280), (128, 128)),
+    ("stall_market_cluster_ai", "market_stall_cluster_magenta.png", (124, 50, 1996, 674), (1872, 624), (144, 48)),
+    ("urban_row_ai", "urban_row_magenta.png", (78, 26, 2094, 698), (2016, 672), (288, 96)),
 ]
 
 # ---- tile 清单：16×16 整窗（TileMap 图集源，不修边）----
@@ -735,7 +739,8 @@ def main():
             assets.append({"name": name, "kind": "prop", "category": cat_of(name),
                            "sheet": rel, "box": list(box)})
         for name, rel, source_box, _canvas_size, output_size in AI_PROPS:
-            assets.append({"name": name, "kind": "prop", "category": "building",
+            kind = "building" if name in {"market_arcade_ai", "urban_row_ai"} else "prop"
+            assets.append({"name": name, "kind": kind, "category": "building",
                            "sheet": "art_sources/imagegen/changan_v2/" + rel,
                            "box": [0, 0, output_size[0], output_size[1]],
                            "source_box": list(source_box),

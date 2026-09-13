@@ -97,8 +97,23 @@ func _ready() -> void:
 			fails.append("两市物流车辆=%d < 下限4" % int(city.stats.get("material_vehicles", 0)))
 		if int(city.stats.get("material_shore_life", 0)) < 4:
 			fails.append("曲江水岸生活件=%d < 下限4" % int(city.stats.get("material_shore_life", 0)))
-	if int(city.stats.get("population", 0)) != 40:
-		fails.append("城市人口=%d≠40" % int(city.stats.get("population", 0)))
+		var bustling_frontages := get_tree().get_nodes_in_group("changan_bustling_frontage").size()
+		if bustling_frontages < 3:
+			fails.append("连排繁华商铺=%d < 下限3" % bustling_frontages)
+		var market_clusters := get_tree().get_nodes_in_group("changan_market_cluster").size()
+		if market_clusters < 3:
+			fails.append("彩棚摊市组=%d < 下限3" % market_clusters)
+		var urban_frontages := get_tree().get_nodes_in_group("changan_urban_frontage").size()
+		if urban_frontages < 3:
+			fails.append("商住连排=%d < 下限3" % urban_frontages)
+		var blossom_trees := get_tree().get_nodes_in_group("changan_blossom_tree").size()
+		if blossom_trees < 1:
+			fails.append("春日花树=%d < 下限1" % blossom_trees)
+		var axis_lanterns := get_tree().get_nodes_in_group("changan_axis_lantern").size()
+		if axis_lanterns < 20:
+			fails.append("朱雀大街红灯阵=%d < 下限20" % axis_lanterns)
+	if int(city.stats.get("population", 0)) != 72:
+		fails.append("城市人口=%d≠72" % int(city.stats.get("population", 0)))
 	# 城墙用完整 wall_run 立面连续铺设；TileMap 仍保留两格厚碰撞环。
 	if city.materials_count > 0 and get_tree().get_nodes_in_group("changan_outer_wall_facade").size() < 50:
 		fails.append("外郭高墙连续立面不足50段")

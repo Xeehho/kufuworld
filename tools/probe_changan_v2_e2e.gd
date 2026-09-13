@@ -49,7 +49,7 @@ func _ready() -> void:
 	_check(p.get_node_or_null("CollisionShape2D") != null and p.get_node_or_null("GroundShadow") != null,
 			"玩家脚部碰撞盒与接地阴影齐备")
 	var population = ch.get_node_or_null("Population")
-	_check(population != null and population.get_child_count() == 40, "城内人口40名")
+	_check(population != null and population.get_child_count() == 72, "城内人口72名")
 	var materials = ch.get_node_or_null("Materials")
 	_check(materials != null and materials.z_index == p.z_index and population != null and population.z_index == p.z_index,
 			"玩家/建筑/NPC同层递归Y-sort，人物可在建筑前后穿行")
@@ -92,6 +92,16 @@ func _ready() -> void:
 			"东西两市各有牛车与小轿物流节点")
 	_check(get_tree().get_nodes_in_group("changan_shore_life").size() >= 4,
 			"曲江船只与岸边停留点不少于4处")
+	_check(get_tree().get_nodes_in_group("changan_bustling_frontage").size() >= 3,
+			"东西两市与平康坊至少3组连排繁华商铺")
+	_check(get_tree().get_nodes_in_group("changan_market_cluster").size() >= 3,
+			"东西两市与平康坊至少3组彩棚摊市")
+	_check(get_tree().get_nodes_in_group("changan_urban_frontage").size() >= 3,
+			"至少3个平民坊采用商住连排街面")
+	_check(get_tree().get_nodes_in_group("changan_blossom_tree").size() >= 1,
+			"城内至少1株春日花树")
+	_check(get_tree().get_nodes_in_group("changan_axis_lantern").size() >= 20,
+			"朱雀大街至少20盏成对红灯")
 	var qujiang_water := 0
 	for ground_id in ch.ground:
 		if int(ground_id) == ch.T_WATER:

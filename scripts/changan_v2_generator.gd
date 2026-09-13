@@ -226,7 +226,7 @@ func _build():
 	generation_done.emit()
 
 
-# ---- 城市人口层：主街/横街/两市布置 40 名静态生活 NPC ----
+# ---- 城市人口层：主街/横街/两市入口布置 72 名静态生活 NPC ----
 # NPC 复用既有角色帧、脚底阴影与碰撞分层；先用 idle 日程保证不穿越水面/建筑，
 # 后续在城市寻路图接入后再升级为巡市路线。
 func _spawn_population() -> void:
@@ -238,23 +238,29 @@ func _spawn_population() -> void:
 	var cells: Array[Vector2i] = []
 	var zx := seam_x(axis_col) + zq_s / 2
 	for r in range(rows):
-		cells.append(Vector2i(zx - 1, row_y(r) + 8))
-		cells.append(Vector2i(zx + 1, row_y(r) + 14))
-	for j in range(1, rows):
-		var sy := seam_y(j) + main_s / 2
-		for c in range(cols):
-			# 人群停在横街两侧车道，中心线继续留给玩家/NPC 主通道探针。
-			cells.append(Vector2i(col_x(c) + 10, sy - 1 if c % 2 == 0 else sy + 1))
+		# 人群贴近御街两侧分四拍出现，中央两格继续留作连续通行轴。
+		cells.append(Vector2i(zx - 2, row_y(r) + 5))
+		cells.append(Vector2i(zx + 2, row_y(r) + 8))
+		cells.append(Vector2i(zx - 2, row_y(r) + 12))
+		cells.append(Vector2i(zx + 2, row_y(r) + 16))
+	# 两市入口优先形成聚集点；NPC 全部站在坊外横街，不压住店铺和摊位碰撞。
 	for b in blocks:
 		if String(b["kind"]) != "market":
 			continue
 		var rect := _block_rect(b)
-		for p in [Vector2i(1, 11), Vector2i(10, 9), Vector2i(13, 11), Vector2i(18, 9)]:
-			cells.append(rect.position + p)
+		for off_x in [3, 7, 12, 16]:
+			cells.append(Vector2i(rect.position.x + off_x, rect.position.y - 2))
+			cells.append(Vector2i(rect.position.x + off_x, rect.end.y + 1))
+	for j in range(1, rows):
+		var sy := seam_y(j) + main_s / 2
+		for c in range(cols):
+			# 每坊两组横街行人，沿街面分散；中心线继续留给玩家/NPC 主通道探针。
+			cells.append(Vector2i(col_x(c) + 5, sy - 1 if c % 2 == 0 else sy + 1))
+			cells.append(Vector2i(col_x(c) + 15, sy + 1 if c % 2 == 0 else sy - 1))
 	var types := ["warrior", "scholar", "merchant", "elder", "guard",
 			"tavern_f", "matron_f", "peasant_f", "herbalist_f", "seamstress_f"]
 	var names := ["行商", "书生", "脚夫", "香客", "坊民", "侍女", "货郎", "老者"]
-	for i in range(mini(40, cells.size())):
+	for i in range(mini(72, cells.size())):
 		var npc = NPCScene.instantiate()
 		var pos := cell_to_px(cells[i])
 		var data = NPCDataRes.new()

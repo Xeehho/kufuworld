@@ -2420,6 +2420,82 @@
    "source_kind": "imagegen"
   },
   {
+   "name": "market_arcade_ai",
+   "kind": "building",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/market_arcade_magenta.png",
+   "box": [
+    0,
+    0,
+    288,
+    96
+   ],
+   "source_box": [
+    78,
+    26,
+    2094,
+    698
+   ],
+   "source_kind": "imagegen"
+  },
+  {
+   "name": "tree_blossom_ai",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/blossom_tree_transparent.png",
+   "box": [
+    0,
+    0,
+    128,
+    128
+   ],
+   "source_box": [
+    0,
+    0,
+    1254,
+    1254
+   ],
+   "source_kind": "imagegen"
+  },
+  {
+   "name": "stall_market_cluster_ai",
+   "kind": "prop",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/market_stall_cluster_magenta.png",
+   "box": [
+    0,
+    0,
+    144,
+    48
+   ],
+   "source_box": [
+    124,
+    50,
+    1996,
+    674
+   ],
+   "source_kind": "imagegen"
+  },
+  {
+   "name": "urban_row_ai",
+   "kind": "building",
+   "category": "building",
+   "sheet": "art_sources/imagegen/changan_v2/urban_row_magenta.png",
+   "box": [
+    0,
+    0,
+    288,
+    96
+   ],
+   "source_box": [
+    78,
+    26,
+    2094,
+    698
+   ],
+   "source_kind": "imagegen"
+  },
+  {
    "name": "street_main",
    "kind": "tile",
    "category": "ground",

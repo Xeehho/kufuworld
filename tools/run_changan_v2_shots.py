@@ -12,12 +12,15 @@ MARKER = 'ProbeChanganV2Shots="*res://tools/probe_changan_v2_shots.gd"'
 
 
 def main():
-    with open(pg, encoding="utf-8") as f:
+    with open(pg, "rb") as f:
         original = f.read()
     try:
-        if MARKER not in original:
-            patched = original.replace("[autoload]\n", "[autoload]\n\n" + MARKER + "\n", 1)
-            with open(pg, "w", encoding="utf-8") as f:
+        marker_bytes = MARKER.encode("utf-8")
+        if marker_bytes not in original:
+            eol = b"\r\n" if b"[autoload]\r\n" in original else b"\n"
+            header = b"[autoload]" + eol
+            patched = original.replace(header, header + eol + marker_bytes + eol, 1)
+            with open(pg, "wb") as f:
                 f.write(patched)
         if os.path.exists(gp):
             os.remove(gp)
@@ -32,7 +35,8 @@ def main():
             proc.kill()
         gf.close()
     finally:
-        with open(pg, "w", encoding="utf-8") as f:
+        # 字节级恢复：不得把用户当前 project.godot 的 LF/CRLF 或 BOM 顺手改写。
+        with open(pg, "wb") as f:
             f.write(original)
     print("project.godot restored")
     with open(gp, "r", encoding="utf-8", errors="replace") as f:

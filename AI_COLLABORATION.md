@@ -431,3 +431,14 @@
 - 另一条线需要知道：未修改或暂存用户 TMX、`tools/godot_path.txt` 与玩法 UID；这些仍属于其他在制内容。
 - 下一步：Image 2.0 补台地侧/背壁、凹凸角、四向阶梯、院墙转角和建筑侧/背面；按宫城纵切方式逐区实机验收后再扩。
 - Git commit：随当前视觉提交落库。
+
+### 2026-09-13 16:34｜视觉世界线｜城内繁华度第五轮
+
+- 状态：阶段完成；外郭墙与四门按用户要求冻结，连接处留到最后一轮。
+- 改动文件：四张 Image 2.0 城内生成源及四张透明派生件、切片 manifest、长安生成器/材质层、三份 v2 探针、三套注入 runner、十二机位与三张光照样张、差距清单。
+- 完成内容：东西市/平康坊加入高低错落连排商铺和三联彩棚；三处平民坊加入克制的商住连排；朱雀大街加入 20 盏成对红灯；城内静态人口 40→72，并优先沿朱雀轴与两市入口聚集。
+- 稳定接口变化：`stats.population` 的验收契约更新为 72；新增节点组 `changan_bustling_frontage`、`changan_market_cluster`、`changan_urban_frontage`、`changan_blossom_tree`、`changan_axis_lantern` 仅供视觉/物理探针。四门 side、`gate_info`、Portals、街区 id、冻结街网、BFS 与共享热点均未改。
+- 验证命令与结果：结构 PASS（350 材质、113 阴影、93 碰撞、28 活动件、4 车辆、4 水岸生活、72 NPC、BFS=0）；窗口 12 机位 + 光照 A/B 3 张 PASS；主场景 E2E 全 PASS；开放世界 94/94；三份日志零错误/泄漏；`project.godot` SHA-256 运行前后字节一致。
+- 另一条线需要知道：未修改或暂存用户 TMX、参考图删除现场、`project.godot`、`tools/godot_path.txt`、Godot `.import` 与玩法 UID；这些仍属于其他现场。
+- 下一步：先继续皇城院落和次级巷道生活簇；城墙四角/横竖接口/门肩收口坚持末轮处理。
+- Git commit：随当前视觉提交落库。
